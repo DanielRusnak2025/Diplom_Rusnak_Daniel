@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.*?>
+<?import javafx.scene.text.*?>
+
+<AnchorPane prefWidth="430" prefHeight="932"
+            minWidth="430" minHeight="932" maxWidth="430" maxHeight="932"
+            style="-fx-background-color: #EDE0C1;"
+            xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.example.controller.LanguageRegionController">
+
+    <!-- Декор -->
+    <Rectangle fill="#DCC999" height="1093.0" width="407.0" rotate="44.0"
+               AnchorPane.leftAnchor="412.0" AnchorPane.topAnchor="-234.0"/>
+
+    <!-- Карточка -->
+    <VBox spacing="24" alignment="CENTER"
+          AnchorPane.topAnchor="200" AnchorPane.leftAnchor="28" AnchorPane.rightAnchor="28"
+          style="-fx-background-color: #D4C398;
+                 -fx-border-color: #294946;
+                 -fx-border-width: 2.5;
+                 -fx-border-radius: 24;
+                 -fx-background-radius: 24;
+                 -fx-padding: 36 28 36 28;">
+
+        <Label text="Choose your language and region"
+               wrapText="true" maxWidth="Infinity"
+               style="-fx-font-size: 20; -fx-font-weight: 800; -fx-text-fill: #294946; -fx-text-alignment: center;"/>
+
+        <!-- Language -->
+        <Button fx:id="languageButton" text="Language ▶" onAction="#onLanguage"
+                prefHeight="46.0" maxWidth="Infinity"
+                style="-fx-background-color: #EDE0C1; -fx-border-color: #294946;
+                       -fx-border-radius: 45; -fx-border-width: 2; -fx-background-radius: 45;
+                       -fx-font-size: 16; -fx-text-fill: #294946; -fx-cursor: hand;">
+            <font><Font name="Arial Bold" size="16.0"/></font>
+        </Button>
+
+        <!-- Region -->
+        <Button fx:id="regionButton" text="Region ▶" onAction="#onRegion"
+                prefHeight="46.0" maxWidth="Infinity"
+                style="-fx-background-color: #EDE0C1; -fx-border-color: #294946;
+                       -fx-border-radius: 45; -fx-border-width: 2; -fx-background-radius: 45;
+                       -fx-font-size: 16; -fx-text-fill: #294946; -fx-cursor: hand;">
+            <font><Font name="Arial Bold" size="16.0"/></font>
+        </Button>
+
+        <!-- Error -->
+        <Label fx:id="errorLabel" text="" wrapText="true" maxWidth="Infinity"
+               style="-fx-text-fill: #C0392B; -fx-font-size: 13; -fx-font-weight: 800;"/>
+
+        <!-- Enter -->
+        <Button fx:id="enterButton" text="Enter" onAction="#onEnter"
+                prefHeight="46.0" maxWidth="Infinity"
+                style="-fx-background-color: #294946; -fx-background-radius: 45;
+                       -fx-text-fill: #D4C398; -fx-font-size: 16; -fx-font-weight: 800;
+                       -fx-cursor: hand;">
+            <font><Font name="Arial Bold" size="16.0"/></font>
+        </Button>
+
+    </VBox>
+
+</AnchorPane>

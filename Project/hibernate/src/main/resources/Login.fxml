@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.*?>
+<?import javafx.scene.text.*?>
+
+<AnchorPane prefWidth="520" prefHeight="932"
+            minWidth="520" minHeight="932" maxWidth="520" maxHeight="932"
+            style="-fx-background-color: #EDE0C1;"
+            xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.example.controller.LoginController">
+
+    <Rectangle fill="#DCC999" height="1093.0" width="407.0" rotate="44.0"
+               AnchorPane.leftAnchor="412.0" AnchorPane.topAnchor="-234.0"/>
+
+    <Label text="NewsDove"
+           style="-fx-font-size: 64; -fx-font-weight: 800; -fx-text-fill: #294946;"
+           AnchorPane.leftAnchor="46.0" AnchorPane.topAnchor="68.0"/>
+
+    <ListView fx:id="articlesCarousel"
+              AnchorPane.leftAnchor="14.0" AnchorPane.rightAnchor="14.0"
+              AnchorPane.topAnchor="192.0" AnchorPane.bottomAnchor="286.0"
+              style="-fx-background-color: transparent; -fx-border-color: transparent;"/>
+
+    <TextField fx:id="loginField" promptText="Login" prefHeight="40.0"
+               style="-fx-background-color: none; -fx-border-color: #294946; -fx-border-radius: 45; -fx-border-width: 2; -fx-background-radius: 45; -fx-font-size: 20; -fx-alignment: center; -fx-prompt-text-fill: rgba(41,73,70,0.7);"
+               AnchorPane.leftAnchor="40.0" AnchorPane.rightAnchor="40.0" AnchorPane.bottomAnchor="200.0"/>
+
+    <PasswordField fx:id="passwordField" promptText="Password" prefHeight="40.0"
+                   style="-fx-background-color: none; -fx-border-color: #294946; -fx-border-radius: 45; -fx-border-width: 2; -fx-background-radius: 45; -fx-font-size: 20; -fx-alignment: center; -fx-prompt-text-fill: rgba(41,73,70,0.7);"
+                   AnchorPane.leftAnchor="40.0" AnchorPane.rightAnchor="40.0" AnchorPane.bottomAnchor="146.0"/>
+
+    <Label text="Register" textFill="#294946" onMouseClicked="#onRegister"
+           style="-fx-cursor: hand; -fx-font-size: 20; -fx-font-weight: 800;"
+           AnchorPane.leftAnchor="19.0" AnchorPane.bottomAnchor="100.0"/>
+
+    <Button fx:id="enterButton" text="Enter" onAction="#onEnter"
+            prefHeight="40.0" prefWidth="149.0"
+            style="-fx-background-color: #294946; -fx-background-radius: 45; -fx-text-fill: #D4C398; -fx-font-size: 16; -fx-font-weight: 800;"
+            AnchorPane.rightAnchor="40.0" AnchorPane.bottomAnchor="96.0"/>
+
+    <Label fx:id="errorLabel" text="" wrapText="true"
+           style="-fx-text-fill: #C0392B; -fx-font-size: 16; -fx-font-weight: 800;"
+           AnchorPane.leftAnchor="19.0" AnchorPane.rightAnchor="19.0" AnchorPane.bottomAnchor="14.0"/>
+</AnchorPane>

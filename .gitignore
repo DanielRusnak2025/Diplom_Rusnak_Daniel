@@ -1,0 +1,84 @@
+# Compiled output
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+
+# Maven
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.idea_modules/
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# NetBeans
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Environment / secrets
+*.env
+.env
+email.properties
+hibernate.cfg.xml
+ai.properties
+
+# JavaFX / runtime
+*.dylib
+*.so
+*.dll
+
+# JavaFX SDK (binary distribution — install separately)
+Project/javafx-sdk-*/
+
+# Claude Code tooling
+.claude/
+
+# Notes / scratch files with test credentials
+Project/Stuf.txt
+
+# SQL dumps / backups (outside migrations folder)
+/backups/
+*.dump
+
+# MySQL credentials file
+.mylogin.cnf
+
+# Certificates and keystores
+*.pem
+*.key
+*.p12
+*.jks
+
+# Temporary files
+*.tmp
+*.swp
+*~

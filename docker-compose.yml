@@ -1,0 +1,8 @@
+services:
+  claude-agent:
+    build: .
+    container_name: coursework-agent
+    volumes:
+      - .:/coursework
+    stdin_open: true
+    tty: true

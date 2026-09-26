@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!DOCTYPE hibernate-configuration PUBLIC
+        "-//Hibernate/Hibernate Configuration DTD 3.0//EN"
+        "http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
+
+<hibernate-configuration>
+    <session-factory>
+
+        <!-- JDBC connection settings -->
+        <property name="hibernate.connection.driver_class">com.mysql.cj.jdbc.Driver</property>
+        <property name="hibernate.connection.url">jdbc:mysql://localhost:3306/db_use_test?useSSL=false&amp;serverTimezone=Europe/Chisinau&amp;allowPublicKeyRetrieval=true&amp;characterEncoding=UTF-8&amp;useUnicode=true</property>
+        <property name="hibernate.connection.username">newsdove_dev</property>
+        <property name="hibernate.connection.password">YOUR_DB_PASSWORD_HERE</property>
+
+        <!-- SQL Dialect -->
+        <property name="hibernate.dialect">org.hibernate.dialect.MySQLDialect</property>
+
+        <!-- Output SQL to console -->
+        <property name="hibernate.show_sql">true</property>
+        <property name="hibernate.format_sql">true</property>
+
+        <!-- Validate schema only — never modify tables -->
+        <property name="hibernate.hbm2ddl.auto">validate</property>
+
+        <!-- List of mapped entity classes -->
+        <mapping class="org.example.User"/>
+        <mapping class="org.example.Tag"/>
+        <mapping class="org.example.UserTagPercent"/>
+        <mapping class="org.example.Article"/>
+        <mapping class="org.example.ArticleTagPercent"/>
+        <mapping class="org.example.Report"/>
+
+    </session-factory>
+</hibernate-configuration>

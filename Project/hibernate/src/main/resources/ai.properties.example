@@ -1,0 +1,4 @@
+# Ollama (local AI)
+ollama.url=http://localhost:11434
+ollama.model=llama3.2
+ollama.max_text_length=2000
