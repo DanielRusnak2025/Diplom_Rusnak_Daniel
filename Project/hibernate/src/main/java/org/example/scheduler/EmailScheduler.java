@@ -1,13 +1,11 @@
 package org.example.scheduler;
 
-import javafx.application.Platform;
 import org.example.Tag;
 import org.example.ai.ArticleExtractor;
 import org.example.ai.ArticleSaver;
 import org.example.ai.ExtractedArticle;
 import org.example.ai.LinkExtractor;
 import org.example.ai.LinkFilter;
-import org.example.controller.SearchByKeywordController;
 import org.example.dao.impl.TagDAOImpl;
 import org.example.email.EmailConfig;
 import org.example.email.EmailMessage;
@@ -70,14 +68,6 @@ public class EmailScheduler {
         this.articleService = new ArticleService();
         this.scheduler      = Executors.newSingleThreadScheduledExecutor();
         this.articleExecutor = Executors.newFixedThreadPool(parallelRequests);
-
-        // Platform.runLater оборачивается здесь — ArticleSaver не знает о JavaFX
-        this.saver.setOnArticleSaved(() -> {
-            SearchByKeywordController controller = SearchByKeywordController.getInstance();
-            if (controller != null) {
-                Platform.runLater(controller::refreshArticles);
-            }
-        });
     }
 
     public void start() {
