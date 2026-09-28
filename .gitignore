@@ -78,6 +78,9 @@ Project/Stuf.txt
 *.p12
 *.jks
 
+# Local run scripts (machine-specific paths)
+run.bat
+
 # Temporary files
 *.tmp
 *.swp
