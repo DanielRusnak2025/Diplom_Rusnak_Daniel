@@ -52,4 +52,12 @@ public class EmailConfig {
         try { return Integer.parseInt(props.getProperty("scheduler.cleanup.max.reads", "0")); }
         catch (NumberFormatException e) { return 0; }
     }
+
+    public static boolean isSchedulerEnabled() {
+        return Boolean.parseBoolean(props.getProperty("scheduler.enabled", "true"));
+    }
+
+    public static boolean isCleanupEnabled() {
+        return Boolean.parseBoolean(props.getProperty("scheduler.cleanup.enabled", "false"));
+    }
 }

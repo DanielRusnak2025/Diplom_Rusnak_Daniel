@@ -111,10 +111,12 @@ public class EmailScheduler {
         System.out.println("\n=== Запуск pipeline: " + java.time.LocalDateTime.now() + " ===");
 
         try {
-            int cleaned = articleService.deleteOldArticles(cleanupDays, cleanupMaxReads);
-            if (cleaned > 0) {
-                System.out.println("🗑 Автоочистка: удалено " + cleaned
-                        + " статей старше " + cleanupDays + " дней с readCount <= " + cleanupMaxReads);
+            if (EmailConfig.isCleanupEnabled()) {
+                int cleaned = articleService.deleteOldArticles(cleanupDays, cleanupMaxReads);
+                if (cleaned > 0) {
+                    System.out.println("🗑 Автоочистка: удалено " + cleaned
+                            + " статей старше " + cleanupDays + " дней с readCount <= " + cleanupMaxReads);
+                }
             }
 
             if (!extractor.isOllamaAvailable()) {

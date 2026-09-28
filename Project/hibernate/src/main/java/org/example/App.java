@@ -4,6 +4,7 @@ import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import org.example.email.EmailConfig;
 import org.example.scheduler.EmailScheduler;
 
 import java.io.IOException;
@@ -14,11 +15,21 @@ public class App extends Application {
 
     @Override
     public void start(Stage stage) throws IOException {
-        // Запускаем email-планировщик в фоне
-        emailScheduler = new EmailScheduler();
-        Thread schedulerThread = new Thread(() -> emailScheduler.start());
-        schedulerThread.setDaemon(true);
-        schedulerThread.start();
+        boolean schedulerEnabled = EmailConfig.isSchedulerEnabled();
+        boolean cleanupEnabled   = EmailConfig.isCleanupEnabled();
+        org.hibernate.cfg.Configuration hCfg = new org.hibernate.cfg.Configuration().configure();
+        String dbUrl  = hCfg.getProperty("hibernate.connection.url");
+        String dbUser = hCfg.getProperty("hibernate.connection.username");
+        System.out.println("[Config] scheduler.enabled=" + schedulerEnabled
+                + "  scheduler.cleanup.enabled=" + cleanupEnabled
+                + "  db.url=" + dbUrl + "  db.user=" + dbUser);
+
+        if (schedulerEnabled) {
+            emailScheduler = new EmailScheduler();
+            Thread schedulerThread = new Thread(() -> emailScheduler.start());
+            schedulerThread.setDaemon(true);
+            schedulerThread.start();
+        }
 
         // Открываем экран логина
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/Login.fxml"));

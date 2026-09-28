@@ -1,0 +1,16 @@
+# Gmail account for fetching newsletter emails
+email.address=your-email@gmail.com
+email.app.password=your-16-char-app-password
+
+# Scheduler settings
+scheduler.interval.minutes=30
+scheduler.parallel.requests=5
+
+# Set to false to skip the EmailScheduler entirely (login/feed still work, no Gmail/Ollama needed)
+scheduler.enabled=true
+
+# Cleanup: delete old unread articles on each pipeline run
+# Default: false — safe, never deletes data automatically. Set to true only in production.
+scheduler.cleanup.enabled=false
+scheduler.cleanup.days=60
+scheduler.cleanup.max.reads=0
