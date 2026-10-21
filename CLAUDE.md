@@ -100,5 +100,6 @@ Weight update on rating: Like → +delta, Dislike → −delta, Neutral → rand
 - Hibernate entities must not cross the server boundary; use DTOs from `shared` (kotlinx.serialization).
 - Services must accept `userId` as a parameter; no global "current user" state.
 - The `ArticleClassifier` interface (Stage 3) is the only entry point to AI — `OllamaClassifier` is the implementation. Future models just implement the interface.
+- The AI layer must remain swappable: no bindings to a specific model outside the `ArticleClassifier` implementation and `ai.properties`.
 - RBAC enforced server-side on every admin endpoint; the Android app navigates by role but the server always re-checks.
 - Tokens stored encrypted with a key from Android Keystore; admin data never cached in Room.
