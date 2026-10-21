@@ -6,6 +6,13 @@ target/
 *.ear
 *.nar
 
+# Gradle build outputs and caches
+.gradle/
+build/
+
+# Gradle wrapper jar must be committed — override the *.jar rule above
+!gradle/wrapper/gradle-wrapper.jar
+
 # Maven
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
