@@ -64,14 +64,8 @@ ai.properties
 *.so
 *.dll
 
-# JavaFX SDK (binary distribution — install separately)
-Project/javafx-sdk-*/
-
 # Claude Code tooling
 .claude/
-
-# Notes / scratch files with test credentials
-Project/Stuf.txt
 
 # SQL dumps / backups (outside migrations folder)
 /backups/
