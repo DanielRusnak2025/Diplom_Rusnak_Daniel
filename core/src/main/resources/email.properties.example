@@ -19,3 +19,7 @@ scheduler.cleanup.max.reads=0
 # Default 7 — safe: old archive is never processed if the key is missing.
 # IMAP compares dates by day (without time): N=1 means since yesterday's date.
 scheduler.max.age.days=7
+
+# Max emails to process per scheduler cycle. 0 = no limit.
+# Remaining unread emails stay in inbox and are picked up in the next cycle.
+scheduler.max.emails.per.cycle=0

@@ -68,10 +68,21 @@ public class EmailReader {
 
             Message[] messages = inbox.search(searchTerm);
 
+            int maxPerCycle = EmailConfig.getMaxEmailsPerCycle();
+            int total = messages.length;
+            if (maxPerCycle > 0 && total > maxPerCycle) {
+                messages = java.util.Arrays.copyOf(messages, maxPerCycle);
+            }
+
             String ageDesc = maxAgeDays > 0
                     ? "непрочитанных за последние " + maxAgeDays + " дней"
                     : "непрочитанных без ограничения по дате";
-            System.out.println("Писем к обработке: " + messages.length + " (" + ageDesc + ")");
+            if (maxPerCycle > 0 && total > maxPerCycle) {
+                System.out.println("Писем к обработке: " + messages.length
+                        + " из " + total + " (лимит за цикл: " + maxPerCycle + ")");
+            } else {
+                System.out.println("Писем к обработке: " + total + " (" + ageDesc + ")");
+            }
 
             for (Message message : messages) {
                 try {

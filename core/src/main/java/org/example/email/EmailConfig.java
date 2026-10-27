@@ -65,4 +65,9 @@ public class EmailConfig {
         try { return Integer.parseInt(props.getProperty("scheduler.max.age.days", "7")); }
         catch (NumberFormatException e) { return 7; }
     }
+
+    public static int getMaxEmailsPerCycle() {
+        try { return Integer.parseInt(props.getProperty("scheduler.max.emails.per.cycle", "0")); }
+        catch (NumberFormatException e) { return 0; }
+    }
 }
