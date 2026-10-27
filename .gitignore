@@ -50,6 +50,7 @@ desktop.ini
 # Logs
 *.log
 logs/
+**/logs/
 
 # Environment / secrets
 *.env
