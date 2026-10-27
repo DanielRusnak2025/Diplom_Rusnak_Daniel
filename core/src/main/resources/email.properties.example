@@ -14,3 +14,8 @@ scheduler.enabled=true
 scheduler.cleanup.enabled=false
 scheduler.cleanup.days=60
 scheduler.cleanup.max.reads=0
+
+# Max age of emails to fetch from IMAP (days). 0 = no date limit (process all unread).
+# Default 7 — safe: old archive is never processed if the key is missing.
+# IMAP compares dates by day (without time): N=1 means since yesterday's date.
+scheduler.max.age.days=7

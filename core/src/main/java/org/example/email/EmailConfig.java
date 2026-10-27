@@ -60,4 +60,9 @@ public class EmailConfig {
     public static boolean isCleanupEnabled() {
         return Boolean.parseBoolean(props.getProperty("scheduler.cleanup.enabled", "false"));
     }
+
+    public static int getMaxAgeDays() {
+        try { return Integer.parseInt(props.getProperty("scheduler.max.age.days", "7")); }
+        catch (NumberFormatException e) { return 7; }
+    }
 }

@@ -2,9 +2,15 @@ package org.example.email;
 
 import jakarta.mail.*;
 import jakarta.mail.internet.MimeMultipart;
+import jakarta.mail.search.AndTerm;
+import jakarta.mail.search.ComparisonTerm;
 import jakarta.mail.search.FlagTerm;
+import jakarta.mail.search.ReceivedDateTerm;
+import jakarta.mail.search.SearchTerm;
 
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 import java.util.function.Consumer;
@@ -46,11 +52,26 @@ public class EmailReader {
             Folder inbox = store.getFolder("INBOX");
             inbox.open(Folder.READ_WRITE);
 
-            Message[] messages = inbox.search(
-                    new FlagTerm(new Flags(Flags.Flag.SEEN), false)
-            );
+            int maxAgeDays = EmailConfig.getMaxAgeDays();
+            SearchTerm searchTerm;
+            if (maxAgeDays > 0) {
+                Calendar cal = Calendar.getInstance();
+                cal.add(Calendar.DAY_OF_MONTH, -maxAgeDays);
+                Date cutoff = cal.getTime();
+                searchTerm = new AndTerm(
+                        new FlagTerm(new Flags(Flags.Flag.SEEN), false),
+                        new ReceivedDateTerm(ComparisonTerm.GE, cutoff)
+                );
+            } else {
+                searchTerm = new FlagTerm(new Flags(Flags.Flag.SEEN), false);
+            }
 
-            System.out.println("Найдено непрочитанных писем: " + messages.length);
+            Message[] messages = inbox.search(searchTerm);
+
+            String ageDesc = maxAgeDays > 0
+                    ? "непрочитанных за последние " + maxAgeDays + " дней"
+                    : "непрочитанных без ограничения по дате";
+            System.out.println("Писем к обработке: " + messages.length + " (" + ageDesc + ")");
 
             for (Message message : messages) {
                 try {
