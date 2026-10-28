@@ -15,7 +15,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Сервис для работы с процентами интересов пользователей к тегам
@@ -269,15 +268,19 @@ public class TagPercentService {
     /**
      * Корректирует UserTagPercent пользователя по каждому тегу статьи.
      *
-     * direction = +1 (Like):    delta = round(articleTagPercent / 2.0), min 1
-     * direction = -1 (Dislike): delta = -round(articleTagPercent / 2.0), max -1
-     * direction =  0 (Neutral): delta = случайное из {-3,-2,-1,1,2,3}
+     * direction = +1 (Like):     delta = round(articleTagPercent / 2.0), min 1
+     * direction = -1 (Dislike):  delta = -round(articleTagPercent / 2.0), max -1
+     * direction = -2 (Complaint): то же, что -1
+     * direction =  0 (Neutral):  delta = 0, веса не меняются
      *
-     * Все операции в одной транзакции. Значения зажаты в [-100, 100].
+     * Все операции в одной транзакции. Значения сглаживаются у границ ±100.
      */
     public void adjustUserTagWeights(Article article, User user, int direction) {
         List<ArticleTagPercent> articleTags = articleTagPercentDAO.findByArticle(article);
         if (articleTags == null || articleTags.isEmpty()) return;
+
+        // Жалоба меняет веса как дизлайк
+        int effective = (direction == -2) ? -1 : direction;
 
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             session.beginTransaction();
@@ -286,27 +289,14 @@ public class TagPercentService {
                     Tag tag = atp.getTag();
                     if (tag == null || atp.getPercent() <= 0) continue;
 
-                    // Ищем существующую запись UserTagPercent в текущей сессии
+                    int delta = computeDelta(effective, atp.getPercent());
+                    if (delta == 0) continue; // нейтральная оценка — не трогать запись
+
                     UserTagId utpId = new UserTagId(user.getNick(), tag.getId());
                     UserTagPercent utp = session.find(UserTagPercent.class, utpId);
                     int current = (utp != null) ? utp.getPercent() : 0;
 
-                    // Вычисляем delta по типу реакции
-                    int delta;
-                    if (direction == 1) {
-                        // Like: +round(articleTagPercent / 2), минимум 1
-                        delta = Math.max(1, (int) Math.round(atp.getPercent() / 2.0));
-                    } else if (direction == -1) {
-                        // Dislike: -round(articleTagPercent / 2), максимум -1
-                        delta = Math.min(-1, -(int) Math.round(atp.getPercent() / 2.0));
-                    } else {
-                        // Neutral: случайное из {-3,-2,-1,1,2,3}
-                        ThreadLocalRandom rnd = ThreadLocalRandom.current();
-                        int magnitude = rnd.nextInt(1, 4); // 1, 2 или 3
-                        delta = rnd.nextBoolean() ? magnitude : -magnitude;
-                    }
-
-                    int newValue = Math.max(-100, Math.min(100, current + delta));
+                    int newValue = smoothClamp(current, delta);
 
                     if (utp != null) {
                         utp.setPercent(newValue); // managed entity — dirty checking сохранит сам
@@ -321,6 +311,61 @@ public class TagPercentService {
             }
         }
     }
+
+    /**
+     * Вычисляет величину изменения веса по типу реакции и весу тега в статье.
+     * direction: +1=Like, -1=Dislike, 0=Neutral
+     * Возвращает 0 при нейтральной оценке — вызывающий код должен пропустить обновление.
+     */
+    static int computeDelta(int direction, int articlePercent) {
+        if (direction == 1) {
+            return Math.max(1, (int) Math.round(articlePercent / 2.0));
+        } else if (direction == -1) {
+            return Math.min(-1, -(int) Math.round(articlePercent / 2.0));
+        }
+        return 0; // neutral: no weight change
+    }
+
+    /**
+     * Применяет delta к текущему весу со сглаживанием у границ ±100.
+     *
+     * Формула (при движении к ближайшей границе, |raw| > ZONE_START):
+     *   s = max(|current|, ZONE_START)
+     *   f = s + round((|raw| − s) × ZONE_COMPRESSION × (100 − s) / 20)
+     * Коэффициент (100 − s)/20 убывает с глубиной зоны: s=80 → 1.0; s=90 → 0.5; s=95 → 0.25.
+     * Гарантированный минимальный шаг ±1: если f ≤ |current| → f = |current| + 1.
+     * При движении от границы или вне зоны — полный шаг с ограничением ±100.
+     *
+     * Примеры (delta=+25): 50→75 (вне зоны), 70→86, 85→93, 95→98, 98→99.
+     * Из current=90: +5→91, +10→92, +15→93, +20→94 (каждый delta даёт свой результат).
+     * Dislike от +85: 85−25=60 (полный шаг, движение от границы).
+     * Результат всегда в [−100, 100].
+     */
+    static int smoothClamp(int current, int delta) {
+        if (delta == 0) return current;
+        int raw = current + delta;
+
+        if (delta > 0 && raw > ZONE_START) {
+            int s = Math.max(current, ZONE_START);
+            double cf = ZONE_COMPRESSION * (100.0 - s) / 20.0;
+            int smoothed = s + (int) Math.round((raw - s) * cf);
+            if (smoothed <= current && current < 100) smoothed = current + 1;
+            return Math.min(100, smoothed);
+        }
+        if (delta < 0 && raw < -ZONE_START) {
+            int absCur = Math.abs(current);
+            int absRaw = Math.abs(raw);
+            int s = Math.max(absCur, ZONE_START);
+            double cf = ZONE_COMPRESSION * (100.0 - s) / 20.0;
+            int absSmoothed = s + (int) Math.round((absRaw - s) * cf);
+            if (absSmoothed <= absCur && absCur < 100) absSmoothed = absCur + 1;
+            return -Math.min(100, absSmoothed);
+        }
+        return Math.max(-100, Math.min(100, raw));
+    }
+
+    private static final int    ZONE_START       = 80;
+    private static final double ZONE_COMPRESSION = 0.4;
 
     /**
      * Рекомендует статьи для пользователя на основе его интересов.
