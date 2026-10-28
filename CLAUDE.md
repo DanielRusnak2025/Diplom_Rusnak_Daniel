@@ -27,6 +27,7 @@ The full migration plan with stage-by-stage checklists and completion criteria l
 9. **One way to run the app.** After launch, check the first `[Config]` log line — it must contain `db.url=...db_use_test`. If the line is absent or the DB is not `db_use_test` — close the app immediately and investigate.
 10. **Any decrease in row count in any table → STOP and report** before doing anything else.
 11. **Dependency versions are verified via Gradle resolution or the project's official releases page** — never via `search.maven.org` solrsearch (stale index) or from memory. Workflow: set a concrete version in `libs.versions.toml`, run `./gradlew :module:dependencies --configuration <conf>` and confirm what Gradle actually resolved. If a fetched page returns no content, say so — do not report it as confirmed.
+12. **Restoring a dump must use `cmd /c "mysql ... < file"` (binary stdin)** — never `Get-Content | mysql` (PowerShell re-encodes UTF-8, corrupting multi-byte sequences). After every restore, compare MD5 hashes of all data tables against `db_use` to confirm the bytes are intact.
 
 ---
 
