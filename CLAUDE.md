@@ -29,16 +29,19 @@ The full migration plan with stage-by-stage checklists and completion criteria l
 
 ---
 
-## Build & Run (current Maven project)
+## Build & Run
 
-**Requires JDK 25** (Eclipse Temurin `jdk-25.0.2.10-hotspot` at `C:\Program Files\Eclipse Adoptium\jdk-25.0.2.10-hotspot`). Maven: `B:\apache-maven-3.9.12\bin\mvn.cmd`.  
-All commands run from `coursework/Project/hibernate/`.
+**Requires JDK 25** (Eclipse Temurin `jdk-25.0.2.10-hotspot` at `C:\Program Files\Eclipse Adoptium\jdk-25.0.2.10-hotspot`).  
+All commands run from `coursework/` (the Gradle root).
 
 ```bash
-mvn compile            # compile
-mvn package            # build jar
-mvn test               # run all tests
-mvn test -Dtest=TagPercentServiceTest   # run single test class
+./gradlew build                # compile + test all modules
+./gradlew :core:build          # build only core (Java pipeline)
+./gradlew :shared:build        # build only shared (Kotlin DTOs)
+./gradlew :server:build        # build only server
+./gradlew :core:run            # run HeadlessMain (email pipeline, headless)
+./gradlew :server:run          # run Ktor server
+./gradlew test                 # run all tests
 ```
 
 **Start infrastructure before running the app:**
@@ -49,11 +52,11 @@ ollama pull llama3.2   # first-time model download
 ollama serve           # Ollama is auto-started by the CLI; or run explicitly
 ```
 
-**Required local config files** (not in git; create from templates):
+**Required local config files** (not in git; place in `core/src/main/resources/`):
 
-- `src/main/resources/hibernate.cfg.xml` — DB connection (host, schema `db_use`, credentials)
-- `src/main/resources/email.properties` — Gmail IMAP address + app-password
-- `src/main/resources/ai.properties` — Ollama endpoint (default: `http://localhost:11434`)
+- `hibernate.cfg.xml` — DB connection (host, schema `db_use`, credentials)
+- `email.properties` — Gmail IMAP address + app-password
+- `ai.properties` — Ollama endpoint (default: `http://localhost:11434`)
 
 ---
 

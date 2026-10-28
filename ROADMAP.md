@@ -82,19 +82,26 @@
 - Разработка ведётся на db_use_test под пользователем newsdove_dev
   (ALL на db_use_test, SELECT на db_use); доступ через mysql --login-path.
 - JDK 25 (Eclipse Temurin).
+- Сборка: Gradle 9.8.0, Kotlin 2.4.21, JDK 25 toolchain (Eclipse Temurin);
+  байт-код: core — 21, server — 21, shared — 17 (под будущий Android);
+  shared — Kotlin/JVM (не KMP); logback 1.6.5, slf4j 2.0.20,
+  kotlinx-serialization-json 1.12.0.
 
 ## 2. Этапы
 
 ### Этап 0. Подготовка
 - [x] Полный бэкап текущей БД (mysqldump) и копия базы db_use_test.
 - [x] Ветка legacy-javafx с текущим состоянием проекта.
-- [ ] Миграция Maven → Gradle (Kotlin DSL), модули core server shared androidApp.
-- [ ] JavaFX исключается из сборки.
+- [x] Миграция Maven → Gradle (Kotlin DSL), модули core server shared
+      (androidApp — перенесено в этап 5).
+- [x] JavaFX исключается из сборки.
 - [x] Вынести конфигурацию и секреты в переменные окружения / локальный файл.
 - [x] Флаги scheduler.enabled и scheduler.cleanup.enabled (очистка выключена по умолчанию).
-- [ ] Логирование SLF4J + logback, раздельные файлы app.log и error.log, ротация.
+- [x] Логирование SLF4J + logback, раздельные файлы app.log и error.log, ротация
+      (пайплайн — в этапе 3).
+- [x] HeadlessMain: пайплайн запускается без UI (./gradlew :core:run).
 Критерии готовности core собирается; пайплайн почты запускается без UI
-(headless main) и сохраняет статьи как раньше.
+(headless main) и сохраняет статьи как раньше. ✓
 
 ### Этап 1. Очистка ядра
 - [ ] Убрать из сервисов зависимости от JavaFX и глобальное состояние
