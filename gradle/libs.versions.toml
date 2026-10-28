@@ -1,7 +1,7 @@
 [versions]
 kotlin        = "2.4.21"
 kotlinxSer    = "1.12.0"
-junit         = "5.12.2"
+junit         = "6.1.3"
 hibernate     = "7.2.3.Final"
 mysql         = "9.0.0"
 jbossLogging  = "3.6.1.Final"
@@ -26,7 +26,7 @@ lingua            = { module = "com.github.pemistahl:lingua",                 ve
 slf4j-api         = { module = "org.slf4j:slf4j-api",                        version.ref = "slf4j"        }
 logback-classic   = { module = "ch.qos.logback:logback-classic",             version.ref = "logback"      }
 junit-jupiter     = { module = "org.junit.jupiter:junit-jupiter",            version.ref = "junit"        }
-junit-launcher    = { module = "org.junit.platform:junit-platform-launcher", version = "1.12.2"           }
+junit-launcher    = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit"       }
 
 [plugins]
 kotlin-jvm          = { id = "org.jetbrains.kotlin.jvm",                    version.ref = "kotlin" }
