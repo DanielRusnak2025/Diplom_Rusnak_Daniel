@@ -1,4 +1,6 @@
 [versions]
+kotlin        = "2.4.21"
+kotlinxSer    = "1.12.0"
 hibernate     = "7.2.3.Final"
 mysql         = "9.0.0"
 jbossLogging  = "3.6.1.Final"
@@ -11,6 +13,7 @@ slf4j         = "2.0.20"
 logback       = "1.6.5"
 
 [libraries]
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSer" }
 hibernate-core    = { module = "org.hibernate.orm:hibernate-core",            version.ref = "hibernate"    }
 mysql-connector-j = { module = "com.mysql:mysql-connector-j",                 version.ref = "mysql"        }
 jboss-logging     = { module = "org.jboss.logging:jboss-logging",             version.ref = "jbossLogging" }
@@ -23,3 +26,5 @@ slf4j-api         = { module = "org.slf4j:slf4j-api",                        ver
 logback-classic   = { module = "ch.qos.logback:logback-classic",             version.ref = "logback"      }
 
 [plugins]
+kotlin-jvm          = { id = "org.jetbrains.kotlin.jvm",                    version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization",  version.ref = "kotlin" }
