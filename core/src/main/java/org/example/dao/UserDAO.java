@@ -8,7 +8,9 @@ import java.util.List;
  * DAO для работы с сущностью User.
  * Наследует стандартные CRUD операции из GenericDAO.
  */
-public interface UserDAO extends GenericDAO<User, String> {
+public interface UserDAO extends GenericDAO<User, Integer> {
+
+    Optional<User> findByNick(String nick);
 
     /**
      * Находит пользователя по email.

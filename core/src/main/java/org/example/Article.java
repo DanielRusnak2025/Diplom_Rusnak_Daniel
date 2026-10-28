@@ -38,7 +38,7 @@ public class Article {
     @OneToMany(mappedBy = "article", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<ArticleTagPercent> articleTagPercents = new HashSet<>();
 
-    @OneToMany(mappedBy = "article", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "article")
     private Set<Report> reports = new HashSet<>();
 
     // ───────────────────────────────────────────────

@@ -10,7 +10,10 @@ import java.util.Set;
 public class User {
 
     @Id
-    @Column(length = 50)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private int id;
+
+    @Column(length = 50, unique = true, nullable = false)
     private String nick;
 
     @Column(length = 255, nullable = false)
@@ -40,7 +43,7 @@ public class User {
     @Column(name = "read_articles_count")
     private int readArticlesCount;
 
-    @Column(name = "notification_frequency", length = 10)
+    @Column(name = "notification_frequency", length = 10, nullable = false)
     private String notificationFrequency = "never";
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -68,6 +71,14 @@ public class User {
     // ───────────────────────────────────────────────
     // Геттеры и сеттеры
     // ───────────────────────────────────────────────
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
 
     public String getNick() {
         return nick;

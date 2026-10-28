@@ -10,8 +10,8 @@ public class UserTagPercent {
     private UserTagId id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("nick")
-    @JoinColumn(name = "nick", insertable = false, updatable = false)
+    @MapsId("userId")
+    @JoinColumn(name = "user_id", insertable = false, updatable = false)
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -33,7 +33,7 @@ public class UserTagPercent {
         this.user = user;
         this.tag = tag;
         this.percent = percent;
-        this.id = new UserTagId(user.getNick(), tag.getId());
+        this.id = new UserTagId(user.getId(), tag.getId());
     }
 
     // ───────────────────────────────────────────────
@@ -56,7 +56,7 @@ public class UserTagPercent {
         this.user = user;
         // Поддержка bidirectional связи (обновляем ключ)
         if (user != null && this.id != null) {
-            this.id.setNick(user.getNick());
+            this.id.setUserId(user.getId());
         }
     }
 

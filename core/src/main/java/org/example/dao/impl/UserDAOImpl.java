@@ -13,7 +13,7 @@ import java.util.Optional;
  * Реализация UserDAO.
  * Наследует GenericDAOImpl, поэтому базовые CRUD методы уже работают.
  */
-public class UserDAOImpl extends GenericDAOImpl<User, String> implements UserDAO {
+public class UserDAOImpl extends GenericDAOImpl<User, Integer> implements UserDAO {
 
     /**
      * Конструктор передаёт User.class в родительский класс.
@@ -77,6 +77,19 @@ public class UserDAOImpl extends GenericDAOImpl<User, String> implements UserDAO
         } catch (Exception e) {
             e.printStackTrace();
             return List.of();
+        }
+    }
+
+    @Override
+    public Optional<User> findByNick(String nick) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            return Optional.ofNullable(
+                session.createQuery("FROM User u WHERE u.nick = :nick", User.class)
+                       .setParameter("nick", nick)
+                       .uniqueResult());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Optional.empty();
         }
     }
 }

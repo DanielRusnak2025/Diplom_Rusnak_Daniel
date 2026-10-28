@@ -7,14 +7,14 @@ import java.util.Objects;
 @Embeddable
 public class UserTagId implements Serializable {
 
-    private String nick;
+    private int userId;
     private int tagId;
 
     public UserTagId() {
     }
 
-    public UserTagId(String nick, int tagId) {
-        this.nick = nick;
+    public UserTagId(int userId, int tagId) {
+        this.userId = userId;
         this.tagId = tagId;
     }
 
@@ -22,12 +22,12 @@ public class UserTagId implements Serializable {
     // Геттеры и сеттеры
     // ───────────────────────────────────────────────
 
-    public String getNick() {
-        return nick;
+    public int getUserId() {
+        return userId;
     }
 
-    public void setNick(String nick) {
-        this.nick = nick;
+    public void setUserId(int userId) {
+        this.userId = userId;
     }
 
     public int getTagId() {
@@ -47,11 +47,11 @@ public class UserTagId implements Serializable {
         if (this == o) return true;
         if (!(o instanceof UserTagId)) return false;
         UserTagId that = (UserTagId) o;
-        return tagId == that.tagId && nick.equals(that.nick);
+        return tagId == that.tagId && userId == that.userId;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(nick, tagId);
+        return Objects.hash(userId, tagId);
     }
 }

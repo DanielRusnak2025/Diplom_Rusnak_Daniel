@@ -108,7 +108,7 @@ public class TagPercentService {
      * Удаляет связь пользователь-тег.
      */
     public void removeUserTag(User user, Tag tag) {
-        UserTagId id = new UserTagId(user.getNick(), tag.getId());
+        UserTagId id = new UserTagId(user.getId(), tag.getId());
         userTagPercentDAO.deleteById(id);
     }
 
@@ -292,7 +292,7 @@ public class TagPercentService {
                     int delta = computeDelta(effective, atp.getPercent());
                     if (delta == 0) continue; // нейтральная оценка — не трогать запись
 
-                    UserTagId utpId = new UserTagId(user.getNick(), tag.getId());
+                    UserTagId utpId = new UserTagId(user.getId(), tag.getId());
                     UserTagPercent utp = session.find(UserTagPercent.class, utpId);
                     int current = (utp != null) ? utp.getPercent() : 0;
 

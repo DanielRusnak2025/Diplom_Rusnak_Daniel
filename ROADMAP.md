@@ -105,14 +105,10 @@
 
 ### Этап 1. Очистка ядра
 - [ ] Убрать из сервисов зависимости от JavaFX и глобальное состояние
-      «текущего пользователя» — сервисы принимают userId параметром.
-      ⚠ ОТЛОЖЕНО на после этапа 2: сервисы переводятся на числовой userId
-      только после V2 (суррогатный id пользователя). Сейчас в сервисах
-      используется nick (String); методы подписи не менять.
+      «текущего пользователя» — сервисы принимают userId (int) параметром.
+      V2 выполнен: User.id есть, findByNick доступен. Разблокировано.
 - [ ] Слой DTO в shared (kotlinx.serialization); сущности Hibernate не покидают сервер.
-      ⚠ ОТЛОЖЕНО на после этапа 2: финальный состав полей DTO зависит от
-      V2 (userId вместо nick) и V5 (kind=CATEGORY/SUBTOPIC у тегов).
-      Делать сейчас = переделывать дважды.
+      V2 выполнен. Ждём V5 (kind=CATEGORY/SUBTOPIC у тегов) для финального состава DTO.
 - [x] Все HQL-запросы — только с параметрами, никакой конкатенации строк.
       (аудит показал: все DAO используют именованные параметры; единственное
       исключение searchByKeywordAndDate переписано на HQL в этапе 1)
@@ -125,8 +121,9 @@
 
 ### Этап 2. Миграция БД (Flyway, сначала на копии)
 - [ ] V1 baseline (baselineOnMigrate) — текущая схема.
-- [ ] V2 user суррогатный id; user_id в report и user_tag_percent, заполнение по nick,
+- [x] V2 user суррогатный id; user_id в report и user_tag_percent, заполнение по nick,
       переключение FK, nick → UNIQUE.
+      Flyway v2, db_use_test: user=10/article=71/report=8/utp=70; cascade delete проверен.
 - [ ] V3 пароли Java-миграция хеширует все пароли (Argon2id);
       firstPassword → password_history (хеш), колонка удаляется;
       + password_changed_at, failed_login_count, locked_until.
@@ -152,15 +149,12 @@
   taxonomy-ключи и ISO 639-1 коды. Запуск старого пайплайна снова нарушит схему данных.
   Проверено: в `email.properties` `scheduler.enabled=false`.
 
-- [ ] Убрать каскадное удаление report при удалении article (CascadeType.ALL →
-      убрать из Article.reports): оценки — история весов пользователя.
-      Статьи с оценками или жалобами автоочисткой не удалять.
+- [x] ~~Убрать каскадное удаление report при удалении article~~ — V2: CascadeType.ALL
+      убран из Article.reports; оценки — история весов пользователя.
 - [x] ~~Слить дубль Der Spiegel~~ — V1_1 (merge_link_duplicates): оценки и теги
       перенесены в каноническую запись, дубль удалён.
-- [ ] user_tag_percent.nick varchar(255) → привести к user.nick varchar(50)
-      (или заменить на user_id в рамках V2).
-- [ ] notification_frequency: NULL у 5 пользователей → значение по умолчанию 'never';
-      привести enum в коде (4 значения) и данные к одному набору.
+- [x] ~~user_tag_percent.nick varchar(255) → user_id~~ — сделано в V2.
+- [x] ~~notification_frequency: NULL у 5 пользователей~~ — V2: 'never', NOT NULL, DEFAULT 'never'.
 - [x] ~~Разовая миграция, исправляющая испорченную кодировку в сохранённых заголовках.~~
       Mojibake оказался артефактом восстановления копии (Get-Content | mysql перекодировал
       UTF-8), а не дефектом данных. db_use_test пересоздана из db_use — байты верны.
@@ -168,6 +162,15 @@
       taxonomy.yaml (без ИИ); V1_3: языки → ISO 639-1.
 Критерии количество статей, пользователей, оценок до и после совпадает;
 нет осиротевших FK; вход под старыми учётками работает с хешами.
+
+Технический долг (выявлен при V2):
+- calculateArticleScore требует предзагруженных articleTagPercents на Article;
+  LazyInitializationException на detached-сущности. Решить через JOIN FETCH
+  или передавать List<ArticleTagPercent> отдельно (этап 4, сервер).
+- Все find* в DAO глотают Exception → Optional.empty(); ошибку БД путаем с
+  «не найден». Исправить в V3_2: бросать RuntimeException, не прятать ошибки.
+- user AUTO_INCREMENT сдвинут тестом v2_tmp (следующий id = 12, не 11) —
+  не баг, AUTO_INCREMENT не откатывается; для сведения.
 
 ### Этап 3. ИИ-пайплайн
 - [ ] Интерфейс ArticleClassifier; реализация OllamaClassifier с JSON Schema:

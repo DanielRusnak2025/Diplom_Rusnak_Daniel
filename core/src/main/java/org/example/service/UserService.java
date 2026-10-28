@@ -25,7 +25,7 @@ public class UserService {
 
     /** Регистрация без email (для UI-формы регистрации). */
     public User registerUserNoEmail(String nick, String password) {
-        if (userDAO.existsById(nick)) {
+        if (userDAO.findByNick(nick).isPresent()) {
             throw new IllegalArgumentException("Login is already taken");
         }
         User user = new User(nick, password, null);
@@ -33,7 +33,7 @@ public class UserService {
     }
 
     public User registerUser(String nick, String password, String email) {
-        if (userDAO.existsById(nick)) {
+        if (userDAO.findByNick(nick).isPresent()) {
             throw new IllegalArgumentException("Пользователь с таким ником уже существует: " + nick);
         }
         Optional<User> existingUser = userDAO.findByEmail(email);
@@ -45,7 +45,7 @@ public class UserService {
     }
 
     public Optional<User> authenticate(String nick, String password) {
-        Optional<User> userOpt = userDAO.findById(nick);
+        Optional<User> userOpt = userDAO.findByNick(nick);
         if (userOpt.isPresent() && userOpt.get().getPassword().equals(password)) {
             return userOpt;
         }
@@ -79,7 +79,7 @@ public class UserService {
     }
 
     public User updateEmail(String nick, String newEmail) {
-        User user = userDAO.findById(nick)
+        User user = userDAO.findByNick(nick)
                 .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден: " + nick));
         Optional<User> existingUser = userDAO.findByEmail(newEmail);
         if (existingUser.isPresent() && !existingUser.get().getNick().equals(nick)) {
@@ -90,7 +90,7 @@ public class UserService {
     }
 
     public User updatePassword(String nick, String oldPassword, String newPassword) {
-        User user = userDAO.findById(nick)
+        User user = userDAO.findByNick(nick)
                 .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден: " + nick));
         if (!user.getPassword().equals(oldPassword)) {
             throw new IllegalArgumentException("Неверный текущий пароль");
@@ -101,7 +101,7 @@ public class UserService {
 
     public boolean updateNotificationFrequency(String nick, String frequency) {
         try {
-            User user = userDAO.findById(nick)
+            User user = userDAO.findByNick(nick)
                     .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден: " + nick));
             user.setNotificationFrequency(frequency);
             userDAO.update(user);
@@ -113,7 +113,7 @@ public class UserService {
     }
 
     public User updatePreferences(String nick, String preferredRegion, String preferredLanguage) {
-        User user = userDAO.findById(nick)
+        User user = userDAO.findByNick(nick)
                 .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден: " + nick));
         user.setPreferredRegion(preferredRegion);
         user.setPreferredLanguage(preferredLanguage);
@@ -121,14 +121,14 @@ public class UserService {
     }
 
     public User incrementReadArticles(String nick) {
-        User user = userDAO.findById(nick)
+        User user = userDAO.findByNick(nick)
                 .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден: " + nick));
         user.incrementReadArticlesCount();
         return userDAO.update(user);
     }
 
     public User setAdminStatus(String nick, boolean isAdmin) {
-        User user = userDAO.findById(nick)
+        User user = userDAO.findByNick(nick)
                 .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден: " + nick));
         user.setAdmin(isAdmin);
         return userDAO.update(user);
@@ -139,7 +139,7 @@ public class UserService {
     // ═══════════════════════════════════════════════════════════
 
     public Optional<User> getUserByNick(String nick) {
-        return userDAO.findById(nick);
+        return userDAO.findByNick(nick);
     }
 
     public Optional<User> getUserByEmail(String email) {
@@ -171,6 +171,6 @@ public class UserService {
     // ═══════════════════════════════════════════════════════════
 
     public void deleteUser(String nick) {
-        userDAO.deleteById(nick);
+        userDAO.findByNick(nick).ifPresent(u -> userDAO.deleteById(u.getId()));
     }
 }

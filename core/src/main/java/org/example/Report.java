@@ -7,7 +7,7 @@ import java.util.Date;
 @Table(name = "report",
        uniqueConstraints = @UniqueConstraint(
                name = "uq_report_user_article",
-               columnNames = {"user_nick", "article_id"}
+               columnNames = {"user_id", "article_id"}
        ))
 public class Report {
 
@@ -24,7 +24,7 @@ public class Report {
     private Article article;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_nick", nullable = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @Column(nullable = false)
