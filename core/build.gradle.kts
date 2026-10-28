@@ -48,6 +48,10 @@ dependencies {
     implementation(libs.slf4j.api)
     runtimeOnly(libs.logback.classic)
 
+    // Flyway schema migrations
+    implementation(libs.flyway.core)
+    runtimeOnly(libs.flyway.mysql)
+
     // Tests
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.launcher)

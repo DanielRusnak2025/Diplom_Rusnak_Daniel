@@ -12,6 +12,7 @@ jsoup         = "1.17.2"
 lingua        = "1.2.2"
 slf4j         = "2.0.20"
 logback       = "1.6.5"
+flyway        = "13.11.1"
 
 [libraries]
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSer" }
@@ -27,6 +28,8 @@ slf4j-api         = { module = "org.slf4j:slf4j-api",                        ver
 logback-classic   = { module = "ch.qos.logback:logback-classic",             version.ref = "logback"      }
 junit-jupiter     = { module = "org.junit.jupiter:junit-jupiter",            version.ref = "junit"        }
 junit-launcher    = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit"       }
+flyway-core       = { module = "org.flywaydb:flyway-core",                   version.ref = "flyway"      }
+flyway-mysql      = { module = "org.flywaydb:flyway-mysql",                  version.ref = "flyway"      }
 
 [plugins]
 kotlin-jvm          = { id = "org.jetbrains.kotlin.jvm",                    version.ref = "kotlin" }

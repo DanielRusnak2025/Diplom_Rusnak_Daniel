@@ -146,6 +146,12 @@
 - [ ] V8 user_tag_percent.percent → DECIMAL.
 - [ ] V9 новые таблицы user_block, refresh_token, audit_log,
       processed_email (+ links_total, links_rejected, links_saved).
+⚠ **Ограничение до Этапа 3:** `scheduler.enabled` должен оставаться `false`.
+  Старый пайплайн пишет `article_region` свободным текстом («Russia», «United States»)
+  и `article_language` словом («Russian», «German»). После V1_3/V1_4 эти поля хранят
+  taxonomy-ключи и ISO 639-1 коды. Запуск старого пайплайна снова нарушит схему данных.
+  Проверено: в `email.properties` `scheduler.enabled=false`.
+
 - [ ] Убрать каскадное удаление report при удалении article (CascadeType.ALL →
       убрать из Article.reports): оценки — история весов пользователя.
       Статьи с оценками или жалобами автоочисткой не удалять.

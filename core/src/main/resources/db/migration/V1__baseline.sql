@@ -1,0 +1,4 @@
+-- V1 baseline: schema created by Hibernate (hbm2ddl=update, legacy mode).
+-- This file is intentionally empty. Flyway marks it as applied on first run
+-- (baselineOnMigrate=true, baselineVersion=1) without executing any SQL.
+-- All subsequent migrations (V1_1+) are applied on top of the existing schema.
