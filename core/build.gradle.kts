@@ -47,4 +47,12 @@ dependencies {
     // Logging
     implementation(libs.slf4j.api)
     runtimeOnly(libs.logback.classic)
+
+    // Tests
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.launcher)
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
