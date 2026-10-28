@@ -1,0 +1,537 @@
+# NewsDove — taxonomy seed (categories, subtopics, keywords, regions)
+# Source for Flyway migration V5 (tag: kind = CATEGORY / SUBTOPIC, parent_id, keywords, description).
+#
+# Structure
+#   categories[].key / name / description  -> tag (kind = CATEGORY); description goes into the AI prompt
+#   categories[].subtopics[]               -> tag (kind = SUBTOPIC, parent_id = category)
+#   Every category automatically gets one extra subtopic "general" (name "General", no keywords):
+#   the model picks it when the article belongs to the category but no subtopic fits.
+#   regions[]                              -> fixed list; an article's region is computed from
+#                                             dictionary entities and always mapped to one of these keys.
+#
+# Keyword matching (algorithm, no AI) — applied to the title + first part of the article text:
+#   - case-insensitive; text is normalised to lower case; "ё" is treated as "е"
+#   - "word"        whole word only            ("eu" matches "EU", not "Europe")
+#   - "word*"       word starting with prefix  ("election*" matches "elections", "electoral")
+#   - "*word*"      substring inside a word    (German compounds: "*wahl*" matches "Bundestagswahl")
+#   - "a* b*"       consecutive words, each rule applied per word ("мирн* переговор*")
+#   A rule is counted once per article even if it appears under several languages.
+#   Keywords only add a bonus to a category the AI already chose; they never assign a category alone.
+#
+# version: bump when keys/names change; stored in article.taxonomy_version.
+
+version: 1
+
+regions:
+  - { key: north_america,       name: "North America" }
+  - { key: latin_america,       name: "Latin America" }
+  - { key: western_europe,      name: "Western Europe" }
+  - { key: northern_europe,     name: "Northern Europe" }
+  - { key: southern_europe,     name: "Southern Europe" }
+  - { key: eastern_europe,      name: "Eastern Europe" }
+  - { key: russia_central_asia, name: "Russia & Central Asia" }
+  - { key: middle_east,         name: "Middle East" }
+  - { key: africa,              name: "Africa" }
+  - { key: south_asia,          name: "South Asia" }
+  - { key: east_southeast_asia, name: "East & Southeast Asia" }
+  - { key: global,              name: "Global" }
+
+categories:
+
+  # ---------------------------------------------------------------- 1
+  - key: politics
+    name: "Politics & Government"
+    description: "Domestic politics: elections, governments, parliaments, parties, leaders, protests."
+    subtopics:
+      - key: elections
+        name: "Elections"
+        keywords:
+          en: ["election*", "elects", "elected", "vote*", "voter*", "ballot*", "polls", "campaign*", "referendum*"]
+          ru: ["выбор*", "голосовани*", "избирател*", "референдум*", "кандидат*"]
+          de: ["*wahl*", "wähler*", "abstimmung*", "stimmzettel*", "wahlkampf*"]
+      - key: government_legislation
+        name: "Government & legislation"
+        keywords:
+          en: ["government*", "cabinet", "parliament*", "lawmaker*", "legislation", "bill", "decree*"]
+          ru: ["правительств*", "кабинет* министр*", "парламент*", "законопроект*", "депутат*", "указ*"]
+          de: ["regierung*", "kabinett*", "bundestag*", "gesetz*", "parlament*", "minister*"]
+      - key: parties_leaders
+        name: "Parties & leaders"
+        keywords:
+          en: ["party", "parties", "president*", "prime minister", "chancellor", "opposition", "coalition*"]
+          ru: ["парти*", "президент*", "премьер*", "оппозици*", "коалици*"]
+          de: ["partei*", "kanzler*", "präsident*", "opposition*", "koalition*"]
+      - key: protests_civil_society
+        name: "Protests & civil society"
+        keywords:
+          en: ["protest*", "demonstrat*", "rally", "rallies", "strike*", "activist*"]
+          ru: ["протест*", "митинг*", "демонстрац*", "забастовк*", "активист*"]
+          de: ["protest*", "demonstration*", "kundgebung*", "streik*", "aktivist*"]
+
+  # ---------------------------------------------------------------- 2
+  - key: international
+    name: "International Relations"
+    description: "Relations between states: diplomacy, summits, sanctions, peace talks, alliances, international organizations."
+    subtopics:
+      - key: diplomacy_summits
+        name: "Diplomacy & summits"
+        keywords:
+          en: ["diplomat*", "summit*", "foreign minister*", "ambassador*", "bilateral", "talks"]
+          ru: ["дипломат*", "саммит*", "министр* иностранных дел", "посол*", "переговор*"]
+          de: ["diplomat*", "gipfel*", "außenminister*", "botschafter*", "gespräch*"]
+      - key: sanctions
+        name: "Sanctions"
+        keywords:
+          en: ["sanction*", "embargo*", "export ban*", "asset freeze*"]
+          ru: ["санкци*", "эмбарго", "заморозк* активов"]
+          de: ["sanktion*", "embargo*", "exportverbot*"]
+      - key: peace_talks_ceasefires
+        name: "Peace talks & ceasefires"
+        keywords:
+          en: ["ceasefire*", "truce", "peace talks", "peace deal*", "peace plan*", "negotiat*"]
+          ru: ["перемири*", "прекращени* огня", "мирн* переговор*", "мирн* план*"]
+          de: ["waffenruhe*", "waffenstillstand*", "friedensgespräch*", "friedensplan*", "*verhandlung*"]
+      - key: alliances_intl_orgs
+        name: "Alliances & international organizations"
+        keywords:
+          en: ["nato", "european union", "eu", "united nations", "un", "g7", "g20", "brics"]
+          ru: ["нато", "евросоюз*", "европейск* союз*", "ес", "оон", "брикс"]
+          de: ["nato", "europäische union", "eu", "uno", "vereinte nationen", "g7", "g20"]
+
+  # ---------------------------------------------------------------- 3
+  - key: conflicts
+    name: "Conflicts & Security"
+    description: "Wars, armed conflicts, terrorism, military and defense, nuclear weapons, cyber and hybrid threats."
+    subtopics:
+      - key: interstate_wars
+        name: "Interstate wars"
+        keywords:
+          en: ["war", "wars", "invasion*", "front line*", "frontline*", "offensive*", "airstrike*", "missile*", "drone", "drones", "drone strike*"]
+          ru: ["войн*", "вторжени*", "фронт*", "наступлени*", "обстрел*", "ракет*", "дрон*", "беспилотник*"]
+          de: ["krieg*", "*krieg", "invasion*", "front", "offensive*", "luftangriff*", "rakete*", "drohne*"]
+      - key: civil_wars_insurgencies
+        name: "Civil wars & insurgencies"
+        keywords:
+          en: ["civil war*", "rebel*", "insurgen*", "militia*", "coup*", "junta"]
+          ru: ["гражданск* войн*", "повстан*", "боевик*", "переворот*", "хунт*"]
+          de: ["bürgerkrieg*", "rebell*", "aufständisch*", "miliz*", "putsch*"]
+      - key: terrorism
+        name: "Terrorism"
+        keywords:
+          en: ["terror*", "bombing*", "hostage*", "extremis*"]
+          ru: ["террор*", "теракт*", "заложник*", "экстремис*"]
+          de: ["terror*", "anschlag*", "geisel*", "extremis*"]
+      - key: military_defense
+        name: "Military & defense"
+        keywords:
+          en: ["army", "armed forces", "military", "troops", "defense*", "defence*", "weapons", "arms deliver*"]
+          ru: ["арми*", "вооружённ* сил*", "военн*", "войск*", "оборон*", "вооружени*"]
+          de: ["bundeswehr*", "armee*", "militär*", "truppe*", "verteidigung*", "waffenlieferung*"]
+      - key: nuclear_arms_control
+        name: "Nuclear & arms control"
+        keywords:
+          en: ["nuclear weapon*", "nuclear program*", "enrichment", "uranium", "arms control", "warhead*"]
+          ru: ["ядерн* оружи*", "ядерн* программ*", "обогащени*", "уран*", "боеголов*"]
+          de: ["atomwaffe*", "atomprogramm*", "uran*", "anreicherung*", "rüstungskontrolle*"]
+      - key: cyber_hybrid_threats
+        name: "Cyber & hybrid threats"
+        keywords:
+          en: ["cyberattack*", "cyber attack*", "hacker*", "sabotage", "disinformation", "hybrid war*"]
+          ru: ["кибератак*", "хакер*", "диверси*", "дезинформац*", "гибридн*"]
+          de: ["cyberangriff*", "hacker*", "sabotage*", "desinformation*", "hybrid*"]
+
+  # ---------------------------------------------------------------- 4
+  - key: economy
+    name: "Economy & Finance"
+    description: "The economy as a whole: growth, inflation, central banks, markets, trade, jobs, public finances, household money."
+    subtopics:
+      - key: macroeconomy_inflation
+        name: "Macroeconomy & inflation"
+        keywords:
+          en: ["inflation", "gdp", "recession*", "economic growth", "economy", "consumer prices"]
+          ru: ["инфляци*", "ввп", "рецесси*", "экономическ* рост*", "экономик*"]
+          de: ["inflation*", "bip", "bruttoinlandsprodukt*", "rezession*", "konjunktur*", "wirtschaftswachstum*"]
+      - key: central_banks_markets
+        name: "Central banks & markets"
+        keywords:
+          en: ["central bank*", "interest rate*", "federal reserve", "fed", "ecb", "stock market*", "dow", "dax"]
+          ru: ["центробанк*", "ключев* ставк*", "процентн* ставк*", "фондов* рын*", "бирж*"]
+          de: ["zentralbank*", "leitzins*", "ezb", "börse*", "aktienmarkt*", "dax"]
+      - key: trade_tariffs
+        name: "Trade & tariffs"
+        keywords:
+          en: ["tariff*", "trade war*", "trade deal*", "imports", "importer*", "export*", "customs"]
+          ru: ["пошлин*", "торгов* войн*", "торгов* соглашени*", "импорт*", "экспорт*"]
+          de: ["zoll", "zölle*", "handelskrieg*", "handelsabkommen*", "import*", "export*"]
+      - key: labour_market
+        name: "Labour market"
+        keywords:
+          en: ["unemployment", "jobs", "layoff*", "workers", "wage*", "salary", "salaries", "labour market", "labor market"]
+          ru: ["безработиц*", "рабоч* мест*", "увольнени*", "зарплат*", "рын* труда"]
+          de: ["arbeitslos*", "arbeitsmarkt*", "stellenabbau*", "lohn", "löhne*", "gehalt*"]
+      - key: public_finance_taxes
+        name: "Public finance & taxes"
+        keywords:
+          en: ["budget*", "tax*", "deficit*", "public debt", "spending cut*"]
+          ru: ["бюджет*", "налог*", "дефицит*", "госдолг*"]
+          de: ["haushalt*", "steuer*", "defizit*", "staatsverschuldung*", "schulden*"]
+      - key: housing_personal_finance
+        name: "Housing & personal finance"
+        keywords:
+          en: ["housing", "rent*", "mortgage*", "real estate", "pension*", "savings"]
+          ru: ["жиль*", "аренд*", "ипотек*", "недвижимост*", "пенси*", "сбережени*"]
+          de: ["wohnung*", "miete*", "hypothek*", "immobilie*", "rente*", "ersparnis*"]
+
+  # ---------------------------------------------------------------- 5
+  - key: business
+    name: "Business & Industry"
+    description: "Individual companies and industries: earnings, banks, cars and transport, manufacturing, retail, startups, deals."
+    subtopics:
+      - key: companies_earnings
+        name: "Companies & earnings"
+        keywords:
+          en: ["earnings", "revenue*", "profit*", "quarterly results", "shares", "ceo"]
+          ru: ["выручк*", "прибыл*", "квартальн* отчёт*", "акци*", "гендиректор*"]
+          de: ["umsatz*", "gewinne", "quartalsgewinn*", "quartalszahlen*", "aktie*", "konzern*", "vorstand*"]
+      - key: banking_financial_sector
+        name: "Banking & financial sector"
+        keywords:
+          en: ["bank", "banks", "banking", "lender*", "insurer*", "fintech*"]
+          ru: ["банк", "банки", "банков*", "страхов*", "финтех*"]
+          de: ["bank", "banken", "*bank", "versicherer*", "fintech*"]
+      - key: automotive_transport
+        name: "Automotive & transport"
+        keywords:
+          en: ["carmaker*", "automaker*", "electric vehicle*", "airline*", "railway*", "airport*"]
+          ru: ["автопроизвод*", "автомобил*", "электромобил*", "авиакомпани*", "железн* дорог*", "аэропорт*"]
+          de: ["autobauer*", "autoindustrie*", "elektroauto*", "fluggesellschaft*", "bahn", "flughafen*"]
+      - key: manufacturing_retail
+        name: "Manufacturing & retail"
+        keywords:
+          en: ["factory", "factories", "manufactur*", "supply chain*", "retail*", "supermarket*"]
+          ru: ["завод*", "производств*", "цеп* поставок", "ритейл*", "розничн*"]
+          de: ["fabrik*", "werk", "produktion*", "lieferkette*", "einzelhandel*"]
+      - key: startups_investment
+        name: "Startups & investment"
+        keywords:
+          en: ["startup*", "venture capital", "funding round*", "ipo", "investor*", "acquisition*", "merger*"]
+          ru: ["стартап*", "венчур*", "инвестор*", "слияни*", "поглощени*"]
+          de: ["startup*", "risikokapital*", "börsengang*", "investor*", "übernahme*", "fusion*"]
+
+  # ---------------------------------------------------------------- 6
+  - key: energy
+    name: "Energy"
+    description: "Oil, gas, renewables, nuclear power, energy prices and supply routes."
+    subtopics:
+      - key: oil_gas
+        name: "Oil & gas"
+        keywords:
+          en: ["oil", "crude", "gas", "opec", "lng", "pipeline*", "refiner*"]
+          ru: ["нефт*", "газ", "газа", "газом", "опек", "спг", "трубопровод*"]
+          de: ["öl", "erdöl*", "erdgas*", "gas", "opec", "pipeline*", "lng"]
+      - key: renewables
+        name: "Renewables"
+        keywords:
+          en: ["renewable*", "solar", "wind power", "wind farm*", "hydrogen", "green energy"]
+          ru: ["возобновляем*", "солнечн*", "ветрян*", "водород*", "зелён* энерг*"]
+          de: ["erneuerbar*", "solar*", "windkraft*", "windpark*", "wasserstoff*", "energiewende*"]
+      - key: nuclear_power
+        name: "Nuclear power"
+        keywords:
+          en: ["nuclear power", "nuclear plant*", "reactor*", "atomic energy"]
+          ru: ["аэс", "атомн* станци*", "атомн* энерг*", "реактор*"]
+          de: ["atomkraft*", "kernkraft*", "akw", "reaktor*"]
+      - key: energy_prices_supply_routes
+        name: "Energy prices & supply routes"
+        keywords:
+          en: ["energy price*", "fuel price*", "electricity price*", "energy supply", "hormuz", "shipping route*", "tanker*"]
+          ru: ["цен* на энерг*", "цен* на топлив*", "энергоснабжени*", "ормузск*", "танкер*"]
+          de: ["energiepreis*", "strompreis*", "spritpreis*", "energieversorgung*", "hormus", "tanker*"]
+
+  # ---------------------------------------------------------------- 7
+  - key: technology
+    name: "Technology"
+    description: "Tech companies and platforms, consumer devices, telecom, data privacy and cybercrime, chips and hardware. AI goes to Artificial Intelligence."
+    subtopics:
+      - key: big_tech_platforms
+        name: "Big Tech & platforms"
+        keywords:
+          en: ["google", "apple", "meta", "microsoft", "amazon", "tiktok", "social media", "platform*"]
+          ru: ["соцсет*", "google", "apple", "meta", "microsoft", "tiktok", "платформ*"]
+          de: ["soziale medien", "google", "apple", "meta", "microsoft", "tiktok", "plattform*"]
+      - key: consumer_tech_telecom
+        name: "Consumer tech & telecom"
+        keywords:
+          en: ["smartphone*", "iphone*", "gadget*", "5g", "broadband", "telecom*"]
+          ru: ["смартфон*", "гаджет*", "5g", "оператор* связи", "мобильн* связ*"]
+          de: ["smartphone*", "handy*", "5g", "breitband*", "telekom*"]
+      - key: data_privacy_cybercrime
+        name: "Data privacy & cybercrime"
+        keywords:
+          en: ["data breach*", "data leak*", "privacy", "gdpr", "ransomware", "scam*", "online fraud"]
+          ru: ["утечк* данных", "персональн* данн*", "мошенни*", "вымогател*"]
+          de: ["datenleck*", "datenschutz*", "dsgvo", "ransomware", "betrüger*"]
+      - key: semiconductors_hardware
+        name: "Semiconductors & hardware"
+        keywords:
+          en: ["chip", "chips", "chipmaker*", "semiconductor*", "nvidia", "tsmc", "processor*"]
+          ru: ["чип", "чипы", "чипов", "полупроводник*", "микросхем*", "процессор*"]
+          de: ["chip", "chips", "halbleiter*", "nvidia", "tsmc", "prozessor*"]
+
+  # ---------------------------------------------------------------- 8
+  - key: ai
+    name: "Artificial Intelligence"
+    description: "Artificial intelligence: models and research, use in business and work, regulation and ethics, robotics."
+    subtopics:
+      - key: ai_models_research
+        name: "AI models & research"
+        keywords:
+          en: ["artificial intelligence", "ai", "ai model*", "chatbot*", "chatgpt", "openai", "anthropic", "llm*", "machine learning"]
+          ru: ["искусственн* интеллект*", "ии", "нейросет*", "чат-бот*", "chatgpt", "языков* модел*"]
+          de: ["künstliche intelligenz", "ki", "ki-modell*", "chatbot*", "chatgpt", "sprachmodell*"]
+      - key: ai_business_work
+        name: "AI in business & work"
+        keywords:
+          en: ["ai startup*", "ai investment*", "ai adoption", "ai tools", "copilot*"]
+          ru: ["внедрени* ии", "ии-стартап*", "ии в бизнес*"]
+          de: ["ki-einsatz*", "ki-startup*", "ki-investition*"]
+      - key: ai_regulation_ethics
+        name: "AI regulation & ethics"
+        keywords:
+          en: ["ai act", "ai regulation", "ai safety", "deepfake*", "ai ethics"]
+          ru: ["регулировани* ии", "дипфейк*", "этик* ии", "безопасност* ии"]
+          de: ["ai act", "ki-gesetz*", "ki-regulierung*", "deepfake*"]
+      - key: robotics_automation
+        name: "Robotics & automation"
+        keywords:
+          en: ["robot*", "humanoid*", "autonomous vehicle*", "self-driving"]
+          ru: ["робот*", "беспилотн* автомобил*", "автоматизаци*"]
+          de: ["roboter*", "robotik*", "humanoid*", "autonomes fahren"]
+
+  # ---------------------------------------------------------------- 9
+  - key: science
+    name: "Science & Space"
+    description: "Space exploration, physics and astronomy, biology and genetics, archaeology and history."
+    subtopics:
+      - key: space
+        name: "Space"
+        keywords:
+          en: ["nasa", "esa", "spacex", "rocket launch*", "astronaut*", "moon", "mars", "satellite*"]
+          ru: ["космос*", "космическ*", "наса", "роскосмос", "астронавт*", "космонавт*", "спутник*"]
+          de: ["raumfahrt*", "nasa", "esa", "astronaut*", "mond", "mars", "satellit*"]
+      - key: physics_astronomy
+        name: "Physics & astronomy"
+        keywords:
+          en: ["physic*", "astronom*", "telescope*", "galaxy", "galaxies", "black hole*", "particle*"]
+          ru: ["физик*", "астроном*", "телескоп*", "галактик*", "чёрн* дыр*"]
+          de: ["physik*", "astronom*", "teleskop*", "galaxie*", "schwarzes loch"]
+      - key: biology_genetics
+        name: "Biology & genetics"
+        keywords:
+          en: ["biolog*", "gene", "genes", "genetic*", "dna", "species", "evolution*"]
+          ru: ["биолог*", "ген", "гены", "генетическ*", "днк", "эволюци*"]
+          de: ["biolog*", "gen", "gene", "genetik*", "dna", "evolution*"]
+      - key: archaeology_history
+        name: "Archaeology & history"
+        keywords:
+          en: ["archaeolog*", "ancient", "fossil*", "excavation*", "historian*"]
+          ru: ["археолог*", "древн*", "раскопк*", "окаменел*", "историк*"]
+          de: ["archäolog*", "antik*", "fossil*", "ausgrabung*", "historiker*"]
+
+  # ---------------------------------------------------------------- 10
+  - key: health
+    name: "Health & Medicine"
+    description: "Diseases and outbreaks, healthcare systems, drugs and medical research, mental health and lifestyle."
+    subtopics:
+      - key: diseases_outbreaks
+        name: "Diseases & outbreaks"
+        keywords:
+          en: ["outbreak*", "virus*", "pandemic*", "epidemic*", "infection*", "measles"]
+          ru: ["вспышк*", "вирус*", "пандеми*", "эпидеми*", "инфекци*", "корь"]
+          de: ["ausbruch*", "virus*", "viren", "pandemie*", "epidemie*", "infektion*", "masern"]
+      - key: healthcare_systems
+        name: "Healthcare systems"
+        keywords:
+          en: ["hospital*", "healthcare", "health system*", "doctors", "nurses", "health insurance"]
+          ru: ["больниц*", "здравоохранени*", "врач*", "медсест*", "медицинск* страхов*"]
+          de: ["krankenhaus*", "kliniken", "gesundheitssystem*", "ärzte", "pflege*", "krankenkasse*"]
+      - key: drugs_medical_research
+        name: "Drugs & medical research"
+        keywords:
+          en: ["drug*", "vaccine*", "clinical trial*", "treatment*", "cancer", "medicine*"]
+          ru: ["лекарств*", "вакцин*", "клиническ* испытани*", "лечени*", "рак", "препарат*"]
+          de: ["medikament*", "impfstoff*", "klinische studie*", "behandlung*", "krebs", "arznei*"]
+      - key: mental_health_lifestyle
+        name: "Mental health & lifestyle"
+        keywords:
+          en: ["mental health", "depression", "anxiety", "stress", "burnout", "sleep", "diet*", "fitness", "work-life balance"]
+          ru: ["психическ* здоров*", "депресси*", "тревожност*", "стресс*", "выгорани*", "диет*"]
+          de: ["psychische gesundheit", "depression*", "stress*", "burnout", "schlaf*", "ernährung*", "work-life-balance"]
+
+  # ---------------------------------------------------------------- 11
+  - key: environment
+    name: "Environment & Climate"
+    description: "Climate change and policy, extreme weather and natural disasters, nature, pollution and sustainability."
+    subtopics:
+      - key: climate_change_policy
+        name: "Climate change & policy"
+        keywords:
+          en: ["climate*", "emission*", "carbon", "co2", "net zero", "global warming"]
+          ru: ["климат*", "выброс*", "углерод*", "co2", "глобальн* потеплени*"]
+          de: ["klima*", "emission*", "co2", "treibhausgas*", "erderwärmung*"]
+      - key: extreme_weather_disasters
+        name: "Extreme weather & natural disasters"
+        keywords:
+          en: ["flood*", "wildfire*", "hurricane*", "earthquake*", "storm*", "drought*", "heatwave*"]
+          ru: ["наводнени*", "лесн* пожар*", "ураган*", "землетрясени*", "шторм*", "засух*", "жар*"]
+          de: ["hochwasser*", "überschwemmung*", "waldbrand*", "hurrikan*", "erdbeben*", "sturm*", "dürre*", "hitzewelle*"]
+      - key: nature_biodiversity
+        name: "Nature & biodiversity"
+        keywords:
+          en: ["biodiversity", "wildlife", "extinct*", "forest*", "ocean*", "endangered"]
+          ru: ["биоразнообрази*", "дик* природ*", "вымирани*", "лес", "леса", "лесов", "океан*"]
+          de: ["artenvielfalt*", "biodiversität*", "artensterben*", "wald", "wälder", "ozean*"]
+      - key: pollution_sustainability
+        name: "Pollution & sustainability"
+        keywords:
+          en: ["pollution", "plastic*", "recycling", "waste", "sustainab*", "air quality"]
+          ru: ["загрязнени*", "пластик*", "отход*", "переработк* отход*", "устойчив* развити*"]
+          de: ["verschmutzung*", "plastik*", "recycling*", "müll*", "nachhaltig*"]
+
+  # ---------------------------------------------------------------- 12
+  - key: society
+    name: "Society"
+    description: "Migration, human rights and equality, social policy and demographics, education, religion, accidents and emergencies."
+    subtopics:
+      - key: migration_refugees
+        name: "Migration & refugees"
+        keywords:
+          en: ["migrant*", "migration*", "refugee*", "asylum*", "deport*", "border*", "immigra*"]
+          ru: ["миграц*", "мигрант*", "беженц*", "убежищ*", "депортац*", "границ*"]
+          de: ["migration*", "migrant*", "flüchtling*", "geflüchtete*", "asyl*", "abschiebung*", "grenze*"]
+      - key: human_rights_equality
+        name: "Human rights & equality"
+        keywords:
+          en: ["human rights", "discriminat*", "equality", "lgbt*", "women's rights", "racism"]
+          ru: ["прав* человек*", "дискриминац*", "равенств*", "лгбт*", "прав* женщин"]
+          de: ["menschenrecht*", "diskriminierung*", "gleichberechtigung*", "lgbt*", "rassismus*"]
+      - key: social_policy_demographics
+        name: "Social policy & demographics"
+        keywords:
+          en: ["welfare", "social benefit*", "poverty", "birth rate*", "population", "ageing", "aging"]
+          ru: ["социальн* выплат*", "пособи*", "бедност*", "рождаемост*", "населени*", "демограф*"]
+          de: ["sozialleistung*", "bürgergeld*", "armut*", "geburtenrate*", "bevölkerung*", "demograf*"]
+      - key: education
+        name: "Education"
+        keywords:
+          en: ["school*", "universit*", "student*", "teacher*", "education*", "graduate*"]
+          ru: ["школ*", "университет*", "вуз*", "студент*", "учител*", "образовани*", "выпускник*"]
+          de: ["schule*", "universität*", "hochschule*", "student*", "lehrer*", "bildung*", "absolvent*"]
+      - key: religion
+        name: "Religion"
+        keywords:
+          en: ["church*", "pope", "religio*", "mosque*", "muslim*", "christian*", "jewish"]
+          ru: ["церк*", "папа римский", "религи*", "мечет*", "мусульман*", "христиан*"]
+          de: ["kirche*", "papst*", "religion*", "moschee*", "muslim*", "christen*"]
+      - key: accidents_emergencies
+        name: "Accidents & emergencies"
+        keywords:
+          en: ["accident*", "crash*", "collision*", "explosion*", "rescue*", "killed", "injured"]
+          ru: ["авари*", "катастроф*", "столкновени*", "взрыв*", "спасател*", "погибл*", "пострадавш*"]
+          de: ["unfall*", "unglück*", "absturz*", "explosion*", "rettung*", "tote", "verletzte*"]
+
+  # ---------------------------------------------------------------- 13
+  - key: law_crime
+    name: "Law & Crime"
+    description: "Courts and trials, crime and policing, corruption and investigations."
+    subtopics:
+      - key: courts_trials
+        name: "Courts & trials"
+        keywords:
+          en: ["court*", "trial*", "judge*", "verdict*", "ruling", "lawsuit*", "sentenced"]
+          ru: ["суд", "суда", "суде", "судебн*", "приговор*", "судь*", "иск", "иски"]
+          de: ["gericht*", "prozess*", "richter*", "urteil*", "klage*", "verurteilt*"]
+      - key: crime_policing
+        name: "Crime & policing"
+        keywords:
+          en: ["police", "arrest*", "murder*", "shooting*", "crime*", "criminal*", "gang*"]
+          ru: ["полици*", "арест*", "задержан*", "убийств*", "стрельб*", "преступ*"]
+          de: ["polizei*", "festnahme*", "festgenommen", "mord*", "schüsse", "verbrechen*", "kriminell*"]
+      - key: corruption_investigations
+        name: "Corruption & investigations"
+        keywords:
+          en: ["corruption", "bribe*", "scandal*", "investigation*", "money laundering", "fraud"]
+          ru: ["коррупц*", "взятк*", "скандал*", "расследовани*", "отмывани*"]
+          de: ["korruption*", "bestechung*", "skandal*", "ermittlung*", "geldwäsche*", "betrug*"]
+
+  # ---------------------------------------------------------------- 14
+  - key: culture
+    name: "Culture & Lifestyle"
+    description: "Film, TV and music, books and art, media and journalism, travel and food, celebrities."
+    subtopics:
+      - key: film_tv_music
+        name: "Film, TV & music"
+        keywords:
+          en: ["film*", "movie*", "series", "netflix", "oscar*", "music*", "album*", "concert*", "festival*"]
+          ru: ["фильм*", "кино*", "сериал*", "музык*", "альбом*", "концерт*", "фестивал*"]
+          de: ["film*", "kino*", "serie*", "netflix", "musik*", "album*", "konzert*", "festival*"]
+      - key: books_art
+        name: "Books & art"
+        keywords:
+          en: ["book*", "novel*", "author*", "literature", "museum*", "exhibition*", "painting*"]
+          ru: ["книг*", "писател*", "литератур*", "музе*", "выставк*", "картин*"]
+          de: ["buch", "bücher*", "roman", "romane", "autor*", "literatur*", "museum*", "museen", "ausstellung*"]
+      - key: media_journalism
+        name: "Media & journalism"
+        keywords:
+          en: ["journalist*", "media", "newspaper*", "press freedom", "broadcaster*", "censorship"]
+          ru: ["журналист*", "сми", "газет*", "свобод* прессы", "цензур*", "телеканал*"]
+          de: ["journalist*", "medien", "zeitung*", "pressefreiheit*", "zensur*", "sender"]
+      - key: travel_food
+        name: "Travel & food"
+        keywords:
+          en: ["travel*", "tourism", "tourist*", "hotel*", "vacation*", "restaurant*", "food", "recipe*"]
+          ru: ["путешеств*", "туризм*", "турист*", "отел*", "отпуск*", "ресторан*", "еда", "рецепт*"]
+          de: ["reise*", "tourismus*", "tourist*", "hotel*", "urlaub*", "restaurant*", "essen", "rezept*"]
+      - key: celebrities
+        name: "Celebrities"
+        keywords:
+          en: ["celebrit*", "actor*", "actress*", "singer*", "royal*", "wedding"]
+          ru: ["знаменитост*", "звёзд*", "актёр*", "актрис*", "певиц*", "певец", "королевск*"]
+          de: ["promi*", "schauspieler*", "sänger*", "royal*", "hochzeit*"]
+
+  # ---------------------------------------------------------------- 15
+  - key: sports
+    name: "Sports"
+    description: "Football, tennis, motorsport, Olympic and winter sports, other sports."
+    subtopics:
+      - key: football
+        name: "Football"
+        keywords:
+          en: ["football", "soccer", "premier league", "champions league", "bundesliga", "world cup", "fifa", "uefa"]
+          ru: ["футбол*", "лиг* чемпионов", "чемпионат* мира", "фифа", "уефа"]
+          de: ["fußball*", "bundesliga*", "champions league", "weltmeisterschaft*", "fifa", "uefa", "wm"]
+      - key: tennis
+        name: "Tennis"
+        keywords:
+          en: ["tennis", "wimbledon", "us open", "grand slam", "atp", "wta"]
+          ru: ["теннис*", "уимблдон*"]
+          de: ["tennis*", "wimbledon"]
+      - key: motorsport
+        name: "Motorsport"
+        keywords:
+          en: ["formula 1", "formula one", "f1", "grand prix", "nascar", "rally"]
+          ru: ["формул* 1", "гран-при", "ралли"]
+          de: ["formel 1", "formel eins", "grand prix", "rallye"]
+      - key: olympic_winter_sports
+        name: "Olympic & winter sports"
+        keywords:
+          en: ["olympic*", "paralympic*", "biathlon", "skiing", "figure skating", "ice hockey"]
+          ru: ["олимпи*", "паралимпи*", "биатлон*", "лыж*", "фигурн* катани*", "хокке*"]
+          de: ["olymp*", "paralymp*", "biathlon*", "skisport*", "eiskunstlauf*", "eishockey*"]
+      - key: other_sports
+        name: "Other sports"
+        keywords:
+          en: ["basketball", "nba", "boxing", "cycling", "tour de france", "athletics", "marathon*"]
+          ru: ["баскетбол*", "бокс*", "велоспорт*", "марафон*", "лёгк* атлетик*"]
+          de: ["basketball*", "boxen", "radsport*", "tour de france", "leichtathletik*", "marathon*"]

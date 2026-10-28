@@ -122,7 +122,8 @@
       + password_changed_at, failed_login_count, locked_until.
 - [ ] V4 is_admin → role (USERADMIN).
 - [ ] V5  tag: kind = CATEGORY / SUBTOPIC / ENTITY, parent_id (для подтем),
-      keywords (для подтем), region (для сущностей-стран/городов); существующие теги → ENTITY.
+      keywords (для подтем), region (для сущностей-стран/городов); существующие теги → ENTITY;
+      начальные данные — seed/taxonomy.yaml (категории, подтемы, ключевые слова, регионы).
 - [ ] V5b entity_alias (entity_id, alias, language) — варианты написания сущностей.
 - [ ] V5c user_language (user_id, language) — языки чтения пользователя.
 - [ ] V5d article_queue (id, url, url_hash UNIQUE, email_id, status
