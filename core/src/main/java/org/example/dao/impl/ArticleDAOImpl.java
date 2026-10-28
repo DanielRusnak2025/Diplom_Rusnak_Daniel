@@ -265,8 +265,9 @@ public class ArticleDAOImpl extends GenericDAOImpl<Article, Integer> implements 
             List<Predicate> predicates = new ArrayList<>();
 
             if (keyword != null && !keyword.isEmpty()) {
-                Predicate titlePredicate = cb.like(cb.lower(root.get("title")), "%" + keyword.toLowerCase() + "%");
-                Predicate publisherPredicate = cb.like(cb.lower(root.get("publisher")), "%" + keyword.toLowerCase() + "%");
+                String pattern = "%" + escapeLike(keyword.toLowerCase()) + "%";
+                Predicate titlePredicate     = cb.like(cb.lower(root.get("title")),     pattern, '!');
+                Predicate publisherPredicate = cb.like(cb.lower(root.get("publisher")), pattern, '!');
                 predicates.add(cb.or(titlePredicate, publisherPredicate));
             }
 
@@ -279,5 +280,12 @@ public class ArticleDAOImpl extends GenericDAOImpl<Article, Integer> implements 
 
             return session.createQuery(cq).getResultList();
         }
+    }
+
+    /** Escapes LIKE special characters so user input is treated as a literal substring. */
+    private static String escapeLike(String s) {
+        return s.replace("!", "!!")
+                .replace("%", "!%")
+                .replace("_", "!_");
     }
 }
