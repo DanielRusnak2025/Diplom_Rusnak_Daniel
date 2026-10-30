@@ -124,9 +124,10 @@
 - [x] V2 user суррогатный id; user_id в report и user_tag_percent, заполнение по nick,
       переключение FK, nick → UNIQUE.
       Flyway v2, db_use_test: user=10/article=71/report=8/utp=70; cascade delete проверен.
-- [ ] V3 пароли Java-миграция хеширует все пароли (Argon2id);
-      firstPassword → password_history (хеш), колонка удаляется;
-      + password_changed_at, failed_login_count, locked_until.
+- [x] V3 пароли: argon2id (RFC 9106, m=65536/t=3/p=4); password_history;
+      password_changed_at, failed_login_count, locked_until; constant-time auth;
+      смена пароля c проверкой last-3; firstPassword → history, колонка удалена.
+      db_use_test v3.3: user=10/article=71/report=8/utp=70/ph=10; 46 тестов, 0 failures.
 - [ ] V4 is_admin → role (USERADMIN).
 - [ ] V5  tag: kind = CATEGORY / SUBTOPIC / ENTITY, parent_id (для подтем),
       keywords (для подтем), region (для сущностей-стран/городов); существующие теги → ENTITY;
@@ -163,14 +164,25 @@
 Критерии количество статей, пользователей, оценок до и после совпадает;
 нет осиротевших FK; вход под старыми учётками работает с хешами.
 
-Технический долг (выявлен при V2):
+Технический долг (выявлен при V2/V3):
 - calculateArticleScore требует предзагруженных articleTagPercents на Article;
   LazyInitializationException на detached-сущности. Решить через JOIN FETCH
   или передавать List<ArticleTagPercent> отдельно (этап 4, сервер).
-- Все find* в DAO глотают Exception → Optional.empty(); ошибку БД путаем с
-  «не найден». Исправить в V3_2: бросать RuntimeException, не прятать ошибки.
+- [x] ~~Все find* в DAO глотают Exception → Optional.empty()~~ — исправлено в V3:
+      все find* теперь бросают RuntimeException.
 - user AUTO_INCREMENT сдвинут тестом v2_tmp (следующий id = 12, не 11) —
   не баг, AUTO_INCREMENT не откатывается; для сведения.
+
+Бэклог (выявлен при V3):
+- docs/sql/seed-test-users.sql содержит пароли открытым текстом в git; сид
+  устарел — не учитывает password_history. Заменить на скрипт, вызывающий
+  UserService.registerUserNoEmail, или вынести за пределы репозитория.
+- Все дампы в C:\newsdove_backups, снятые до 12:46 30.10 (включая pre-V2
+  от 28.10 и 30.10 12-28, 12-31, 12-45), содержат пароли открытым текстом
+  (password или firstPassword). Удалить/зашифровать после переноса
+  миграций на db_use.
+- db_use (основная БД) всё ещё хранит пароли открытым текстом — до переноса
+  миграций V3 на неё.
 
 ### Этап 3. ИИ-пайплайн
 - [ ] Интерфейс ArticleClassifier; реализация OllamaClassifier с JSON Schema:

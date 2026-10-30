@@ -1,13 +1,10 @@
 package org.example.dao;
 
 import org.example.User;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.List;
 
-/**
- * DAO для работы с сущностью User.
- * Наследует стандартные CRUD операции из GenericDAO.
- */
 public interface UserDAO extends GenericDAO<User, Integer> {
 
     Optional<User> findByNick(String nick);
@@ -42,4 +39,10 @@ public interface UserDAO extends GenericDAO<User, Integer> {
      * @return список пользователей
      */
     List<User> findByReadArticlesGreaterThan(int minCount);
+
+    /** Persist User + initial PasswordHistory in one transaction. */
+    User saveWithHistory(User user);
+
+    /** UPDATE user(password, password_changed_at) + INSERT password_history in one transaction. */
+    void changePassword(int userId, String newHash, LocalDateTime now);
 }

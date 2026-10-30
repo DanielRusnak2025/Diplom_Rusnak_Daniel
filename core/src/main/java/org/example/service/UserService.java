@@ -1,22 +1,39 @@
 package org.example.service;
 
 import org.example.User;
+import org.example.dao.PasswordHistoryDAO;
 import org.example.dao.UserDAO;
+import org.example.dao.impl.PasswordHistoryDAOImpl;
 import org.example.dao.impl.UserDAOImpl;
+import org.example.security.PasswordHasher;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 public class UserService {
 
     private final UserDAO userDAO;
+    private final PasswordHistoryDAO passwordHistoryDAO;
+
+    // Фиктивный хеш для constant-time ответа при несуществующем нике/email.
+    // Вычисляется один раз при загрузке класса; пароль-сентинель не логируется.
+    private static final String DUMMY_HASH =
+            PasswordHasher.hash("__newsdove_timing_sentinel__");
 
     public UserService() {
-        this.userDAO = new UserDAOImpl();
+        this.userDAO             = new UserDAOImpl();
+        this.passwordHistoryDAO  = new PasswordHistoryDAOImpl();
     }
 
     public UserService(UserDAO userDAO) {
-        this.userDAO = userDAO;
+        this.userDAO             = userDAO;
+        this.passwordHistoryDAO  = new PasswordHistoryDAOImpl();
+    }
+
+    public UserService(UserDAO userDAO, PasswordHistoryDAO passwordHistoryDAO) {
+        this.userDAO             = userDAO;
+        this.passwordHistoryDAO  = passwordHistoryDAO;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -25,39 +42,40 @@ public class UserService {
 
     /** Регистрация без email (для UI-формы регистрации). */
     public User registerUserNoEmail(String nick, String password) {
+        validatePassword(nick, password);
         if (userDAO.findByNick(nick).isPresent()) {
             throw new IllegalArgumentException("Login is already taken");
         }
-        User user = new User(nick, password, null);
-        return userDAO.save(user);
+        String hash = PasswordHasher.hash(password);
+        return userDAO.saveWithHistory(new User(nick, hash, null));
     }
 
     public User registerUser(String nick, String password, String email) {
+        validatePassword(nick, password);
         if (userDAO.findByNick(nick).isPresent()) {
             throw new IllegalArgumentException("Пользователь с таким ником уже существует: " + nick);
         }
-        Optional<User> existingUser = userDAO.findByEmail(email);
-        if (existingUser.isPresent()) {
+        if (userDAO.findByEmail(email).isPresent()) {
             throw new IllegalArgumentException("Пользователь с таким email уже существует: " + email);
         }
-        User user = new User(nick, password, email);
-        return userDAO.save(user);
+        String hash = PasswordHasher.hash(password);
+        return userDAO.saveWithHistory(new User(nick, hash, email));
     }
 
+    /** Аутентификация по нику. Constant-time: verify всегда вызывается. */
     public Optional<User> authenticate(String nick, String password) {
         Optional<User> userOpt = userDAO.findByNick(nick);
-        if (userOpt.isPresent() && userOpt.get().getPassword().equals(password)) {
-            return userOpt;
-        }
-        return Optional.empty();
+        String hashToVerify = userOpt.map(User::getPassword).orElse(DUMMY_HASH);
+        boolean match = PasswordHasher.verify(hashToVerify, password);
+        return (userOpt.isPresent() && match) ? userOpt : Optional.empty();
     }
 
+    /** Аутентификация по email. Constant-time: verify всегда вызывается. */
     public Optional<User> authenticateByEmail(String email, String password) {
         Optional<User> userOpt = userDAO.findByEmail(email);
-        if (userOpt.isPresent() && userOpt.get().getPassword().equals(password)) {
-            return userOpt;
-        }
-        return Optional.empty();
+        String hashToVerify = userOpt.map(User::getPassword).orElse(DUMMY_HASH);
+        boolean match = PasswordHasher.verify(hashToVerify, password);
+        return (userOpt.isPresent() && match) ? userOpt : Optional.empty();
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -92,11 +110,22 @@ public class UserService {
     public User updatePassword(String nick, String oldPassword, String newPassword) {
         User user = userDAO.findByNick(nick)
                 .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден: " + nick));
-        if (!user.getPassword().equals(oldPassword)) {
+        if (!PasswordHasher.verify(user.getPassword(), oldPassword)) {
             throw new IllegalArgumentException("Неверный текущий пароль");
         }
-        user.setPassword(newPassword);
-        return userDAO.update(user);
+        validatePassword(nick, newPassword);
+        List<String> last3 = passwordHistoryDAO.findLastHashes(user.getId(), 3);
+        for (String oldHash : last3) {
+            if (PasswordHasher.verify(oldHash, newPassword)) {
+                throw new IllegalArgumentException("Нельзя повторять один из последних 3 паролей");
+            }
+        }
+        LocalDateTime now = LocalDateTime.now();
+        String newHash = PasswordHasher.hash(newPassword);
+        userDAO.changePassword(user.getId(), newHash, now);
+        user.setPassword(newHash);
+        user.setPasswordChangedAt(now);
+        return user;
     }
 
     public boolean updateNotificationFrequency(String nick, String frequency) {
@@ -172,5 +201,22 @@ public class UserService {
 
     public void deleteUser(String nick) {
         userDAO.findByNick(nick).ifPresent(u -> userDAO.deleteById(u.getId()));
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Валидация пароля
+    // ═══════════════════════════════════════════════════════════
+
+    private static void validatePassword(String nick, String password) {
+        if (password == null || password.length() < 8) {
+            throw new IllegalArgumentException("Пароль должен содержать не менее 8 символов");
+        }
+        if (password.length() > PasswordHasher.MAX_PASSWORD_LENGTH) {
+            throw new IllegalArgumentException(
+                    "Пароль не должен превышать " + PasswordHasher.MAX_PASSWORD_LENGTH + " символов");
+        }
+        if (password.equalsIgnoreCase(nick)) {
+            throw new IllegalArgumentException("Пароль не должен совпадать с ником");
+        }
     }
 }

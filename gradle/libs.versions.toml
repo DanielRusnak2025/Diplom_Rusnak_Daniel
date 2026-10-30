@@ -13,6 +13,7 @@ lingua        = "1.2.2"
 slf4j         = "2.0.20"
 logback       = "1.6.5"
 flyway        = "13.11.1"
+argon2-jvm    = "2.12"
 
 [libraries]
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSer" }
@@ -30,6 +31,7 @@ junit-jupiter     = { module = "org.junit.jupiter:junit-jupiter",            ver
 junit-launcher    = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit"       }
 flyway-core       = { module = "org.flywaydb:flyway-core",                   version.ref = "flyway"      }
 flyway-mysql      = { module = "org.flywaydb:flyway-mysql",                  version.ref = "flyway"      }
+argon2-jvm        = { module = "de.mkammerer:argon2-jvm",                    version.ref = "argon2-jvm"  }
 
 [plugins]
 kotlin-jvm          = { id = "org.jetbrains.kotlin.jvm",                    version.ref = "kotlin" }

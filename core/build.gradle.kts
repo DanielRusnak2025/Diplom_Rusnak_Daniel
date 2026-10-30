@@ -8,7 +8,8 @@ application {
     applicationDefaultJvmArgs = listOf(
         "-Dfile.encoding=UTF-8",
         "-Dstdout.encoding=UTF-8",
-        "-Dstderr.encoding=UTF-8"
+        "-Dstderr.encoding=UTF-8",
+        "--enable-native-access=ALL-UNNAMED"
     )
 }
 
@@ -52,6 +53,9 @@ dependencies {
     implementation(libs.flyway.core)
     runtimeOnly(libs.flyway.mysql)
 
+    // Password hashing (Argon2id, RFC 9106)
+    implementation(libs.argon2.jvm)
+
     // Tests
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.launcher)
@@ -59,4 +63,5 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
 }

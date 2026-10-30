@@ -22,13 +22,9 @@
         <!-- Validate schema only — never modify tables -->
         <property name="hibernate.hbm2ddl.auto">validate</property>
 
-        <!-- List of mapped entity classes -->
-        <mapping class="org.example.User"/>
-        <mapping class="org.example.Tag"/>
-        <mapping class="org.example.UserTagPercent"/>
-        <mapping class="org.example.Article"/>
-        <mapping class="org.example.ArticleTagPercent"/>
-        <mapping class="org.example.Report"/>
+        <!-- Entity classes are registered programmatically in HibernateUtil.java.
+             Do NOT add <mapping> elements here — they are redundant and cause
+             "duplicate mapping" errors. -->
 
     </session-factory>
 </hibernate-configuration>

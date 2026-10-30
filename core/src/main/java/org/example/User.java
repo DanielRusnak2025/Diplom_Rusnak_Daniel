@@ -1,6 +1,7 @@
 package org.example;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
@@ -19,10 +20,14 @@ public class User {
     @Column(length = 255, nullable = false)
     private String password;
 
-    // Рекомендую переименовать, например в oldPassword / previousPassword / tempPassword
-    // "firstPassword" звучит странно в контексте постоянного хранения
-    @Column(length = 255)
-    private String firstPassword;
+    @Column(name = "password_changed_at")
+    private LocalDateTime passwordChangedAt;
+
+    @Column(name = "failed_login_count", nullable = false)
+    private int failedLoginCount = 0;
+
+    @Column(name = "locked_until")
+    private LocalDateTime lockedUntil;
 
     @Column(name = "registration_date")
     @Temporal(TemporalType.DATE)
@@ -96,12 +101,28 @@ public class User {
         this.password = password;
     }
 
-    public String getFirstPassword() {
-        return firstPassword;
+    public LocalDateTime getPasswordChangedAt() {
+        return passwordChangedAt;
     }
 
-    public void setFirstPassword(String firstPassword) {
-        this.firstPassword = firstPassword;
+    public void setPasswordChangedAt(LocalDateTime passwordChangedAt) {
+        this.passwordChangedAt = passwordChangedAt;
+    }
+
+    public int getFailedLoginCount() {
+        return failedLoginCount;
+    }
+
+    public void setFailedLoginCount(int failedLoginCount) {
+        this.failedLoginCount = failedLoginCount;
+    }
+
+    public LocalDateTime getLockedUntil() {
+        return lockedUntil;
+    }
+
+    public void setLockedUntil(LocalDateTime lockedUntil) {
+        this.lockedUntil = lockedUntil;
     }
 
     public Date getRegistrationDate() {

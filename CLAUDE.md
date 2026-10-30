@@ -27,7 +27,13 @@ The full migration plan with stage-by-stage checklists and completion criteria l
 9. **One way to run the app.** After launch, check the first `[Config]` log line — it must contain `db.url=...db_use_test`. If the line is absent or the DB is not `db_use_test` — close the app immediately and investigate.
 10. **Any decrease in row count in any table → STOP and report** before doing anything else.
 11. **Dependency versions are verified via Gradle resolution or the project's official releases page** — never via `search.maven.org` solrsearch (stale index) or from memory. Workflow: set a concrete version in `libs.versions.toml`, run `./gradlew :module:dependencies --configuration <conf>` and confirm what Gradle actually resolved. If a fetched page returns no content, say so — do not report it as confirmed.
-12. **Restoring a dump must use `cmd /c "mysql ... < file"` (binary stdin)** — never `Get-Content | mysql` (PowerShell re-encodes UTF-8, corrupting multi-byte sequences). After every restore, compare MD5 hashes of all data tables against `db_use` to confirm the bytes are intact.
+12. **Restoring a dump** — full procedure:
+    1. `DROP DATABASE db_use_test; CREATE DATABASE db_use_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`
+    2. `cmd /c "\"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe\" --login-path=newsdove_dev db_use_test < \"<dumpfile>\""` — never `Get-Content | mysql` (PowerShell re-encodes UTF-8).
+    3. Verify row counts and FK integrity. If the dump was taken from `db_use` — also compare MD5 hashes of all data tables against `db_use` to confirm the bytes are intact.
+    Rationale: a partial restore (without DROP/CREATE) leaves behind tables created after the dump, causing phantom conflicts on the next migration attempt.
+13. **On any error in a migration, test, or DB command — stop immediately.** Paste the full error, explain what happened, and wait for explicit instructions. Manual edits to `flyway_schema_history`, `DROP TABLE`, or other schema repairs require explicit user confirmation before proceeding.
+14. **Passwords, tokens, keys, and dump lines containing them must never be read, printed, or inserted into code or tests** — even for `db_use_test`. If a tool call is blocked by auto mode or a permission check, that block is a hard stop: do not re-attempt the same action via a different tool (e.g. Read, Grep, or another shell). Report the block and wait.
 
 ---
 
