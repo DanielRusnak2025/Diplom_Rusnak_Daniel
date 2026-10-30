@@ -1,5 +1,6 @@
 package org.example.service;
 
+import org.example.Role;
 import org.example.User;
 import org.example.dao.PasswordHistoryDAO;
 import org.example.dao.UserDAO;
@@ -156,10 +157,10 @@ public class UserService {
         return userDAO.update(user);
     }
 
-    public User setAdminStatus(String nick, boolean isAdmin) {
+    public User setRole(String nick, Role role) {
         User user = userDAO.findByNick(nick)
                 .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден: " + nick));
-        user.setAdmin(isAdmin);
+        user.setRole(role);
         return userDAO.update(user);
     }
 
@@ -179,8 +180,8 @@ public class UserService {
         return userDAO.findAll();
     }
 
-    public List<User> getAllAdmins() {
-        return userDAO.findAllAdmins();
+    public List<User> getUsersByRole(Role role) {
+        return userDAO.findByRole(role);
     }
 
     public List<User> getUsersByRegion(String region) {

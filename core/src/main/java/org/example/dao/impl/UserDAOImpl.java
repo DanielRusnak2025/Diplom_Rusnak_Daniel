@@ -1,6 +1,7 @@
 package org.example.dao.impl;
 
 import org.example.PasswordHistory;
+import org.example.Role;
 import org.example.User;
 import org.example.dao.UserDAO;
 import org.example.util.HibernateUtil;
@@ -73,12 +74,13 @@ public class UserDAOImpl extends GenericDAOImpl<User, Integer> implements UserDA
     }
 
     @Override
-    public List<User> findAllAdmins() {
+    public List<User> findByRole(Role role) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            String hql = "FROM User u WHERE u.isAdmin = true";
-            return session.createQuery(hql, User.class).getResultList();
+            return session.createQuery("FROM User u WHERE u.role = :role", User.class)
+                    .setParameter("role", role)
+                    .getResultList();
         } catch (Exception e) {
-            throw new RuntimeException("findAllAdmins failed", e);
+            throw new RuntimeException("findByRole failed for role=" + role, e);
         }
     }
 

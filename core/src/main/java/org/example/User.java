@@ -1,6 +1,8 @@
 package org.example;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.HashSet;
@@ -42,8 +44,10 @@ public class User {
     @Column(name = "preferred_language", length = 50)
     private String preferredLanguage;
 
-    @Column(name = "is_admin")
-    private boolean isAdmin;
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(name = "role", length = 20, nullable = false)
+    private Role role = Role.USER;
 
     @Column(name = "read_articles_count")
     private int readArticlesCount;
@@ -70,7 +74,7 @@ public class User {
         this.email = email;
         this.registrationDate = new Date();
         this.readArticlesCount = 0;
-        this.isAdmin = false;
+        this.role = Role.USER;
     }
 
     // ───────────────────────────────────────────────
@@ -157,12 +161,12 @@ public class User {
         this.preferredLanguage = preferredLanguage;
     }
 
-    public boolean isAdmin() {
-        return isAdmin;
+    public Role getRole() {
+        return role;
     }
 
-    public void setAdmin(boolean admin) {
-        isAdmin = admin;
+    public void setRole(Role role) {
+        this.role = role;
     }
 
     public int getReadArticlesCount() {

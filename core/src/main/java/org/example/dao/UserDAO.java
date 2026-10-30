@@ -1,5 +1,6 @@
 package org.example.dao;
 
+import org.example.Role;
 import org.example.User;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -17,12 +18,7 @@ public interface UserDAO extends GenericDAO<User, Integer> {
      */
     Optional<User> findByEmail(String email);
 
-    /**
-     * Находит всех администраторов.
-     *
-     * @return список пользователей с isAdmin = true
-     */
-    List<User> findAllAdmins();
+    List<User> findByRole(Role role);
 
     /**
      * Находит пользователей по предпочитаемому региону.

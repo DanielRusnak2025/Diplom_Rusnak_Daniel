@@ -52,13 +52,13 @@ Additionally, a **Pipeline subsystem** (Email → AI → DB) operates as a backg
 #### Navigation Flow
 
 ```
-Login ──► [is_admin=true]  ──► SearchByKeyword (CRUD Panel)
+Login ──► [role=ADMIN]  ──► SearchByKeyword (CRUD Panel)
       │                              │
       │                      SearchByUsername
       │                              │
       │                      SearchByReports
       │
-      └► [is_admin=false] ──► Registration ──► LanguageRegion ──► Categories ──► MainScreen
+      └► [role=USER] ──► Registration ──► LanguageRegion ──► Categories ──► MainScreen
                                                                                       │
                                                                                (re-entry on login)
 ```
@@ -180,7 +180,7 @@ GenericDAOImpl<T, ID>  (abstract class, manages Session/Transaction)
 │ email        │         │ percent (0-100)       │         └──────┬───────┘
 │ region       │         └───────────────────────┘                │
 │ language     │                                                   │
-│ is_admin     │         ┌───────────────────────┐                │
+│ role         │         ┌───────────────────────┐                │
 │ notif_freq   │         │ article_tag_percent   │                │
 └──────┬───────┘         │───────────────────────│                │
        │                 │ article_id (FK, PK)   │◄───────────────┘
@@ -538,7 +538,7 @@ All three admin screens share the same layout pattern:
 │  - username search          │  nick (PK, read-only)  │
 │  - usersListView            │  passwords, email      │
 │  - blocksListView           │  region, language      │
-│  - gradeListView            │  is_admin, read count  │
+│  - gradeListView            │  role, read count      │
 │  - tagsListView             │  registration date     │
 │                             │                        │
 │  SearchByReports:           │  Report fields:        │

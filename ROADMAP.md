@@ -128,7 +128,8 @@
       password_changed_at, failed_login_count, locked_until; constant-time auth;
       смена пароля c проверкой last-3; firstPassword → history, колонка удалена.
       db_use_test v3.3: user=10/article=71/report=8/utp=70/ph=10; 46 тестов, 0 failures.
-- [ ] V4 is_admin → role (USERADMIN).
+- [x] V4 is_admin → role VARCHAR(20) CHECK (USER|MODERATOR|ADMIN); enum Role в Java;
+      findByRole(Role); setRole(nick,Role). db_use_test v4: ADMIN=2 USER=8; 46 тестов, 0 failures.
 - [ ] V5  tag: kind = CATEGORY / SUBTOPIC / ENTITY, parent_id (для подтем),
       keywords (для подтем), region (для сущностей-стран/городов); существующие теги → ENTITY;
       начальные данные — seed/taxonomy.yaml (категории, подтемы, ключевые слова, регионы).
