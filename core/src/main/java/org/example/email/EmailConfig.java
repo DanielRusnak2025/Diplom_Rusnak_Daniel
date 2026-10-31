@@ -48,11 +48,6 @@ public class EmailConfig {
         catch (NumberFormatException e) { return 60; }
     }
 
-    public static int getCleanupMaxReads() {
-        try { return Integer.parseInt(props.getProperty("scheduler.cleanup.max.reads", "0")); }
-        catch (NumberFormatException e) { return 0; }
-    }
-
     public static boolean isSchedulerEnabled() {
         return Boolean.parseBoolean(props.getProperty("scheduler.enabled", "true"));
     }

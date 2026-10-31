@@ -119,19 +119,6 @@ public class ArticleDAOImpl extends GenericDAOImpl<Article, Integer> implements 
     }
 
     @Override
-    public List<Article> findMostRead(int limit) {
-        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            String hql = "FROM Article a ORDER BY a.readCount DESC";
-            Query<Article> query = session.createQuery(hql, Article.class);
-            query.setMaxResults(limit);
-            return query.getResultList();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return List.of();
-        }
-    }
-
-    @Override
     public List<Article> findByLanguageAndRegion(String language, String region) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             String hql = "FROM Article a WHERE a.articleLanguage = :language AND a.articleRegion = :region";
@@ -194,7 +181,19 @@ public class ArticleDAOImpl extends GenericDAOImpl<Article, Integer> implements 
     }
 
     @Override
-    public List<Article> findOldUnread(int daysOld, int maxReadCount) {
+    public Optional<Article> findByLinkHash(String linkHash) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            return Optional.ofNullable(
+                session.createQuery("FROM Article a WHERE a.linkHash = :h", Article.class)
+                       .setParameter("h", linkHash)
+                       .uniqueResult());
+        } catch (Exception e) {
+            throw new RuntimeException("findByLinkHash failed for hash=" + linkHash, e);
+        }
+    }
+
+    @Override
+    public List<Article> findOldArticles(int daysOld) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             Date cutoff = Date.from(
                 java.time.LocalDate.now()
@@ -202,10 +201,11 @@ public class ArticleDAOImpl extends GenericDAOImpl<Article, Integer> implements 
                     .atStartOfDay(java.time.ZoneId.systemDefault())
                     .toInstant()
             );
-            String hql = "FROM Article a WHERE a.publicationDate < :cutoff AND a.readCount <= :maxReadCount";
-            return session.createQuery(hql, Article.class)
+            return session.createQuery(
+                    "FROM Article a WHERE a.publicationDate < :cutoff " +
+                    "AND NOT EXISTS (SELECT 1 FROM Report r WHERE r.article = a)",
+                    Article.class)
                     .setParameter("cutoff", cutoff)
-                    .setParameter("maxReadCount", maxReadCount)
                     .getResultList();
         } catch (Exception e) {
             e.printStackTrace();

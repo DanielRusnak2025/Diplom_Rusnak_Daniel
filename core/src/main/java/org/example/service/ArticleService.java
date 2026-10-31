@@ -83,7 +83,6 @@ public class ArticleService {
         article.setArticleRegion(region);
         article.setPublisher(publisher);
         article.setPublicationDate(new Date());
-        article.setReadCount(0);
 
         return articleDAO.save(article);
     }
@@ -98,14 +97,6 @@ public class ArticleService {
         if (region != null) article.setArticleRegion(region);
         if (publisher != null) article.setPublisher(publisher);
 
-        return articleDAO.update(article);
-    }
-
-    public Article incrementReadCount(int articleId) {
-        Article article = articleDAO.findById(articleId)
-                .orElseThrow(() -> new IllegalArgumentException("Статья не найдена: " + articleId));
-
-        article.setReadCount(article.getReadCount() + 1);
         return articleDAO.update(article);
     }
 
@@ -145,10 +136,6 @@ public class ArticleService {
         return articleDAO.findByPublicationDateAfter(afterDate);
     }
 
-    public List<Article> getMostReadArticles(int limit) {
-        return articleDAO.findMostRead(limit);
-    }
-
     public long getTotalArticles() {
         return articleDAO.count();
     }
@@ -180,8 +167,8 @@ public class ArticleService {
         return articleDAO.findByIds(ids);
     }
 
-    public int deleteOldArticles(int daysOld, int maxReadCount) {
-        List<Article> candidates = articleDAO.findOldUnread(daysOld, maxReadCount);
+    public int deleteOldArticles(int daysOld) {
+        List<Article> candidates = articleDAO.findOldArticles(daysOld);
         int deleted = 0;
         for (Article article : candidates) {
             try {

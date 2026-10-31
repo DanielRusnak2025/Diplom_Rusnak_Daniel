@@ -159,9 +159,14 @@
       article=71/atp=360/utp=70; 46+UrlNormalizerTest+ArticleQueueTest тестов, 0 failures.
       Вся цепочка V1_1…V7_2 воспроизводима с нуля: TestDb (baseline_schema.sql из db_use →
       baseline 1 → migrate) на db_use_test_it; 77 тестов.
-- [ ] V8  article: + link_hash SHA2(link,256) CHAR(64) UNIQUE (дубли сперва),
-      + created_at, + classifier_model, + prompt_version, + taxonomy_version.
-      processing_status не нужен — статус ведётся в article_queue.
+- [x] V8  article: + link_hash CHAR(64) UNIQUE, + created_at DATETIME(6),
+      + classifier_model, + prompt_version, + taxonomy_version; − read_count
+      (legacy JavaFX read counter, popularity will be derived from report).
+      @PrePersist/@PreUpdate вычисляют linkHash через UrlNormalizer; ArticleDAO.findByLinkHash().
+      findOldArticles исключает статьи с Report (история весов пользователя).
+      db_use_test v8.3: 71 строк, link_hash NULL=0, dup=0, queue-hash mismatch=0, atp=360.
+      81 тест (ArticleMetaTest +4: linkHash, UNIQUE, findByLinkHash, findOldArticlesExcludesReported).
+  ⚙ Бэклог: остальные find* в ArticleDAOImpl глотают исключения — исправить на Этапе 3.
 - [ ] V9  report + reason_code.
 - [ ] V10 user_block, refresh_token, audit_log (SET NULL).
 - [ ] V11 entity + entity_alias — после того как будет seed/entities.yaml.

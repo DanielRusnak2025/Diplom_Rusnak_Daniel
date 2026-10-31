@@ -31,7 +31,6 @@ public class EmailScheduler {
     private final int intervalMinutes;
     private final int parallelRequests;
     private final int cleanupDays;
-    private final int cleanupMaxReads;
 
     // Системные письма — фильтруем при чтении
     private static final List<String> SYSTEM_DOMAINS = List.of(
@@ -57,7 +56,6 @@ public class EmailScheduler {
         this.intervalMinutes  = EmailConfig.getSchedulerIntervalMinutes();
         this.parallelRequests = EmailConfig.getParallelRequests();
         this.cleanupDays      = EmailConfig.getCleanupDays();
-        this.cleanupMaxReads  = EmailConfig.getCleanupMaxReads();
 
         this.emailReader    = new EmailReader(EmailConfig.getEmail(), EmailConfig.getAppPassword());
         this.linkExtractor  = new LinkExtractor();
@@ -102,10 +100,10 @@ public class EmailScheduler {
 
         try {
             if (EmailConfig.isCleanupEnabled()) {
-                int cleaned = articleService.deleteOldArticles(cleanupDays, cleanupMaxReads);
+                int cleaned = articleService.deleteOldArticles(cleanupDays);
                 if (cleaned > 0) {
                     System.out.println("🗑 Автоочистка: удалено " + cleaned
-                            + " статей старше " + cleanupDays + " дней с readCount <= " + cleanupMaxReads);
+                            + " статей старше " + cleanupDays + " дней");
                 }
             }
 

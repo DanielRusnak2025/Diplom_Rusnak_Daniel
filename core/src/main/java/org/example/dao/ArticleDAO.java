@@ -52,12 +52,9 @@ public interface ArticleDAO extends GenericDAO<Article, Integer> {
     List<Article> findByPublicationDateAfter(Date date);
 
     /**
-     * Находит самые читаемые статьи.
-     *
-     * @param limit максимальное количество результатов
-     * @return список статей
+     * Находит статью по хешу нормализованной ссылки.
      */
-    List<Article> findMostRead(int limit);
+    Optional<Article> findByLinkHash(String linkHash);
 
     /**
      * Находит статьи по языку и региону.
@@ -87,14 +84,11 @@ public interface ArticleDAO extends GenericDAO<Article, Integer> {
     List<Article> findByKeyword(String keyword);
 
     /**
-     * Находит статьи старше указанного количества дней с readCount <= maxReadCount.
-     * Используется для автоматической очистки устаревшего непрочитанного контента.
-     *
-     * @param daysOld      минимальный возраст статьи в днях
-     * @param maxReadCount максимальное количество прочтений (включительно)
-     * @return список статей-кандидатов на удаление
+     * Находит статьи старше указанного количества дней без оценок/жалоб.
+     * Статьи, у которых есть хотя бы одна запись Report, исключаются:
+     * они являются историей весов пользователя и не должны удаляться.
      */
-    List<Article> findOldUnread(int daysOld, int maxReadCount);
+    List<Article> findOldArticles(int daysOld);
 
     /**
      * Считает количество статей с id > afterId.

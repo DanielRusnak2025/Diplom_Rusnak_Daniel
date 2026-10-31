@@ -614,7 +614,6 @@ public class ArticleSaver {
         article.setArticleLanguage(truncate(extracted.getLanguage(), 50));
         article.setArticleRegion(truncate(extracted.getRegion(), 100));
         article.setPublisher(truncate(extracted.getPublication(), 255));
-        article.setReadCount(0);
         article.setPublicationDate(new Date());
         return article;
     }

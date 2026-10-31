@@ -9,11 +9,10 @@ scheduler.parallel.requests=5
 # Set to false to skip the EmailScheduler entirely (login/feed still work, no Gmail/Ollama needed)
 scheduler.enabled=true
 
-# Cleanup: delete old unread articles on each pipeline run
+# Cleanup: delete old articles (no reports) on each pipeline run
 # Default: false — safe, never deletes data automatically. Set to true only in production.
 scheduler.cleanup.enabled=false
 scheduler.cleanup.days=60
-scheduler.cleanup.max.reads=0
 
 # Max age of emails to fetch from IMAP (days). 0 = no date limit (process all unread).
 # Default 7 — safe: old archive is never processed if the key is missing.

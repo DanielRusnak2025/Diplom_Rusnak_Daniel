@@ -1,6 +1,8 @@
 package org.example;
 
 import jakarta.persistence.*;
+import org.example.util.UrlNormalizer;
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
@@ -19,6 +21,21 @@ public class Article {
     @Column(length = 2000)
     private String link;
 
+    @Column(name = "link_hash", length = 64)
+    private String linkHash;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    @Column(name = "classifier_model", length = 100)
+    private String classifierModel;
+
+    @Column(name = "prompt_version", length = 20)
+    private String promptVersion;
+
+    @Column(name = "taxonomy_version")
+    private Integer taxonomyVersion;
+
     @Column(name = "article_language", length = 50)
     private String articleLanguage;
 
@@ -29,9 +46,6 @@ public class Article {
     @Column(name = "publication_date")
     private Date publicationDate;
 
-    @Column(name = "read_count")
-    private int readCount;
-
     @Column(length = 255)
     private String publisher;
 
@@ -40,6 +54,27 @@ public class Article {
 
     @OneToMany(mappedBy = "article")
     private Set<Report> reports = new HashSet<>();
+
+    // ───────────────────────────────────────────────
+    // Lifecycle callbacks
+    // ───────────────────────────────────────────────
+
+    @PrePersist
+    void onPersist() {
+        if (link != null) {
+            linkHash = UrlNormalizer.hash(UrlNormalizer.normalize(link));
+        }
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        if (link != null) {
+            linkHash = UrlNormalizer.hash(UrlNormalizer.normalize(link));
+        }
+    }
 
     // ───────────────────────────────────────────────
     // Геттеры и сеттеры
@@ -69,6 +104,46 @@ public class Article {
         this.link = link;
     }
 
+    public String getLinkHash() {
+        return linkHash;
+    }
+
+    public void setLinkHash(String linkHash) {
+        this.linkHash = linkHash;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public String getClassifierModel() {
+        return classifierModel;
+    }
+
+    public void setClassifierModel(String classifierModel) {
+        this.classifierModel = classifierModel;
+    }
+
+    public String getPromptVersion() {
+        return promptVersion;
+    }
+
+    public void setPromptVersion(String promptVersion) {
+        this.promptVersion = promptVersion;
+    }
+
+    public Integer getTaxonomyVersion() {
+        return taxonomyVersion;
+    }
+
+    public void setTaxonomyVersion(Integer taxonomyVersion) {
+        this.taxonomyVersion = taxonomyVersion;
+    }
+
     public String getArticleLanguage() {
         return articleLanguage;
     }
@@ -91,14 +166,6 @@ public class Article {
 
     public void setPublicationDate(Date publicationDate) {
         this.publicationDate = publicationDate;
-    }
-
-    public int getReadCount() {
-        return readCount;
-    }
-
-    public void setReadCount(int readCount) {
-        this.readCount = readCount;
     }
 
     public String getPublisher() {
