@@ -73,3 +73,7 @@ tasks.test {
     // Tests that write to the DB must use this isolated schema, never db_use_test.
     systemProperty("newsdove.db.name", "db_use_test_it")
 }
+
+tasks.named<JavaExec>("run") {
+    (findProperty("dbName") as String?)?.let { systemProperty("newsdove.db.name", it) }
+}

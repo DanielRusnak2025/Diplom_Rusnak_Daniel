@@ -185,6 +185,11 @@
       5 новых тестов (double block→UNIQUE, TAG+publisher→CHECK, delete tag→RESTRICT,
       delete user→CASCADE blocks+tokens/SET NULL audit, dup token hash→UNIQUE); 89 тестов, 0 failures.
   ⚙ Бэклог: удаление тега/региона — сначала удалить user_block (FK RESTRICT, не CASCADE).
+- [x] Репетиция переноса на db_use (2026-10-31): свежий дамп db_use →
+      db_use_test_rehearsal → 24 миграции одним прогоном → validate OK.
+      article 72→71 (V1_1 слила дубль 214/215, ожидаемо), atp 363→360.
+      Содержимое совпадает с db_use_test (link_hash, tag_key, user_language,
+      user_region, article_queue, report, argon2 у всех).
 - [ ] V11 entity + entity_alias — после того как будет seed/entities.yaml.
 ⚠ **Ограничение до Этапа 3:** `scheduler.enabled` должен оставаться `false`.
   Старый пайплайн пишет `article_region` свободным текстом («Russia», «United States»)
@@ -225,6 +230,14 @@
   миграций на db_use.
 - db_use (основная БД) всё ещё хранит пароли открытым текстом — до переноса
   миграций V3 на неё.
+- C:\newsdove_backups\db_use_rehearsal_2026-10-31.sql — дамп db_use (пароли
+  открытым текстом). Удалить после переноса миграций на db_use.
+
+Бэклог — Перенос на db_use (после V11):
+- Создать пользователя newsdove_migrator (DDL на db_use) только для --migrate;
+  приложение работает под пользователем с DML без DDL (минимум прав).
+- Guard «только db_use_test» в HeadlessMain снимается явным флагом --allow-prod;
+  план и конкретный флаг — отдельное обсуждение перед переносом.
 
 Бэклог (выявлен при V5):
 - Три ENTITY-тега имеют искажённые имена (militârparade, sparmaønahmen,

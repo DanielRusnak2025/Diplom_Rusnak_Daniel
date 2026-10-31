@@ -3,6 +3,7 @@ package org.example;
 import org.example.email.EmailConfig;
 import org.example.scheduler.EmailScheduler;
 import org.example.service.ArticleService;
+import org.example.util.HibernateUtil;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationInfo;
 import org.flywaydb.core.api.MigrationInfoService;
@@ -24,7 +25,7 @@ public class HeadlessMain {
 
         // Read DB config from hibernate.cfg.xml without building SessionFactory.
         Configuration hCfg = new Configuration().configure();
-        String dbUrl  = hCfg.getProperty("hibernate.connection.url");
+        String dbUrl  = HibernateUtil.resolveUrl(hCfg.getProperty("hibernate.connection.url"));
         String dbUser = hCfg.getProperty("hibernate.connection.username");
         String dbPass = hCfg.getProperty("hibernate.connection.password");
 
