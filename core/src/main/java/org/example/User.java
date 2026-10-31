@@ -38,11 +38,15 @@ public class User {
     @Column(length = 100, unique = true)
     private String email;
 
-    @Column(name = "preferred_region", length = 100)
-    private String preferredRegion;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_language", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "language")
+    private Set<String> languages = new HashSet<>();
 
-    @Column(name = "preferred_language", length = 50)
-    private String preferredLanguage;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_region", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "region_key")
+    private Set<String> regions = new HashSet<>();
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.VARCHAR)
@@ -145,20 +149,20 @@ public class User {
         this.email = email;
     }
 
-    public String getPreferredRegion() {
-        return preferredRegion;
+    public Set<String> getLanguages() {
+        return languages;
     }
 
-    public void setPreferredRegion(String preferredRegion) {
-        this.preferredRegion = preferredRegion;
+    public void setLanguages(Set<String> languages) {
+        this.languages = languages;
     }
 
-    public String getPreferredLanguage() {
-        return preferredLanguage;
+    public Set<String> getRegions() {
+        return regions;
     }
 
-    public void setPreferredLanguage(String preferredLanguage) {
-        this.preferredLanguage = preferredLanguage;
+    public void setRegions(Set<String> regions) {
+        this.regions = regions;
     }
 
     public Role getRole() {

@@ -503,7 +503,7 @@ RegistrationController.onEnter()
 
 LanguageRegionController.onEnter()
      │  validate: language + region selected
-     └── UserService.updatePreferences(nick, region, language)
+     └── UserService.setLanguages(nick, languages) + setRegions(nick, regionKeys)
              └── navigate to Categories.fxml (pass User)
 
 CategoriesController.onEnter()

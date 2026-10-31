@@ -20,13 +20,7 @@ public interface UserDAO extends GenericDAO<User, Integer> {
 
     List<User> findByRole(Role role);
 
-    /**
-     * Находит пользователей по предпочитаемому региону.
-     *
-     * @param region регион (например, "Europe", "Asia")
-     * @return список пользователей
-     */
-    List<User> findByPreferredRegion(String region);
+    List<User> findByRegion(String regionKey);
 
     /**
      * Находит пользователей, прочитавших больше указанного количества статей.

@@ -85,14 +85,15 @@ public class UserDAOImpl extends GenericDAOImpl<User, Integer> implements UserDA
     }
 
     @Override
-    public List<User> findByPreferredRegion(String region) {
+    public List<User> findByRegion(String regionKey) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            String hql = "FROM User u WHERE u.preferredRegion = :region";
-            return session.createQuery(hql, User.class)
-                    .setParameter("region", region)
+            return session.createQuery(
+                            "SELECT DISTINCT u FROM User u JOIN u.regions r WHERE r = :regionKey",
+                            User.class)
+                    .setParameter("regionKey", regionKey)
                     .getResultList();
         } catch (Exception e) {
-            throw new RuntimeException("findByPreferredRegion failed", e);
+            throw new RuntimeException("findByRegion failed for regionKey=" + regionKey, e);
         }
     }
 

@@ -1,5 +1,6 @@
 package org.example.service;
 
+import org.example.Region;
 import org.example.Role;
 import org.example.User;
 import org.example.dao.PasswordHistoryDAO;
@@ -7,10 +8,12 @@ import org.example.dao.UserDAO;
 import org.example.dao.impl.PasswordHistoryDAOImpl;
 import org.example.dao.impl.UserDAOImpl;
 import org.example.security.PasswordHasher;
+import org.example.util.HibernateUtil;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public class UserService {
 
@@ -142,11 +145,29 @@ public class UserService {
         }
     }
 
-    public User updatePreferences(String nick, String preferredRegion, String preferredLanguage) {
+    public User setLanguages(String nick, Set<String> languages) {
+        for (String lang : languages) {
+            if (!lang.matches("^[a-z]{2}$")) {
+                throw new IllegalArgumentException("Invalid language code (must be 2 lowercase letters): " + lang);
+            }
+        }
         User user = userDAO.findByNick(nick)
                 .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден: " + nick));
-        user.setPreferredRegion(preferredRegion);
-        user.setPreferredLanguage(preferredLanguage);
+        user.setLanguages(languages);
+        return userDAO.update(user);
+    }
+
+    public User setRegions(String nick, Set<String> regionKeys) {
+        try (org.hibernate.Session session = HibernateUtil.getSessionFactory().openSession()) {
+            for (String key : regionKeys) {
+                if (session.find(Region.class, key) == null) {
+                    throw new IllegalArgumentException("Unknown region_key: " + key);
+                }
+            }
+        }
+        User user = userDAO.findByNick(nick)
+                .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден: " + nick));
+        user.setRegions(regionKeys);
         return userDAO.update(user);
     }
 
@@ -184,8 +205,8 @@ public class UserService {
         return userDAO.findByRole(role);
     }
 
-    public List<User> getUsersByRegion(String region) {
-        return userDAO.findByPreferredRegion(region);
+    public List<User> getUsersByRegion(String regionKey) {
+        return userDAO.findByRegion(regionKey);
     }
 
     public List<User> getActiveReaders(int minReadCount) {

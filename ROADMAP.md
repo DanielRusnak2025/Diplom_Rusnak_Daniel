@@ -135,18 +135,24 @@
       начальные данные — seed/taxonomy.yaml (категории, подтемы, ключевые слова, регионы).
       db_use_test v5.4: region=12, CATEGORY=15, SUBTOPIC=83, ENTITY=257, tag_keyword=1209,
       atp=360, utp=70; subtopics без parent=0; null/dup tag_key=0; 46 тестов, 0 failures.
-- [ ] V5b entity_alias (entity_id, alias, language) — варианты написания сущностей.
-- [ ] V5c user_language (user_id, language) — языки чтения пользователя.
-- [ ] V5d article_queue (id, url, url_hash UNIQUE, email_id, status
-      PENDING/PROCESSING/DONE/REJECTED/FAILED, reject_reason, attempts,
-      created_at, processed_at, article_id).
-- [ ] V6 article + link_hash CHAR(64) UNIQUE (с предварительной обработкой дублей),
+- [x] V6  user_language (user_id FK CASCADE, language VARCHAR(5) ISO 639-1),
+      PK(user_id, language); user_region (user_id FK CASCADE, region_key FK → region),
+      PK(user_id, region_key). V6_1: CREATE + перенос из preferred_language/preferred_region.
+      V6_2: удалить preferred_language/preferred_region из user + код
+      (User.java, UserService: updatePreferences→setLanguages/setRegions,
+      UserDAO/Impl: findByPreferredRegion→findByRegion JOIN u.regions,
+      ARCHITECTURE.md, seed-test-users.sql).
+      db_use_test v6.2: user_language=8, user_region=8; 46 тестов, 0 failures.
+- [ ] V7  article_queue (id, url, url_hash SHA2(url,256) CHAR(64) UNIQUE, email_id,
+      status PENDING/PROCESSING/DONE/REJECTED/FAILED, reject_reason, attempts,
+      created_at, processed_at, article_id). Старые 71 статья → PENDING.
+- [ ] V8  article: + link_hash SHA2(link,256) CHAR(64) UNIQUE (дубли сперва),
       + created_at, + classifier_model, + prompt_version, + taxonomy_version.
-      processing_status не нужен — статус ведётся в article_queue (V5d).
-- [ ] V7 report + reason_code.
-- [ ] V8 user_tag_percent.percent → DECIMAL.
-- [ ] V9 новые таблицы user_block, refresh_token, audit_log,
-      processed_email (+ links_total, links_rejected, links_saved).
+      processing_status не нужен — статус ведётся в article_queue.
+- [ ] V9  report + reason_code.
+- [ ] V10 user_block, refresh_token, audit_log (SET NULL), processed_email
+      (+ links_total, links_rejected, links_saved).
+- [ ] V11 entity + entity_alias — после того как будет seed/entities.yaml.
 ⚠ **Ограничение до Этапа 3:** `scheduler.enabled` должен оставаться `false`.
   Старый пайплайн пишет `article_region` свободным текстом («Russia», «United States»)
   и `article_language` словом («Russian», «German»). После V1_3/V1_4 эти поля хранят
