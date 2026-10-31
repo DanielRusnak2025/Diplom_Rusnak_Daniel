@@ -1,6 +1,8 @@
 package org.example;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -12,8 +14,26 @@ public class Tag {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    @Column(length = 100, nullable = false, unique = true)
+    @Column(length = 100, nullable = false)
     private String name;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(name = "kind", length = 20, nullable = false)
+    private TagKind kind = TagKind.ENTITY;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    private Tag parent;
+
+    @Column(length = 30)
+    private String region;
+
+    @Column(name = "tag_key", length = 150, nullable = false, unique = true)
+    private String tagKey;
+
+    @Column(length = 500)
+    private String description;
 
     @OneToMany(mappedBy = "tag", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<UserTagPercent> userTagPercents = new HashSet<>();
@@ -31,6 +51,21 @@ public class Tag {
     public Tag(String name) {
         this.name = name;
     }
+
+    public TagKind getKind() { return kind; }
+    public void setKind(TagKind kind) { this.kind = kind; }
+
+    public Tag getParent() { return parent; }
+    public void setParent(Tag parent) { this.parent = parent; }
+
+    public String getRegion() { return region; }
+    public void setRegion(String region) { this.region = region; }
+
+    public String getTagKey() { return tagKey; }
+    public void setTagKey(String tagKey) { this.tagKey = tagKey; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
     // ───────────────────────────────────────────────
     // Геттеры и сеттеры

@@ -21,6 +21,8 @@ public class HibernateUtil {
                 .addAnnotatedClass(UserTagPercent.class)
                 .addAnnotatedClass(Report.class)
                 .addAnnotatedClass(PasswordHistory.class)
+                .addAnnotatedClass(TagKeyword.class)
+                .addAnnotatedClass(Region.class)
                 .setProperty("hibernate.hbm2ddl.auto", "validate")
                 .buildSessionFactory();
     }

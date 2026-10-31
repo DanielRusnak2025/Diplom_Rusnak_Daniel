@@ -36,8 +36,14 @@ dependencies {
     // HTTP client (Ollama calls)
     implementation(libs.okhttp)
 
+    // Jackson BOM — aligns all jackson-* modules to one version
+    implementation(platform(libs.jackson.bom))
+
     // JSON (AI response parsing)
     implementation(libs.jackson.databind)
+
+    // YAML parsing (Flyway Java migrations that read taxonomy.yaml)
+    implementation(libs.jackson.dataformat.yaml)
 
     // HTML parsing (metadata extraction)
     implementation(libs.jsoup)

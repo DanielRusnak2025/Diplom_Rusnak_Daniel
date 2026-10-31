@@ -130,9 +130,11 @@
       db_use_test v3.3: user=10/article=71/report=8/utp=70/ph=10; 46 тестов, 0 failures.
 - [x] V4 is_admin → role VARCHAR(20) CHECK (USER|MODERATOR|ADMIN); enum Role в Java;
       findByRole(Role); setRole(nick,Role). db_use_test v4: ADMIN=2 USER=8; 46 тестов, 0 failures.
-- [ ] V5  tag: kind = CATEGORY / SUBTOPIC / ENTITY, parent_id (для подтем),
+- [x] V5  tag: kind = CATEGORY / SUBTOPIC / ENTITY, parent_id (для подтем),
       keywords (для подтем), region (для сущностей-стран/городов); существующие теги → ENTITY;
       начальные данные — seed/taxonomy.yaml (категории, подтемы, ключевые слова, регионы).
+      db_use_test v5.4: region=12, CATEGORY=15, SUBTOPIC=83, ENTITY=257, tag_keyword=1209,
+      atp=360, utp=70; subtopics без parent=0; null/dup tag_key=0; 46 тестов, 0 failures.
 - [ ] V5b entity_alias (entity_id, alias, language) — варианты написания сущностей.
 - [ ] V5c user_language (user_id, language) — языки чтения пользователя.
 - [ ] V5d article_queue (id, url, url_hash UNIQUE, email_id, status
@@ -184,6 +186,17 @@
   миграций на db_use.
 - db_use (основная БД) всё ещё хранит пароли открытым текстом — до переноса
   миграций V3 на неё.
+
+Бэклог (выявлен при V5):
+- Три ENTITY-тега имеют искажённые имена (militârparade, sparmaønahmen,
+  vera balaхнова — смешанные кодировки/опечатки при импорте). После того как
+  V5d article_queue введён и старый пайплайн отключён — найти и либо исправить
+  имя (если тег используется), либо удалить (если нет article_tag_percent).
+- user.preferred_region хранит произвольные строки (NULL, Asia, EU, Europe,
+  Moldova, US), не совпадающие с 12 ключами таблицы region. Привести значения
+  к ключам региона и добавить FK user.preferred_region → region(region_key).
+  Решать вместе с V5c user_language: вероятно, объединить в отдельную таблицу
+  user_region (user_id, region_key) — один пользователь, несколько регионов.
 
 ### Этап 3. ИИ-пайплайн
 - [ ] Интерфейс ArticleClassifier; реализация OllamaClassifier с JSON Schema:
