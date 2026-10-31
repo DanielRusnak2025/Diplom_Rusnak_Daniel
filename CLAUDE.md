@@ -34,6 +34,7 @@ The full migration plan with stage-by-stage checklists and completion criteria l
     Rationale: a partial restore (without DROP/CREATE) leaves behind tables created after the dump, causing phantom conflicts on the next migration attempt.
 13. **On any error in a migration, test, or DB command — stop immediately.** Paste the full error, explain what happened, and wait for explicit instructions. Manual edits to `flyway_schema_history`, `DROP TABLE`, or other schema repairs require explicit user confirmation before proceeding.
 14. **Passwords, tokens, keys, and dump lines containing them must never be read, printed, or inserted into code or tests** — even for `db_use_test`. If a tool call is blocked by auto mode or a permission check, that block is a hard stop: do not re-attempt the same action via a different tool (e.g. Read, Grep, or another shell). Report the block and wait.
+15. **Tests that write to the DB run only against `db_use_test_it`** (via `-Dnewsdove.db.name=db_use_test_it` set in `core/build.gradle.kts tasks.test`), never against `db_use_test`. Weakening a test assertion to make it pass is forbidden — a failing test is a hard stop (rule 13).
 
 ---
 

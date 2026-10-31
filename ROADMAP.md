@@ -143,15 +143,27 @@
       UserDAO/Impl: findByPreferredRegion→findByRegion JOIN u.regions,
       ARCHITECTURE.md, seed-test-users.sql).
       db_use_test v6.2: user_language=8, user_region=8; 46 тестов, 0 failures.
-- [ ] V7  article_queue (id, url, url_hash SHA2(url,256) CHAR(64) UNIQUE, email_id,
-      status PENDING/PROCESSING/DONE/REJECTED/FAILED, reject_reason, attempts,
-      created_at, processed_at, article_id). Старые 71 статья → PENDING.
+- [x] V7  processed_email + article_queue.
+      V7_1 SQL: processed_email (dedup-лог по message_id_hash), article_queue
+      (id, url, url_hash CHAR(64) UNIQUE, email_id FK SET NULL, article_id FK SET NULL,
+      status PENDING/PROCESSING/DONE/REJECTED/FAILED CHECK, reject_reason CHECK,
+      attempts, last_error, lock_token CHAR(36), locked_until DATETIME(6), created_at,
+      processed_at, idx_aq_status_created).
+      V7_2 Java: все 71 статья → PENDING через UrlNormalizer (normalize+hash SHA-256).
+      UrlNormalizer: lowercase scheme/host, убрать default-порт/#fragment/utm_*/fbclid/gclid/
+      mc_cid/mc_eid, сортировать оставшиеся params, убрать trailing "/" (кроме root).
+      Broken URL/host null/не http-https → IllegalArgumentException.
+      ArticleQueueDAO: claimPending (FOR UPDATE SKIP LOCKED, lock_token=UUID, время из БД),
+      resetStaleLocks, markDone/Rejected/Failed (WHERE lock_token guard, 0 rows → WARN).
+      db_use_test v7.2: processed_email=0, article_queue=71 PENDING, url_hash дублей=0,
+      article=71/atp=360/utp=70; 46+UrlNormalizerTest+ArticleQueueTest тестов, 0 failures.
+      Вся цепочка V1_1…V7_2 воспроизводима с нуля: TestDb (baseline_schema.sql из db_use →
+      baseline 1 → migrate) на db_use_test_it; 77 тестов.
 - [ ] V8  article: + link_hash SHA2(link,256) CHAR(64) UNIQUE (дубли сперва),
       + created_at, + classifier_model, + prompt_version, + taxonomy_version.
       processing_status не нужен — статус ведётся в article_queue.
 - [ ] V9  report + reason_code.
-- [ ] V10 user_block, refresh_token, audit_log (SET NULL), processed_email
-      (+ links_total, links_rejected, links_saved).
+- [ ] V10 user_block, refresh_token, audit_log (SET NULL).
 - [ ] V11 entity + entity_alias — после того как будет seed/entities.yaml.
 ⚠ **Ограничение до Этапа 3:** `scheduler.enabled` должен оставаться `false`.
   Старый пайплайн пишет `article_region` свободным текстом («Russia», «United States»)
@@ -223,8 +235,10 @@
 - [ ] processed_email идемпотентность по Message-ID, счётчики воронки.
 - [ ] Логирование правок тегов админом (audit_log) — задел под набор данных
       для будущей оценки моделей.
-- [ ] Дешёвые фильтры до ИИ: отсев ссылок по адресу, дедупликация по хешу
-      финального URL до загрузки страницы, проверка разметки страницы.
+- [ ] Дешёвые фильтры до ИИ: перед нормализацией URL — пройти HTTP-редиректы до
+      финального URL (пример: article 138 — newsletter-tracking.dw.com переходит на
+      настоящий URL DW), затем отсев по адресу, дедупликация по хешу финального URL
+      до загрузки страницы, проверка разметки страницы.
       ⚠ Наблюдение (T-7b): LinkFilter лимит 3 ссылки на домен отсекает настоящие
       статьи (дайджест Spiegel: 202 → 4). Заменить на проверку по правилам и
       разметке страницы; лимит по домену убрать или сделать параметром.

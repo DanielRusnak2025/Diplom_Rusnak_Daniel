@@ -1,0 +1,5 @@
+package org.example;
+
+public enum RejectReason {
+    NOT_ARTICLE, DUPLICATE, INVALID_URL, FETCH_FAILED, BLOCKED_DOMAIN, LANGUAGE_NOT_SUPPORTED
+}

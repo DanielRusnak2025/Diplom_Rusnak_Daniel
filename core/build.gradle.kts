@@ -70,4 +70,6 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
     jvmArgs("--enable-native-access=ALL-UNNAMED")
+    // Tests that write to the DB must use this isolated schema, never db_use_test.
+    systemProperty("newsdove.db.name", "db_use_test_it")
 }
