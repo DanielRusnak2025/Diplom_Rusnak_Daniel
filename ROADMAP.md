@@ -231,7 +231,9 @@
       article 72→71 (V1_1 слила дубль 214/215, ожидаемо), atp 363→360.
       Содержимое совпадает с db_use_test (link_hash, tag_key, user_language,
       user_region, article_queue, report, argon2 у всех).
-- [ ] V11 entity + entity_alias — после того как будет seed/entities.yaml.
+- [x] V11 entity + entity_alias — V11_1 SQL schema, V11_2 Java seed from entities.yaml.
+      entity=366 (197 country, 120 place, 37 org, 12 region_name), entity_alias=1495 (1419+76).
+      Hibernate: Entity, EntityAlias, EntityKind. EntityMatcher (8 tests). db_use_test ✓.
 ⚠ **Ограничение до Этапа 3:** `scheduler.enabled` должен оставаться `false`.
   Старый пайплайн пишет `article_region` свободным текстом («Russia», «United States»)
   и `article_language` словом («Russian», «German»). После V1_3/V1_4 эти поля хранят

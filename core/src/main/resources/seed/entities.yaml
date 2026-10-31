@@ -1,0 +1,2273 @@
+# NewsDove — entity dictionary (countries, cities/places, organisations, region names)
+# Source for Flyway migration V11 (entity + entity_alias) and for EntityMatcher (stage 3d).
+#
+# Purpose: determine an article's region (one of the 12 region keys from taxonomy.yaml) by an
+# algorithm, without AI. Entities are NOT tags: the AI never sees or produces them.
+#
+# Structure
+#   countries[]      key, region, aliases{en,ru,de}, acronyms[]
+#   places[]         key, country (-> region of that country), aliases, acronyms   (cities, regions, institutions)
+#   organisations[]  key, region (global = does not vote), aliases, acronyms
+#   region_names[]   key, region, aliases   ("Middle East", "Balkans", ...)
+#
+# Alias rules (same syntax as taxonomy keywords):
+#   - case-insensitive; text normalised to lower case; "ё" is treated as "е"
+#   - "word" whole word, "word*" prefix, "*word*" substring, "a* b*" consecutive words
+#   - hyphens/apostrophes split words: "Нью-Йорк" is written as the phrase "Нью Йорк"
+#   - aliases are applied for the detected language of the article only (en / ru / de)
+# Acronyms: case-SENSITIVE whole words, applied for every language ("US" never matches "us").
+#   Acronyms are skipped inside a fully upper-case title or sentence ("WHO WON" is not the WHO).
+#
+# Matching algorithm (EntityMatcher):
+#   1. On overlapping matches the longest alias wins ("Papua New Guinea" beats "Guinea").
+#   2. Each entity counts once per article; a mention in the title counts 2, in the text 1.
+#   3. Votes: country/place -> region of its country; organisation/region_name -> its region;
+#      region "global" does not vote.
+#   4. article.region = region with the most votes; tie or no votes -> "global".
+#
+# Ambiguous names are deliberately left out or narrowed: e.g. English "Chad", "Jordan", "Georgia",
+# "Polish", "US" (pronoun), Russian "Того", "Газа" (газ), "Инди*" (индивидуальный), "Грузи*" (грузить).
+#
+# version: bump when keys change.
+
+version: 1
+
+countries:
+  - key: germany
+    region: western_europe
+    aliases:
+      en: ["Germany", "German*"]
+      ru: ["Германи*", "немецк*"]
+      de: ["Deutschland*", "deutsch*"]
+  - key: france
+    region: western_europe
+    aliases:
+      en: ["France", "French"]
+      ru: ["Франци*", "французск*"]
+      de: ["Frankreich*", "französisch*"]
+  - key: united_kingdom
+    region: western_europe
+    aliases:
+      en: ["United Kingdom", "Britain", "British", "England", "Scotland", "Scottish", "Wales", "Welsh", "Northern Ireland"]
+      ru: ["Великобритани*", "Британи*", "британск*", "Англи*", "Шотланди*", "Уэльс*"]
+      de: ["Großbritannien", "Vereinigte* Königreich*", "britisch*", "England", "Schottland", "Wales"]
+    acronyms: ["UK"]
+  - key: ireland
+    region: western_europe
+    aliases:
+      en: ["Ireland", "Irish"]
+      ru: ["Ирланди*", "ирландск*"]
+      de: ["Irland*", "irisch*"]
+  - key: netherlands
+    region: western_europe
+    aliases:
+      en: ["Netherlands", "Dutch", "Holland"]
+      ru: ["Нидерланд*", "Голланди*", "голландск*"]
+      de: ["Niederlande*", "niederländisch*", "Holland"]
+  - key: belgium
+    region: western_europe
+    aliases:
+      en: ["Belgium", "Belgian*"]
+      ru: ["Бельги*", "бельгийск*"]
+      de: ["Belgien*", "belgisch*"]
+  - key: luxembourg
+    region: western_europe
+    aliases:
+      en: ["Luxembourg*"]
+      ru: ["Люксембург*"]
+      de: ["Luxemburg*"]
+  - key: austria
+    region: western_europe
+    aliases:
+      en: ["Austria*"]
+      ru: ["Австри*", "австрийск*"]
+      de: ["Österreich*"]
+  - key: switzerland
+    region: western_europe
+    aliases:
+      en: ["Switzerland", "Swiss"]
+      ru: ["Швейцари*", "швейцарск*"]
+      de: ["Schweiz*"]
+  - key: liechtenstein
+    region: western_europe
+    aliases:
+      en: ["Liechtenstein"]
+      ru: ["Лихтенштейн*"]
+      de: ["Liechtenstein"]
+  - key: monaco
+    region: western_europe
+    aliases:
+      en: ["Monaco"]
+      ru: ["Монако"]
+      de: ["Monaco"]
+  - key: sweden
+    region: northern_europe
+    aliases:
+      en: ["Sweden", "Swedish"]
+      ru: ["Швеци*", "шведск*"]
+      de: ["Schweden", "schwedisch*"]
+  - key: norway
+    region: northern_europe
+    aliases:
+      en: ["Norway", "Norwegian*"]
+      ru: ["Норвеги*", "норвежск*"]
+      de: ["Norwegen", "norwegisch*"]
+  - key: denmark
+    region: northern_europe
+    aliases:
+      en: ["Denmark", "Danish"]
+      ru: ["Дания", "Дании", "Данию", "Данией", "датск*"]
+      de: ["Dänemark", "dänisch*"]
+  - key: finland
+    region: northern_europe
+    aliases:
+      en: ["Finland", "Finnish"]
+      ru: ["Финлянди*", "финск*"]
+      de: ["Finnland", "finnisch*"]
+  - key: iceland
+    region: northern_europe
+    aliases:
+      en: ["Iceland*"]
+      ru: ["Исланди*", "исландск*"]
+      de: ["Island", "isländisch*"]
+  - key: estonia
+    region: northern_europe
+    aliases:
+      en: ["Estonia*"]
+      ru: ["Эстони*", "эстонск*"]
+      de: ["Estland", "estnisch*"]
+  - key: latvia
+    region: northern_europe
+    aliases:
+      en: ["Latvia*"]
+      ru: ["Латви*", "латвийск*"]
+      de: ["Lettland", "lettisch*"]
+  - key: lithuania
+    region: northern_europe
+    aliases:
+      en: ["Lithuania*"]
+      ru: ["Литва", "Литвы", "Литве", "Литву", "Литвой", "литовск*"]
+      de: ["Litauen", "litauisch*"]
+  - key: italy
+    region: southern_europe
+    aliases:
+      en: ["Italy", "Italian*"]
+      ru: ["Итали*", "итальянск*"]
+      de: ["Italien*", "italienisch*"]
+  - key: spain
+    region: southern_europe
+    aliases:
+      en: ["Spain", "Spanish"]
+      ru: ["Испани*", "испанск*"]
+      de: ["Spanien", "spanisch*"]
+  - key: portugal
+    region: southern_europe
+    aliases:
+      en: ["Portugal", "Portuguese"]
+      ru: ["Португали*", "португальск*"]
+      de: ["Portugal", "portugiesisch*"]
+  - key: greece
+    region: southern_europe
+    aliases:
+      en: ["Greece", "Greek"]
+      ru: ["Греци*", "греческ*"]
+      de: ["Griechenland", "griechisch*"]
+  - key: malta
+    region: southern_europe
+    aliases:
+      en: ["Malta", "Maltese"]
+      ru: ["Мальт*"]
+      de: ["Malta"]
+  - key: cyprus
+    region: southern_europe
+    aliases:
+      en: ["Cyprus", "Cypriot*"]
+      ru: ["Кипр*"]
+      de: ["Zypern", "zyprisch*"]
+  - key: croatia
+    region: southern_europe
+    aliases:
+      en: ["Croatia*"]
+      ru: ["Хорвати*", "хорватск*"]
+      de: ["Kroatien", "kroatisch*"]
+  - key: slovenia
+    region: southern_europe
+    aliases:
+      en: ["Slovenia*"]
+      ru: ["Словени*", "словенск*"]
+      de: ["Slowenien", "slowenisch*"]
+  - key: serbia
+    region: southern_europe
+    aliases:
+      en: ["Serbia*"]
+      ru: ["Серби*", "сербск*"]
+      de: ["Serbien", "serbisch*"]
+  - key: bosnia_and_herzegovina
+    region: southern_europe
+    aliases:
+      en: ["Bosnia*", "Herzegovina"]
+      ru: ["Босни*", "боснийск*"]
+      de: ["Bosnien*"]
+  - key: montenegro
+    region: southern_europe
+    aliases:
+      en: ["Montenegr*"]
+      ru: ["Черногори*"]
+      de: ["Montenegro"]
+  - key: north_macedonia
+    region: southern_europe
+    aliases:
+      en: ["North Macedonia", "Macedonia*"]
+      ru: ["Македони*"]
+      de: ["Nordmazedonien", "Mazedonien"]
+  - key: albania
+    region: southern_europe
+    aliases:
+      en: ["Albania*"]
+      ru: ["Албани*", "албанск*"]
+      de: ["Albanien", "albanisch*"]
+  - key: kosovo
+    region: southern_europe
+    aliases:
+      en: ["Kosovo*"]
+      ru: ["Косов*"]
+      de: ["Kosovo"]
+  - key: andorra
+    region: southern_europe
+    aliases:
+      en: ["Andorra*"]
+      ru: ["Андорр*"]
+      de: ["Andorra"]
+  - key: san_marino
+    region: southern_europe
+    aliases:
+      en: ["San Marino"]
+      ru: ["Сан Марино"]
+      de: ["San Marino"]
+  - key: vatican
+    region: southern_europe
+    aliases:
+      en: ["Vatican"]
+      ru: ["Ватикан*"]
+      de: ["Vatikan*"]
+  - key: poland
+    region: eastern_europe
+    aliases:
+      en: ["Poland"]
+      ru: ["Польш*", "польск*"]
+      de: ["Polen", "polnisch*"]
+  - key: czechia
+    region: eastern_europe
+    aliases:
+      en: ["Czech*"]
+      ru: ["Чехи*", "чешск*"]
+      de: ["Tschechien", "tschechisch*"]
+  - key: slovakia
+    region: eastern_europe
+    aliases:
+      en: ["Slovakia*", "Slovak"]
+      ru: ["Словаки*", "словацк*"]
+      de: ["Slowakei", "slowakisch*"]
+  - key: hungary
+    region: eastern_europe
+    aliases:
+      en: ["Hungary", "Hungarian*"]
+      ru: ["Венгри*", "венгерск*"]
+      de: ["Ungarn", "ungarisch*"]
+  - key: romania
+    region: eastern_europe
+    aliases:
+      en: ["Romania*"]
+      ru: ["Румыни*", "румынск*"]
+      de: ["Rumänien", "rumänisch*"]
+  - key: bulgaria
+    region: eastern_europe
+    aliases:
+      en: ["Bulgaria*"]
+      ru: ["Болгари*", "болгарск*"]
+      de: ["Bulgarien", "bulgarisch*"]
+  - key: ukraine
+    region: eastern_europe
+    aliases:
+      en: ["Ukrain*"]
+      ru: ["Украин*"]
+      de: ["Ukrain*"]
+  - key: belarus
+    region: eastern_europe
+    aliases:
+      en: ["Belarus*", "Belorussia*"]
+      ru: ["Беларус*", "Белорусси*", "белорусск*"]
+      de: ["Belarus*", "Weißrussland"]
+  - key: moldova
+    region: eastern_europe
+    aliases:
+      en: ["Moldova*", "Moldovan"]
+      ru: ["Молдов*", "Молдави*", "молдавск*"]
+      de: ["Moldau", "Moldawien", "moldauisch*"]
+  - key: russia
+    region: russia_central_asia
+    aliases:
+      en: ["Russia*", "Kremlin"]
+      ru: ["Росси*", "Кремл*"]
+      de: ["Russland", "russisch*", "Kreml*"]
+  - key: kazakhstan
+    region: russia_central_asia
+    aliases:
+      en: ["Kazakh*"]
+      ru: ["Казахстан*", "казахск*"]
+      de: ["Kasachstan", "kasachisch*"]
+  - key: uzbekistan
+    region: russia_central_asia
+    aliases:
+      en: ["Uzbek*"]
+      ru: ["Узбекистан*", "узбекск*"]
+      de: ["Usbekistan", "usbekisch*"]
+  - key: kyrgyzstan
+    region: russia_central_asia
+    aliases:
+      en: ["Kyrgyz*"]
+      ru: ["Киргизи*", "Кыргызстан*", "киргизск*"]
+      de: ["Kirgisistan", "kirgisisch*"]
+  - key: tajikistan
+    region: russia_central_asia
+    aliases:
+      en: ["Tajik*"]
+      ru: ["Таджикистан*", "таджикск*"]
+      de: ["Tadschikistan", "tadschikisch*"]
+  - key: turkmenistan
+    region: russia_central_asia
+    aliases:
+      en: ["Turkmen*"]
+      ru: ["Туркмени*", "туркменск*"]
+      de: ["Turkmenistan", "turkmenisch*"]
+  - key: georgia
+    region: russia_central_asia
+    aliases:
+      en: ["Republic of Georgia", "Georgian government"]
+      ru: ["Грузия", "Грузии", "Грузию", "Грузией", "грузинск*"]
+      de: ["Georgien", "georgisch*"]
+  - key: armenia
+    region: russia_central_asia
+    aliases:
+      en: ["Armenia*"]
+      ru: ["Армени*", "армянск*"]
+      de: ["Armenien", "armenisch*"]
+  - key: azerbaijan
+    region: russia_central_asia
+    aliases:
+      en: ["Azerbaijan*", "Azeri"]
+      ru: ["Азербайджан*"]
+      de: ["Aserbaidschan*"]
+  - key: turkey
+    region: middle_east
+    aliases:
+      en: ["Turkey", "Türkiye", "Turkish"]
+      ru: ["Турци*", "турецк*"]
+      de: ["Türkei", "türkisch*"]
+  - key: iran
+    region: middle_east
+    aliases:
+      en: ["Iran*"]
+      ru: ["Иран*"]
+      de: ["Iran*"]
+  - key: iraq
+    region: middle_east
+    aliases:
+      en: ["Iraq*"]
+      ru: ["Ирак*"]
+      de: ["Irak*"]
+  - key: syria
+    region: middle_east
+    aliases:
+      en: ["Syria*"]
+      ru: ["Сири*"]
+      de: ["Syrien", "syrisch*"]
+  - key: lebanon
+    region: middle_east
+    aliases:
+      en: ["Lebanon", "Lebanese"]
+      ru: ["Ливан*"]
+      de: ["Libanon", "libanesisch*"]
+  - key: israel
+    region: middle_east
+    aliases:
+      en: ["Israel*"]
+      ru: ["Израил*", "израильск*"]
+      de: ["Israel*"]
+  - key: palestine
+    region: middle_east
+    aliases:
+      en: ["Palestin*", "Gaza", "West Bank"]
+      ru: ["Палестин*", "сектор* газ*", "Западн* берег*"]
+      de: ["Palästin*", "Gaza*", "Westjordanland"]
+  - key: jordan
+    region: middle_east
+    aliases:
+      en: ["Jordanian*", "Kingdom of Jordan"]
+      ru: ["Иордани*", "иорданск*"]
+      de: ["Jordanien", "jordanisch*"]
+  - key: saudi_arabia
+    region: middle_east
+    aliases:
+      en: ["Saudi*"]
+      ru: ["Саудовск*"]
+      de: ["Saudi*"]
+  - key: united_arab_emirates
+    region: middle_east
+    aliases:
+      en: ["United Arab Emirates", "Emirati*"]
+      ru: ["Объединенн* Арабск* Эмират*"]
+      de: ["Vereinigte* Arabische* Emirate*"]
+    acronyms: ["UAE", "ОАЭ", "VAE"]
+  - key: qatar
+    region: middle_east
+    aliases:
+      en: ["Qatar*"]
+      ru: ["Катар*"]
+      de: ["Katar*"]
+  - key: kuwait
+    region: middle_east
+    aliases:
+      en: ["Kuwait*"]
+      ru: ["Кувейт*"]
+      de: ["Kuwait*"]
+  - key: bahrain
+    region: middle_east
+    aliases:
+      en: ["Bahrain*"]
+      ru: ["Бахрейн*"]
+      de: ["Bahrain*"]
+  - key: oman
+    region: middle_east
+    aliases:
+      en: ["Oman*"]
+      ru: ["Оман*"]
+      de: ["Oman*"]
+  - key: yemen
+    region: middle_east
+    aliases:
+      en: ["Yemen*", "Houthi*"]
+      ru: ["Йемен*", "хусит*"]
+      de: ["Jemen*", "Huthi*"]
+  - key: egypt
+    region: middle_east
+    aliases:
+      en: ["Egypt*"]
+      ru: ["Египт*", "египетск*"]
+      de: ["Ägypten", "ägyptisch*"]
+  - key: india
+    region: south_asia
+    aliases:
+      en: ["India", "Indian"]
+      ru: ["Индия", "Индии", "Индию", "Индией", "индийск*"]
+      de: ["Indien", "indisch*"]
+  - key: pakistan
+    region: south_asia
+    aliases:
+      en: ["Pakistan*"]
+      ru: ["Пакистан*"]
+      de: ["Pakistan*"]
+  - key: afghanistan
+    region: south_asia
+    aliases:
+      en: ["Afghan*", "Taliban"]
+      ru: ["Афганистан*", "афганск*", "талиб*"]
+      de: ["Afghanistan", "afghanisch*", "Taliban"]
+  - key: bangladesh
+    region: south_asia
+    aliases:
+      en: ["Bangladesh*"]
+      ru: ["Бангладеш"]
+      de: ["Bangladesch"]
+  - key: sri_lanka
+    region: south_asia
+    aliases:
+      en: ["Sri Lanka*"]
+      ru: ["Шри Ланк*"]
+      de: ["Sri Lanka"]
+  - key: nepal
+    region: south_asia
+    aliases:
+      en: ["Nepal*"]
+      ru: ["Непал*"]
+      de: ["Nepal*"]
+  - key: bhutan
+    region: south_asia
+    aliases:
+      en: ["Bhutan*"]
+      ru: ["Бутан*"]
+      de: ["Bhutan"]
+  - key: maldives
+    region: south_asia
+    aliases:
+      en: ["Maldives", "Maldivian"]
+      ru: ["Мальдив*"]
+      de: ["Malediven"]
+  - key: china
+    region: east_southeast_asia
+    aliases:
+      en: ["China", "Chinese"]
+      ru: ["Китай*", "китайск*"]
+      de: ["China", "chinesisch*"]
+    acronyms: ["PRC", "КНР"]
+  - key: japan
+    region: east_southeast_asia
+    aliases:
+      en: ["Japan*"]
+      ru: ["Япони*", "японск*"]
+      de: ["Japan*"]
+  - key: south_korea
+    region: east_southeast_asia
+    aliases:
+      en: ["South Korea*"]
+      ru: ["Южн* Коре*"]
+      de: ["Südkorea*"]
+  - key: north_korea
+    region: east_southeast_asia
+    aliases:
+      en: ["North Korea*"]
+      ru: ["Северн* Коре*"]
+      de: ["Nordkorea*"]
+    acronyms: ["DPRK", "КНДР"]
+  - key: taiwan
+    region: east_southeast_asia
+    aliases:
+      en: ["Taiwan*"]
+      ru: ["Тайван*"]
+      de: ["Taiwan*"]
+  - key: mongolia
+    region: east_southeast_asia
+    aliases:
+      en: ["Mongolia*"]
+      ru: ["Монголи*", "монгольск*"]
+      de: ["Mongolei", "mongolisch*"]
+  - key: vietnam
+    region: east_southeast_asia
+    aliases:
+      en: ["Vietnam*"]
+      ru: ["Вьетнам*"]
+      de: ["Vietnam*"]
+  - key: thailand
+    region: east_southeast_asia
+    aliases:
+      en: ["Thailand", "Thai"]
+      ru: ["Таиланд*"]
+      de: ["Thailand", "thailändisch*"]
+  - key: cambodia
+    region: east_southeast_asia
+    aliases:
+      en: ["Cambodia*"]
+      ru: ["Камбодж*"]
+      de: ["Kambodscha*"]
+  - key: laos
+    region: east_southeast_asia
+    aliases:
+      en: ["Laos", "Laotian"]
+      ru: ["Лаос*"]
+      de: ["Laos"]
+  - key: myanmar
+    region: east_southeast_asia
+    aliases:
+      en: ["Myanmar", "Burma*"]
+      ru: ["Мьянм*", "Бирм*"]
+      de: ["Myanmar", "Birma"]
+  - key: malaysia
+    region: east_southeast_asia
+    aliases:
+      en: ["Malaysia*"]
+      ru: ["Малайзи*"]
+      de: ["Malaysia*"]
+  - key: singapore
+    region: east_southeast_asia
+    aliases:
+      en: ["Singapore*"]
+      ru: ["Сингапур*"]
+      de: ["Singapur*"]
+  - key: indonesia
+    region: east_southeast_asia
+    aliases:
+      en: ["Indonesia*"]
+      ru: ["Индонези*"]
+      de: ["Indonesien", "indonesisch*"]
+  - key: philippines
+    region: east_southeast_asia
+    aliases:
+      en: ["Philippine*", "Filipino*"]
+      ru: ["Филиппин*"]
+      de: ["Philippinen", "philippinisch*"]
+  - key: brunei
+    region: east_southeast_asia
+    aliases:
+      en: ["Brunei*"]
+      ru: ["Бруней*"]
+      de: ["Brunei"]
+  - key: timor_leste
+    region: east_southeast_asia
+    aliases:
+      en: ["East Timor", "Timor Leste"]
+      ru: ["Восточн* Тимор*", "Тимор Лешти"]
+      de: ["Osttimor", "Timor Leste"]
+  - key: australia
+    region: east_southeast_asia
+    aliases:
+      en: ["Australia*"]
+      ru: ["Австрали*"]
+      de: ["Australien", "australisch*"]
+  - key: new_zealand
+    region: east_southeast_asia
+    aliases:
+      en: ["New Zealand*"]
+      ru: ["Нов* Зеланди*"]
+      de: ["Neuseeland*"]
+  - key: papua_new_guinea
+    region: east_southeast_asia
+    aliases:
+      en: ["Papua New Guinea"]
+      ru: ["Папуа Нов* Гвине*"]
+      de: ["Papua Neuguinea"]
+  - key: fiji
+    region: east_southeast_asia
+    aliases:
+      en: ["Fiji*"]
+      ru: ["Фиджи"]
+      de: ["Fidschi"]
+  - key: samoa
+    region: east_southeast_asia
+    aliases:
+      en: ["Samoa*"]
+      ru: ["Самоа"]
+      de: ["Samoa"]
+  - key: tonga
+    region: east_southeast_asia
+    aliases:
+      en: ["Tonga*"]
+      ru: ["Тонга"]
+      de: ["Tonga"]
+  - key: vanuatu
+    region: east_southeast_asia
+    aliases:
+      en: ["Vanuatu"]
+      ru: ["Вануату"]
+      de: ["Vanuatu"]
+  - key: solomon_islands
+    region: east_southeast_asia
+    aliases:
+      en: ["Solomon Islands"]
+      ru: ["Соломонов* остров*"]
+      de: ["Salomonen"]
+  - key: kiribati
+    region: east_southeast_asia
+    aliases:
+      en: ["Kiribati"]
+      ru: ["Кирибати"]
+      de: ["Kiribati"]
+  - key: micronesia
+    region: east_southeast_asia
+    aliases:
+      en: ["Micronesia"]
+      ru: ["Микронези*"]
+      de: ["Mikronesien"]
+  - key: marshall_islands
+    region: east_southeast_asia
+    aliases:
+      en: ["Marshall Islands"]
+      ru: ["Маршаллов* остров*"]
+      de: ["Marshallinseln"]
+  - key: palau
+    region: east_southeast_asia
+    aliases:
+      en: ["Palau"]
+      ru: ["Палау"]
+      de: ["Palau"]
+  - key: nauru
+    region: east_southeast_asia
+    aliases:
+      en: ["Nauru"]
+      ru: ["Науру"]
+      de: ["Nauru"]
+  - key: tuvalu
+    region: east_southeast_asia
+    aliases:
+      en: ["Tuvalu"]
+      ru: ["Тувалу"]
+      de: ["Tuvalu"]
+  - key: united_states
+    region: north_america
+    aliases:
+      en: ["United States", "American*"]
+      ru: ["Соединенн* Штат*", "американск*"]
+      de: ["Vereinigte* Staaten", "amerikanisch*"]
+    acronyms: ["US", "USA", "США"]
+  - key: canada
+    region: north_america
+    aliases:
+      en: ["Canada", "Canadian*"]
+      ru: ["Канад*"]
+      de: ["Kanada", "kanadisch*"]
+  - key: mexico
+    region: latin_america
+    aliases:
+      en: ["Mexic*"]
+      ru: ["Мексик*", "мексиканск*"]
+      de: ["Mexiko", "mexikanisch*"]
+  - key: guatemala
+    region: latin_america
+    aliases:
+      en: ["Guatemala*"]
+      ru: ["Гватемал*"]
+      de: ["Guatemala*"]
+  - key: belize
+    region: latin_america
+    aliases:
+      en: ["Belize*"]
+      ru: ["Белиз*"]
+      de: ["Belize"]
+  - key: honduras
+    region: latin_america
+    aliases:
+      en: ["Honduras", "Honduran*"]
+      ru: ["Гондурас*"]
+      de: ["Honduras"]
+  - key: el_salvador
+    region: latin_america
+    aliases:
+      en: ["El Salvador", "Salvadoran*"]
+      ru: ["Сальвадор*"]
+      de: ["El Salvador"]
+  - key: nicaragua
+    region: latin_america
+    aliases:
+      en: ["Nicaragua*"]
+      ru: ["Никарагу*"]
+      de: ["Nicaragua*"]
+  - key: costa_rica
+    region: latin_america
+    aliases:
+      en: ["Costa Rica*"]
+      ru: ["Коста Рик*"]
+      de: ["Costa Rica"]
+  - key: panama
+    region: latin_america
+    aliases:
+      en: ["Panama*"]
+      ru: ["Панам*"]
+      de: ["Panama*"]
+  - key: cuba
+    region: latin_america
+    aliases:
+      en: ["Cuba*"]
+      ru: ["Куба", "Кубы", "Кубе", "Кубу", "Кубой", "кубинск*"]
+      de: ["Kuba", "kubanisch*"]
+  - key: dominican_republic
+    region: latin_america
+    aliases:
+      en: ["Dominican Republic"]
+      ru: ["Доминиканск* Республик*"]
+      de: ["Dominikanische* Republik"]
+  - key: haiti
+    region: latin_america
+    aliases:
+      en: ["Haiti*"]
+      ru: ["Гаити"]
+      de: ["Haiti*"]
+  - key: jamaica
+    region: latin_america
+    aliases:
+      en: ["Jamaica*"]
+      ru: ["Ямайк*"]
+      de: ["Jamaika*"]
+  - key: trinidad_and_tobago
+    region: latin_america
+    aliases:
+      en: ["Trinidad*"]
+      ru: ["Тринидад*"]
+      de: ["Trinidad*"]
+  - key: bahamas
+    region: latin_america
+    aliases:
+      en: ["Bahamas", "Bahamian*"]
+      ru: ["Багам*"]
+      de: ["Bahamas"]
+  - key: barbados
+    region: latin_america
+    aliases:
+      en: ["Barbados"]
+      ru: ["Барбадос*"]
+      de: ["Barbados"]
+  - key: grenada
+    region: latin_america
+    aliases:
+      en: ["Grenada"]
+      ru: ["Гренад*"]
+      de: ["Grenada"]
+  - key: saint_lucia
+    region: latin_america
+    aliases:
+      en: ["Saint Lucia"]
+      ru: ["Сент Люси*"]
+      de: ["St Lucia"]
+  - key: saint_vincent_and_the_grenadines
+    region: latin_america
+    aliases:
+      en: ["Saint Vincent"]
+      ru: ["Сент Винсент*"]
+      de: ["St Vincent"]
+  - key: antigua_and_barbuda
+    region: latin_america
+    aliases:
+      en: ["Antigua*"]
+      ru: ["Антигуа"]
+      de: ["Antigua"]
+  - key: dominica
+    region: latin_america
+    aliases:
+      en: ["Dominica"]
+      ru: ["Доминика"]
+      de: ["Dominica"]
+  - key: saint_kitts_and_nevis
+    region: latin_america
+    aliases:
+      en: ["Saint Kitts"]
+      ru: ["Сент Китс"]
+      de: ["St Kitts"]
+  - key: colombia
+    region: latin_america
+    aliases:
+      en: ["Colombia*"]
+      ru: ["Колумби*"]
+      de: ["Kolumbien", "kolumbianisch*"]
+  - key: venezuela
+    region: latin_america
+    aliases:
+      en: ["Venezuela*"]
+      ru: ["Венесуэл*"]
+      de: ["Venezuela*"]
+  - key: ecuador
+    region: latin_america
+    aliases:
+      en: ["Ecuador*"]
+      ru: ["Эквадор*"]
+      de: ["Ecuador*"]
+  - key: peru
+    region: latin_america
+    aliases:
+      en: ["Peru", "Peruvian*"]
+      ru: ["Перу"]
+      de: ["Peru*"]
+  - key: bolivia
+    region: latin_america
+    aliases:
+      en: ["Bolivia*"]
+      ru: ["Боливи*"]
+      de: ["Bolivien", "bolivianisch*"]
+  - key: brazil
+    region: latin_america
+    aliases:
+      en: ["Brazil*"]
+      ru: ["Бразили*"]
+      de: ["Brasilien", "brasilianisch*"]
+  - key: paraguay
+    region: latin_america
+    aliases:
+      en: ["Paraguay*"]
+      ru: ["Парагва*"]
+      de: ["Paraguay*"]
+  - key: uruguay
+    region: latin_america
+    aliases:
+      en: ["Uruguay*"]
+      ru: ["Уругва*"]
+      de: ["Uruguay*"]
+  - key: argentina
+    region: latin_america
+    aliases:
+      en: ["Argentin*"]
+      ru: ["Аргентин*"]
+      de: ["Argentinien", "argentinisch*"]
+  - key: chile
+    region: latin_america
+    aliases:
+      en: ["Chile*"]
+      ru: ["Чили"]
+      de: ["Chile*"]
+  - key: guyana
+    region: latin_america
+    aliases:
+      en: ["Guyana*"]
+      ru: ["Гайан*"]
+      de: ["Guyana"]
+  - key: suriname
+    region: latin_america
+    aliases:
+      en: ["Suriname*"]
+      ru: ["Суринам*"]
+      de: ["Suriname"]
+  - key: libya
+    region: africa
+    aliases:
+      en: ["Libya*"]
+      ru: ["Ливи*"]
+      de: ["Libyen", "libysch*"]
+  - key: tunisia
+    region: africa
+    aliases:
+      en: ["Tunisia*"]
+      ru: ["Тунис*"]
+      de: ["Tunesien", "tunesisch*"]
+  - key: algeria
+    region: africa
+    aliases:
+      en: ["Algeria*"]
+      ru: ["Алжир*"]
+      de: ["Algerien", "algerisch*"]
+  - key: morocco
+    region: africa
+    aliases:
+      en: ["Morocc*"]
+      ru: ["Марокк*"]
+      de: ["Marokko", "marokkanisch*"]
+  - key: sudan
+    region: africa
+    aliases:
+      en: ["Sudan*"]
+      ru: ["Судан*"]
+      de: ["Sudan*"]
+  - key: south_sudan
+    region: africa
+    aliases:
+      en: ["South Sudan*"]
+      ru: ["Южн* Судан*"]
+      de: ["Südsudan*"]
+  - key: ethiopia
+    region: africa
+    aliases:
+      en: ["Ethiopia*"]
+      ru: ["Эфиопи*"]
+      de: ["Äthiopien", "äthiopisch*"]
+  - key: eritrea
+    region: africa
+    aliases:
+      en: ["Eritrea*"]
+      ru: ["Эритре*"]
+      de: ["Eritrea*"]
+  - key: djibouti
+    region: africa
+    aliases:
+      en: ["Djibouti*"]
+      ru: ["Джибути"]
+      de: ["Dschibuti"]
+  - key: somalia
+    region: africa
+    aliases:
+      en: ["Somali*"]
+      ru: ["Сомали"]
+      de: ["Somalia*"]
+  - key: kenya
+    region: africa
+    aliases:
+      en: ["Kenya*"]
+      ru: ["Кени*"]
+      de: ["Kenia", "kenianisch*"]
+  - key: uganda
+    region: africa
+    aliases:
+      en: ["Uganda*"]
+      ru: ["Уганд*"]
+      de: ["Uganda*"]
+  - key: tanzania
+    region: africa
+    aliases:
+      en: ["Tanzania*"]
+      ru: ["Танзани*"]
+      de: ["Tansania*"]
+  - key: rwanda
+    region: africa
+    aliases:
+      en: ["Rwanda*"]
+      ru: ["Руанд*"]
+      de: ["Ruanda*"]
+  - key: burundi
+    region: africa
+    aliases:
+      en: ["Burundi*"]
+      ru: ["Бурунди"]
+      de: ["Burundi"]
+  - key: dr_congo
+    region: africa
+    aliases:
+      en: ["Democratic Republic of the Congo", "DR Congo", "Congo"]
+      ru: ["Демократическ* Республик* Конго", "Конго"]
+      de: ["Demokratische* Republik Kongo", "Kongo"]
+    acronyms: ["DRC", "ДРК"]
+  - key: republic_of_the_congo
+    region: africa
+    aliases:
+      en: ["Republic of the Congo", "Congo Brazzaville"]
+      ru: ["Республик* Конго"]
+      de: ["Republik Kongo"]
+  - key: gabon
+    region: africa
+    aliases:
+      en: ["Gabon*"]
+      ru: ["Габон*"]
+      de: ["Gabun"]
+  - key: cameroon
+    region: africa
+    aliases:
+      en: ["Cameroon*"]
+      ru: ["Камерун*"]
+      de: ["Kamerun*"]
+  - key: nigeria
+    region: africa
+    aliases:
+      en: ["Nigeria*"]
+      ru: ["Нигери*"]
+      de: ["Nigeria*"]
+  - key: niger
+    region: africa
+    aliases:
+      en: ["Niger", "Nigerien"]
+      ru: ["Нигер"]
+      de: ["Niger"]
+  - key: chad
+    region: africa
+    aliases:
+      en: ["Chadian*", "Republic of Chad"]
+      ru: ["Чад"]
+      de: ["Tschad*"]
+  - key: central_african_republic
+    region: africa
+    aliases:
+      en: ["Central African Republic"]
+      ru: ["Центральноафриканск* Республик*"]
+      de: ["Zentralafrikanische* Republik"]
+    acronyms: ["ЦАР"]
+  - key: ghana
+    region: africa
+    aliases:
+      en: ["Ghana*"]
+      ru: ["Гана", "Ганы", "Гане", "Гану", "ганск*"]
+      de: ["Ghana*"]
+  - key: ivory_coast
+    region: africa
+    aliases:
+      en: ["Ivory Coast", "Ivorian"]
+      ru: ["Кот д Ивуар"]
+      de: ["Elfenbeinküste"]
+  - key: senegal
+    region: africa
+    aliases:
+      en: ["Senegal*"]
+      ru: ["Сенегал*"]
+      de: ["Senegal*"]
+  - key: mali
+    region: africa
+    aliases:
+      en: ["Mali", "Malian"]
+      ru: ["Мали"]
+      de: ["Mali"]
+  - key: burkina_faso
+    region: africa
+    aliases:
+      en: ["Burkina Faso"]
+      ru: ["Буркина Фасо"]
+      de: ["Burkina Faso"]
+  - key: guinea
+    region: africa
+    aliases:
+      en: ["Guinea", "Guinean"]
+      ru: ["Гвине*"]
+      de: ["Guinea"]
+  - key: guinea_bissau
+    region: africa
+    aliases:
+      en: ["Guinea Bissau"]
+      ru: ["Гвине* Бисау"]
+      de: ["Guinea Bissau"]
+  - key: equatorial_guinea
+    region: africa
+    aliases:
+      en: ["Equatorial Guinea"]
+      ru: ["Экваториальн* Гвине*"]
+      de: ["Äquatorialguinea"]
+  - key: sierra_leone
+    region: africa
+    aliases:
+      en: ["Sierra Leone*"]
+      ru: ["Сьерра Леоне"]
+      de: ["Sierra Leone"]
+  - key: liberia
+    region: africa
+    aliases:
+      en: ["Liberia*"]
+      ru: ["Либери*"]
+      de: ["Liberia*"]
+  - key: togo
+    region: africa
+    aliases:
+      en: ["Togo", "Togolese"]
+      ru: ["Республик* Того", "тоголезск*"]
+      de: ["Togo"]
+  - key: benin
+    region: africa
+    aliases:
+      en: ["Benin*"]
+      ru: ["Бенин*"]
+      de: ["Benin"]
+  - key: gambia
+    region: africa
+    aliases:
+      en: ["Gambia*"]
+      ru: ["Гамби*"]
+      de: ["Gambia"]
+  - key: mauritania
+    region: africa
+    aliases:
+      en: ["Mauritania*"]
+      ru: ["Мавритани*"]
+      de: ["Mauretanien"]
+  - key: cape_verde
+    region: africa
+    aliases:
+      en: ["Cape Verde", "Cabo Verde"]
+      ru: ["Кабо Верде"]
+      de: ["Kap Verde"]
+  - key: sao_tome_and_principe
+    region: africa
+    aliases:
+      en: ["Sao Tome"]
+      ru: ["Сан Томе"]
+      de: ["Sao Tome"]
+  - key: angola
+    region: africa
+    aliases:
+      en: ["Angola*"]
+      ru: ["Ангол*"]
+      de: ["Angola*"]
+  - key: zambia
+    region: africa
+    aliases:
+      en: ["Zambia*"]
+      ru: ["Замби*"]
+      de: ["Sambia*"]
+  - key: zimbabwe
+    region: africa
+    aliases:
+      en: ["Zimbabwe*"]
+      ru: ["Зимбабве"]
+      de: ["Simbabwe"]
+  - key: malawi
+    region: africa
+    aliases:
+      en: ["Malawi*"]
+      ru: ["Малави"]
+      de: ["Malawi"]
+  - key: mozambique
+    region: africa
+    aliases:
+      en: ["Mozambique", "Mozambican*"]
+      ru: ["Мозамбик*"]
+      de: ["Mosambik*"]
+  - key: madagascar
+    region: africa
+    aliases:
+      en: ["Madagascar*"]
+      ru: ["Мадагаскар*"]
+      de: ["Madagaskar"]
+  - key: mauritius
+    region: africa
+    aliases:
+      en: ["Mauritius", "Mauritian*"]
+      ru: ["Маврики*"]
+      de: ["Mauritius"]
+  - key: seychelles
+    region: africa
+    aliases:
+      en: ["Seychelles"]
+      ru: ["Сейшел*"]
+      de: ["Seychellen"]
+  - key: comoros
+    region: africa
+    aliases:
+      en: ["Comoros"]
+      ru: ["Комор*"]
+      de: ["Komoren"]
+  - key: namibia
+    region: africa
+    aliases:
+      en: ["Namibia*"]
+      ru: ["Намиби*"]
+      de: ["Namibia*"]
+  - key: botswana
+    region: africa
+    aliases:
+      en: ["Botswana*"]
+      ru: ["Ботсван*"]
+      de: ["Botsuana"]
+  - key: south_africa
+    region: africa
+    aliases:
+      en: ["South Africa*"]
+      ru: ["Южно Африканск* Республик*"]
+      de: ["Südafrika*"]
+    acronyms: ["ЮАР"]
+  - key: lesotho
+    region: africa
+    aliases:
+      en: ["Lesotho"]
+      ru: ["Лесото"]
+      de: ["Lesotho"]
+  - key: eswatini
+    region: africa
+    aliases:
+      en: ["Eswatini", "Swaziland"]
+      ru: ["Эсватини", "Свазиленд*"]
+      de: ["Eswatini", "Swasiland"]
+
+places:
+  - key: berlin
+    country: germany
+    aliases:
+      en: ["Berlin*"]
+      ru: ["Берлин*"]
+      de: ["Berlin*"]
+  - key: munich
+    country: germany
+    aliases:
+      en: ["Munich"]
+      ru: ["Мюнхен*"]
+      de: ["München*"]
+  - key: hamburg
+    country: germany
+    aliases:
+      en: ["Hamburg*"]
+      ru: ["Гамбург*"]
+      de: ["Hamburg*"]
+  - key: frankfurt
+    country: germany
+    aliases:
+      en: ["Frankfurt*"]
+      ru: ["Франкфурт*"]
+      de: ["Frankfurt*"]
+  - key: cologne
+    country: germany
+    aliases:
+      en: ["Cologne"]
+      ru: ["Кельн*"]
+      de: ["Köln*"]
+  - key: paris
+    country: france
+    aliases:
+      en: ["Paris", "Parisian*"]
+      ru: ["Париж*"]
+      de: ["Paris*"]
+  - key: marseille
+    country: france
+    aliases:
+      en: ["Marseille*"]
+      ru: ["Марсел*"]
+      de: ["Marseille*"]
+  - key: london
+    country: united_kingdom
+    aliases:
+      en: ["London*", "Downing Street"]
+      ru: ["Лондон*", "Даунинг стрит"]
+      de: ["London*", "Downing Street"]
+  - key: edinburgh
+    country: united_kingdom
+    aliases:
+      en: ["Edinburgh"]
+      ru: ["Эдинбург*"]
+      de: ["Edinburgh"]
+  - key: dublin
+    country: ireland
+    aliases:
+      en: ["Dublin*"]
+      ru: ["Дублин*"]
+      de: ["Dublin*"]
+  - key: amsterdam
+    country: netherlands
+    aliases:
+      en: ["Amsterdam*"]
+      ru: ["Амстердам*"]
+      de: ["Amsterdam*"]
+  - key: the_hague
+    country: netherlands
+    aliases:
+      en: ["The Hague", "Hague"]
+      ru: ["Гааг*"]
+      de: ["Den Haag"]
+  - key: brussels
+    country: belgium
+    aliases:
+      en: ["Brussels"]
+      ru: ["Брюссел*"]
+      de: ["Brüssel*"]
+  - key: vienna
+    country: austria
+    aliases:
+      en: ["Vienna*"]
+      ru: ["Вена", "Вене", "Вену", "венск*"]
+      de: ["Wien*"]
+  - key: geneva
+    country: switzerland
+    aliases:
+      en: ["Geneva"]
+      ru: ["Женев*"]
+      de: ["Genf*"]
+  - key: zurich
+    country: switzerland
+    aliases:
+      en: ["Zurich"]
+      ru: ["Цюрих*"]
+      de: ["Zürich*"]
+  - key: bern
+    country: switzerland
+    aliases:
+      en: ["Bern"]
+      ru: ["Берн"]
+      de: ["Bern"]
+  - key: rome
+    country: italy
+    aliases:
+      en: ["Rome"]
+      ru: ["Рим", "Рима", "Риме", "Римом"]
+      de: ["Rom"]
+  - key: milan
+    country: italy
+    aliases:
+      en: ["Milan"]
+      ru: ["Милан*"]
+      de: ["Mailand*"]
+  - key: madrid
+    country: spain
+    aliases:
+      en: ["Madrid*"]
+      ru: ["Мадрид*"]
+      de: ["Madrid*"]
+  - key: barcelona
+    country: spain
+    aliases:
+      en: ["Barcelona*"]
+      ru: ["Барселон*"]
+      de: ["Barcelona*"]
+  - key: lisbon
+    country: portugal
+    aliases:
+      en: ["Lisbon"]
+      ru: ["Лиссабон*"]
+      de: ["Lissabon*"]
+  - key: athens
+    country: greece
+    aliases:
+      en: ["Athens"]
+      ru: ["Афин*"]
+      de: ["Athen"]
+  - key: stockholm
+    country: sweden
+    aliases:
+      en: ["Stockholm*"]
+      ru: ["Стокгольм*"]
+      de: ["Stockholm*"]
+  - key: oslo
+    country: norway
+    aliases:
+      en: ["Oslo"]
+      ru: ["Осло"]
+      de: ["Oslo"]
+  - key: copenhagen
+    country: denmark
+    aliases:
+      en: ["Copenhagen"]
+      ru: ["Копенгаген*"]
+      de: ["Kopenhagen*"]
+  - key: helsinki
+    country: finland
+    aliases:
+      en: ["Helsinki"]
+      ru: ["Хельсинки"]
+      de: ["Helsinki"]
+  - key: reykjavik
+    country: iceland
+    aliases:
+      en: ["Reykjavik"]
+      ru: ["Рейкьявик*"]
+      de: ["Reykjavik"]
+  - key: tallinn
+    country: estonia
+    aliases:
+      en: ["Tallinn"]
+      ru: ["Таллин*"]
+      de: ["Tallinn"]
+  - key: riga
+    country: latvia
+    aliases:
+      en: ["Riga"]
+      ru: ["Рига", "Риги", "Риге", "Ригу"]
+      de: ["Riga"]
+  - key: vilnius
+    country: lithuania
+    aliases:
+      en: ["Vilnius"]
+      ru: ["Вильнюс*"]
+      de: ["Vilnius"]
+  - key: warsaw
+    country: poland
+    aliases:
+      en: ["Warsaw"]
+      ru: ["Варшав*"]
+      de: ["Warschau*"]
+  - key: prague
+    country: czechia
+    aliases:
+      en: ["Prague"]
+      ru: ["Прага", "Праги", "Праге", "Прагу"]
+      de: ["Prag"]
+  - key: budapest
+    country: hungary
+    aliases:
+      en: ["Budapest"]
+      ru: ["Будапешт*"]
+      de: ["Budapest"]
+  - key: bucharest
+    country: romania
+    aliases:
+      en: ["Bucharest"]
+      ru: ["Бухарест*"]
+      de: ["Bukarest"]
+  - key: belgrade
+    country: serbia
+    aliases:
+      en: ["Belgrade"]
+      ru: ["Белград*"]
+      de: ["Belgrad*"]
+  - key: zagreb
+    country: croatia
+    aliases:
+      en: ["Zagreb"]
+      ru: ["Загреб*"]
+      de: ["Zagreb"]
+  - key: kyiv
+    country: ukraine
+    aliases:
+      en: ["Kyiv", "Kiev"]
+      ru: ["Киев*"]
+      de: ["Kyjiw", "Kiew"]
+  - key: kharkiv
+    country: ukraine
+    aliases:
+      en: ["Kharkiv", "Kharkov"]
+      ru: ["Харьков*"]
+      de: ["Charkiw"]
+  - key: odesa
+    country: ukraine
+    aliases:
+      en: ["Odesa", "Odessa"]
+      ru: ["Одесс*"]
+      de: ["Odessa"]
+  - key: lviv
+    country: ukraine
+    aliases:
+      en: ["Lviv"]
+      ru: ["Львов*"]
+      de: ["Lwiw"]
+  - key: donetsk
+    country: ukraine
+    aliases:
+      en: ["Donetsk"]
+      ru: ["Донецк*"]
+      de: ["Donezk"]
+  - key: luhansk
+    country: ukraine
+    aliases:
+      en: ["Luhansk"]
+      ru: ["Луганск*"]
+      de: ["Luhansk"]
+  - key: crimea
+    country: ukraine
+    aliases:
+      en: ["Crimea*"]
+      ru: ["Крым*"]
+      de: ["Krim"]
+  - key: minsk
+    country: belarus
+    aliases:
+      en: ["Minsk"]
+      ru: ["Минск*"]
+      de: ["Minsk"]
+  - key: chisinau
+    country: moldova
+    aliases:
+      en: ["Chisinau", "Kishinev"]
+      ru: ["Кишинев*"]
+      de: ["Chisinau"]
+  - key: transnistria
+    country: moldova
+    aliases:
+      en: ["Transnistria*"]
+      ru: ["Приднестров*"]
+      de: ["Transnistrien"]
+  - key: moscow
+    country: russia
+    aliases:
+      en: ["Moscow"]
+      ru: ["Москв*", "московск*"]
+      de: ["Moskau*"]
+  - key: saint_petersburg
+    country: russia
+    aliases:
+      en: ["St Petersburg", "Saint Petersburg"]
+      ru: ["Санкт Петербург*", "Петербург*"]
+      de: ["Sankt Petersburg", "St Petersburg"]
+  - key: kaliningrad
+    country: russia
+    aliases:
+      en: ["Kaliningrad"]
+      ru: ["Калининград*"]
+      de: ["Kaliningrad"]
+  - key: astana
+    country: kazakhstan
+    aliases:
+      en: ["Astana"]
+      ru: ["Астан*"]
+      de: ["Astana"]
+  - key: almaty
+    country: kazakhstan
+    aliases:
+      en: ["Almaty"]
+      ru: ["Алмат*"]
+      de: ["Almaty"]
+  - key: tashkent
+    country: uzbekistan
+    aliases:
+      en: ["Tashkent"]
+      ru: ["Ташкент*"]
+      de: ["Taschkent"]
+  - key: tbilisi
+    country: georgia
+    aliases:
+      en: ["Tbilisi"]
+      ru: ["Тбилиси"]
+      de: ["Tiflis"]
+  - key: yerevan
+    country: armenia
+    aliases:
+      en: ["Yerevan"]
+      ru: ["Ереван*"]
+      de: ["Jerewan"]
+  - key: baku
+    country: azerbaijan
+    aliases:
+      en: ["Baku"]
+      ru: ["Баку"]
+      de: ["Baku"]
+  - key: ankara
+    country: turkey
+    aliases:
+      en: ["Ankara"]
+      ru: ["Анкар*"]
+      de: ["Ankara"]
+  - key: istanbul
+    country: turkey
+    aliases:
+      en: ["Istanbul"]
+      ru: ["Стамбул*"]
+      de: ["Istanbul"]
+  - key: tehran
+    country: iran
+    aliases:
+      en: ["Tehran"]
+      ru: ["Тегеран*"]
+      de: ["Teheran"]
+  - key: baghdad
+    country: iraq
+    aliases:
+      en: ["Baghdad"]
+      ru: ["Багдад*"]
+      de: ["Bagdad"]
+  - key: damascus
+    country: syria
+    aliases:
+      en: ["Damascus"]
+      ru: ["Дамаск*"]
+      de: ["Damaskus"]
+  - key: aleppo
+    country: syria
+    aliases:
+      en: ["Aleppo"]
+      ru: ["Алеппо"]
+      de: ["Aleppo"]
+  - key: beirut
+    country: lebanon
+    aliases:
+      en: ["Beirut"]
+      ru: ["Бейрут*"]
+      de: ["Beirut"]
+  - key: jerusalem
+    country: israel
+    aliases:
+      en: ["Jerusalem"]
+      ru: ["Иерусалим*"]
+      de: ["Jerusalem"]
+  - key: tel_aviv
+    country: israel
+    aliases:
+      en: ["Tel Aviv"]
+      ru: ["Тель Авив*"]
+      de: ["Tel Aviv"]
+  - key: amman
+    country: jordan
+    aliases:
+      en: ["Amman"]
+      ru: ["Амман*"]
+      de: ["Amman"]
+  - key: riyadh
+    country: saudi_arabia
+    aliases:
+      en: ["Riyadh"]
+      ru: ["Эр Рияд*", "Рияд*"]
+      de: ["Riad"]
+  - key: dubai
+    country: united_arab_emirates
+    aliases:
+      en: ["Dubai"]
+      ru: ["Дубай*"]
+      de: ["Dubai"]
+  - key: abu_dhabi
+    country: united_arab_emirates
+    aliases:
+      en: ["Abu Dhabi"]
+      ru: ["Абу Даби"]
+      de: ["Abu Dhabi"]
+  - key: doha
+    country: qatar
+    aliases:
+      en: ["Doha"]
+      ru: ["Доха", "Дохе", "Доху"]
+      de: ["Doha"]
+  - key: cairo
+    country: egypt
+    aliases:
+      en: ["Cairo"]
+      ru: ["Каир*"]
+      de: ["Kairo"]
+  - key: sanaa
+    country: yemen
+    aliases:
+      en: ["Sanaa"]
+      ru: ["Сана", "Сане"]
+      de: ["Sanaa"]
+  - key: new_delhi
+    country: india
+    aliases:
+      en: ["New Delhi", "Delhi"]
+      ru: ["Нью Дели", "Дели"]
+      de: ["Neu Delhi", "Delhi"]
+  - key: mumbai
+    country: india
+    aliases:
+      en: ["Mumbai"]
+      ru: ["Мумба*"]
+      de: ["Mumbai"]
+  - key: islamabad
+    country: pakistan
+    aliases:
+      en: ["Islamabad"]
+      ru: ["Исламабад*"]
+      de: ["Islamabad"]
+  - key: kabul
+    country: afghanistan
+    aliases:
+      en: ["Kabul"]
+      ru: ["Кабул*"]
+      de: ["Kabul"]
+  - key: beijing
+    country: china
+    aliases:
+      en: ["Beijing"]
+      ru: ["Пекин*"]
+      de: ["Peking"]
+  - key: shanghai
+    country: china
+    aliases:
+      en: ["Shanghai"]
+      ru: ["Шанха*"]
+      de: ["Shanghai"]
+  - key: hong_kong
+    country: china
+    aliases:
+      en: ["Hong Kong"]
+      ru: ["Гонконг*"]
+      de: ["Hongkong"]
+  - key: taipei
+    country: taiwan
+    aliases:
+      en: ["Taipei"]
+      ru: ["Тайбэ*"]
+      de: ["Taipeh"]
+  - key: tokyo
+    country: japan
+    aliases:
+      en: ["Tokyo"]
+      ru: ["Токио"]
+      de: ["Tokio"]
+  - key: seoul
+    country: south_korea
+    aliases:
+      en: ["Seoul"]
+      ru: ["Сеул*"]
+      de: ["Seoul"]
+  - key: pyongyang
+    country: north_korea
+    aliases:
+      en: ["Pyongyang"]
+      ru: ["Пхеньян*"]
+      de: ["Pjöngjang"]
+  - key: hanoi
+    country: vietnam
+    aliases:
+      en: ["Hanoi"]
+      ru: ["Ханое", "Ханой*"]
+      de: ["Hanoi"]
+  - key: bangkok
+    country: thailand
+    aliases:
+      en: ["Bangkok"]
+      ru: ["Бангкок*"]
+      de: ["Bangkok"]
+  - key: jakarta
+    country: indonesia
+    aliases:
+      en: ["Jakarta"]
+      ru: ["Джакарт*"]
+      de: ["Jakarta"]
+  - key: manila
+    country: philippines
+    aliases:
+      en: ["Manila"]
+      ru: ["Манил*"]
+      de: ["Manila"]
+  - key: sydney
+    country: australia
+    aliases:
+      en: ["Sydney"]
+      ru: ["Сидне*"]
+      de: ["Sydney"]
+  - key: canberra
+    country: australia
+    aliases:
+      en: ["Canberra"]
+      ru: ["Канберр*"]
+      de: ["Canberra"]
+  - key: washington
+    country: united_states
+    aliases:
+      en: ["Washington", "White House", "Pentagon", "Capitol Hill"]
+      ru: ["Вашингтон*", "Бел* дом*", "Пентагон*"]
+      de: ["Washington", "Weiße* Haus*", "Pentagon"]
+  - key: new_york
+    country: united_states
+    aliases:
+      en: ["New York*"]
+      ru: ["Нью Йорк*"]
+      de: ["New York"]
+  - key: los_angeles
+    country: united_states
+    aliases:
+      en: ["Los Angeles"]
+      ru: ["Лос Анджелес*"]
+      de: ["Los Angeles"]
+  - key: ottawa
+    country: canada
+    aliases:
+      en: ["Ottawa"]
+      ru: ["Оттав*"]
+      de: ["Ottawa"]
+  - key: toronto
+    country: canada
+    aliases:
+      en: ["Toronto"]
+      ru: ["Торонто"]
+      de: ["Toronto"]
+  - key: mexico_city
+    country: mexico
+    aliases:
+      en: ["Mexico City"]
+      ru: ["Мехико"]
+      de: ["Mexiko Stadt"]
+  - key: havana
+    country: cuba
+    aliases:
+      en: ["Havana"]
+      ru: ["Гаван*"]
+      de: ["Havanna"]
+  - key: caracas
+    country: venezuela
+    aliases:
+      en: ["Caracas"]
+      ru: ["Каракас*"]
+      de: ["Caracas"]
+  - key: bogota
+    country: colombia
+    aliases:
+      en: ["Bogota"]
+      ru: ["Богот*"]
+      de: ["Bogota"]
+  - key: lima
+    country: peru
+    aliases:
+      en: ["Lima"]
+      ru: ["Лима", "Лиме", "Лиму"]
+      de: ["Lima"]
+  - key: brasilia
+    country: brazil
+    aliases:
+      en: ["Brasilia"]
+      ru: ["Бразилиа"]
+      de: ["Brasilia"]
+  - key: rio_de_janeiro
+    country: brazil
+    aliases:
+      en: ["Rio de Janeiro"]
+      ru: ["Рио де Жанейро"]
+      de: ["Rio de Janeiro"]
+  - key: sao_paulo
+    country: brazil
+    aliases:
+      en: ["Sao Paulo"]
+      ru: ["Сан Паулу"]
+      de: ["Sao Paulo"]
+  - key: buenos_aires
+    country: argentina
+    aliases:
+      en: ["Buenos Aires"]
+      ru: ["Буэнос Айрес*"]
+      de: ["Buenos Aires"]
+  - key: nairobi
+    country: kenya
+    aliases:
+      en: ["Nairobi"]
+      ru: ["Найроби"]
+      de: ["Nairobi"]
+  - key: lagos
+    country: nigeria
+    aliases:
+      en: ["Lagos"]
+      ru: ["Лагос*"]
+      de: ["Lagos"]
+  - key: abuja
+    country: nigeria
+    aliases:
+      en: ["Abuja"]
+      ru: ["Абуджа", "Абудже"]
+      de: ["Abuja"]
+  - key: addis_ababa
+    country: ethiopia
+    aliases:
+      en: ["Addis Ababa"]
+      ru: ["Аддис Абеб*"]
+      de: ["Addis Abeba"]
+  - key: khartoum
+    country: sudan
+    aliases:
+      en: ["Khartoum"]
+      ru: ["Хартум*"]
+      de: ["Khartum"]
+  - key: kinshasa
+    country: dr_congo
+    aliases:
+      en: ["Kinshasa"]
+      ru: ["Киншас*"]
+      de: ["Kinshasa"]
+  - key: johannesburg
+    country: south_africa
+    aliases:
+      en: ["Johannesburg"]
+      ru: ["Йоханнесбург*"]
+      de: ["Johannesburg"]
+  - key: cape_town
+    country: south_africa
+    aliases:
+      en: ["Cape Town"]
+      ru: ["Кейптаун*"]
+      de: ["Kapstadt"]
+  - key: pretoria
+    country: south_africa
+    aliases:
+      en: ["Pretoria"]
+      ru: ["Претори*"]
+      de: ["Pretoria"]
+  - key: algiers
+    country: algeria
+    aliases:
+      en: ["Algiers"]
+      ru: ["Алжире"]
+      de: ["Algier"]
+  - key: rabat
+    country: morocco
+    aliases:
+      en: ["Rabat"]
+      ru: ["Рабат*"]
+      de: ["Rabat"]
+  - key: dakar
+    country: senegal
+    aliases:
+      en: ["Dakar"]
+      ru: ["Дакар*"]
+      de: ["Dakar"]
+  - key: accra
+    country: ghana
+    aliases:
+      en: ["Accra"]
+      ru: ["Аккр*"]
+      de: ["Accra"]
+  - key: kampala
+    country: uganda
+    aliases:
+      en: ["Kampala"]
+      ru: ["Кампал*"]
+      de: ["Kampala"]
+  - key: kigali
+    country: rwanda
+    aliases:
+      en: ["Kigali"]
+      ru: ["Кигали"]
+      de: ["Kigali"]
+  - key: mogadishu
+    country: somalia
+    aliases:
+      en: ["Mogadishu"]
+      ru: ["Могадишо"]
+      de: ["Mogadischu"]
+  - key: ndjamena
+    country: chad
+    aliases:
+      en: ["N Djamena", "Ndjamena"]
+      ru: ["Нджамен*"]
+      de: ["N Djamena"]
+
+organisations:
+  - key: united_nations
+    region: global
+    aliases:
+      en: ["United Nations"]
+      ru: ["Организаци* Объединенн* Наций"]
+      de: ["Vereinte* Nationen"]
+    acronyms: ["UN", "ООН", "UNO"]
+  - key: nato
+    region: global
+    aliases:
+      en: ["North Atlantic Treaty Organization", "North Atlantic Alliance"]
+      ru: ["Североатлантическ* Альянс*"]
+      de: ["Nordatlantikpakt*"]
+    acronyms: ["NATO", "НАТО"]
+  - key: european_union
+    region: western_europe
+    aliases:
+      en: ["European Union"]
+      ru: ["Европейск* Союз*", "Евросоюз*"]
+      de: ["Europäische* Union"]
+    acronyms: ["EU", "ЕС"]
+  - key: european_commission
+    region: western_europe
+    aliases:
+      en: ["European Commission"]
+      ru: ["Еврокомисси*", "Европейск* Комисси*"]
+      de: ["EU Kommission", "Europäische* Kommission"]
+  - key: european_parliament
+    region: western_europe
+    aliases:
+      en: ["European Parliament"]
+      ru: ["Европарламент*", "Европейск* Парламент*"]
+      de: ["Europaparlament*", "Europäische* Parlament*"]
+  - key: european_central_bank
+    region: western_europe
+    aliases:
+      en: ["European Central Bank"]
+      ru: ["Европейск* Центральн* Банк*"]
+      de: ["Europäische* Zentralbank"]
+    acronyms: ["ECB", "ЕЦБ", "EZB"]
+  - key: osce
+    region: global
+    aliases:
+      en: ["Organization for Security and Co operation in Europe"]
+      ru: ["Организаци* По Безопасности И Сотрудничеству В Европе"]
+      de: ["Organisation Für Sicherheit Und Zusammenarbeit"]
+    acronyms: ["OSCE", "ОБСЕ", "OSZE"]
+  - key: world_health_organization
+    region: global
+    aliases:
+      en: ["World Health Organization"]
+      ru: ["Всемирн* Организаци* Здравоохранени*"]
+      de: ["Weltgesundheitsorganisation"]
+    acronyms: ["WHO", "ВОЗ"]
+  - key: imf
+    region: global
+    aliases:
+      en: ["International Monetary Fund"]
+      ru: ["Международн* Валютн* Фонд*"]
+      de: ["Internationale* Währungsfonds"]
+    acronyms: ["IMF", "МВФ", "IWF"]
+  - key: world_bank
+    region: global
+    aliases:
+      en: ["World Bank"]
+      ru: ["Всемирн* Банк*"]
+      de: ["Weltbank"]
+  - key: wto
+    region: global
+    aliases:
+      en: ["World Trade Organization"]
+      ru: ["Всемирн* Торгов* Организаци*"]
+      de: ["Welthandelsorganisation"]
+    acronyms: ["WTO", "ВТО"]
+  - key: opec
+    region: middle_east
+    aliases:
+      en: []
+      ru: []
+      de: []
+    acronyms: ["OPEC", "ОПЕК"]
+  - key: g7
+    region: global
+    aliases:
+      en: ["Group of Seven"]
+      ru: ["Больш* Семерк*"]
+      de: []
+    acronyms: ["G7"]
+  - key: g20
+    region: global
+    aliases:
+      en: ["Group of Twenty"]
+      ru: ["Больш* Двадцатк*"]
+      de: []
+    acronyms: ["G20"]
+  - key: brics
+    region: global
+    aliases:
+      en: []
+      ru: []
+      de: []
+    acronyms: ["BRICS", "БРИКС"]
+  - key: sco
+    region: russia_central_asia
+    aliases:
+      en: ["Shanghai Cooperation Organisation", "Shanghai Cooperation Organization"]
+      ru: ["Шанхайск* Организаци* Сотрудничества"]
+      de: ["Shanghaier Organisation Für Zusammenarbeit"]
+    acronyms: ["SCO", "ШОС"]
+  - key: csto
+    region: russia_central_asia
+    aliases:
+      en: ["Collective Security Treaty Organization"]
+      ru: ["Организаци* Договора О Коллективной Безопасности"]
+      de: ["Organisation Des Vertrags Über Kollektive Sicherheit"]
+    acronyms: ["CSTO", "ОДКБ"]
+  - key: eaeu
+    region: russia_central_asia
+    aliases:
+      en: ["Eurasian Economic Union"]
+      ru: ["Евразийск* Экономическ* Союз*"]
+      de: ["Eurasische* Wirtschaftsunion"]
+    acronyms: ["EAEU", "ЕАЭС"]
+  - key: cis
+    region: russia_central_asia
+    aliases:
+      en: ["Commonwealth of Independent States"]
+      ru: ["Содружеств* Независимых Государств"]
+      de: ["Gemeinschaft Unabhängiger Staaten"]
+    acronyms: ["CIS", "СНГ", "GUS"]
+  - key: asean
+    region: east_southeast_asia
+    aliases:
+      en: ["Association of Southeast Asian Nations"]
+      ru: []
+      de: []
+    acronyms: ["ASEAN", "АСЕАН"]
+  - key: african_union
+    region: africa
+    aliases:
+      en: ["African Union"]
+      ru: ["Африканск* Союз*"]
+      de: ["Afrikanische* Union"]
+  - key: arab_league
+    region: middle_east
+    aliases:
+      en: ["Arab League"]
+      ru: ["Лиг* Арабск* Государств"]
+      de: ["Arabische* Liga"]
+  - key: gulf_cooperation_council
+    region: middle_east
+    aliases:
+      en: ["Gulf Cooperation Council"]
+      ru: ["Совет* Сотрудничества Арабских Государств Персидского Залива"]
+      de: ["Golf Kooperationsrat*"]
+    acronyms: ["GCC", "ССАГПЗ"]
+  - key: organization_of_american_states
+    region: latin_america
+    aliases:
+      en: ["Organization of American States"]
+      ru: ["Организаци* Американск* Государств"]
+      de: ["Organisation Amerikanischer Staaten"]
+    acronyms: ["OAS", "ОАГ"]
+  - key: mercosur
+    region: latin_america
+    aliases:
+      en: ["Mercosur"]
+      ru: ["Меркосур*"]
+      de: ["Mercosur"]
+  - key: international_criminal_court
+    region: global
+    aliases:
+      en: ["International Criminal Court"]
+      ru: ["Международн* Уголовн* Суд*"]
+      de: ["Internationale* Strafgerichtshof*"]
+    acronyms: ["ICC", "МУС", "IStGH"]
+  - key: international_court_of_justice
+    region: global
+    aliases:
+      en: ["International Court of Justice"]
+      ru: ["Международн* Суд* ООН"]
+      de: ["Internationale* Gerichtshof*"]
+    acronyms: ["ICJ"]
+  - key: iaea
+    region: global
+    aliases:
+      en: ["International Atomic Energy Agency"]
+      ru: ["Международн* Агентств* По Атомной Энергии"]
+      de: ["Internationale* Atomenergiebehörde"]
+    acronyms: ["IAEA", "МАГАТЭ", "IAEO"]
+  - key: unesco
+    region: global
+    aliases:
+      en: []
+      ru: []
+      de: []
+    acronyms: ["UNESCO", "ЮНЕСКО"]
+  - key: unicef
+    region: global
+    aliases:
+      en: []
+      ru: []
+      de: []
+    acronyms: ["UNICEF", "ЮНИСЕФ"]
+  - key: red_cross
+    region: global
+    aliases:
+      en: ["Red Cross"]
+      ru: ["Красн* Крест*"]
+      de: ["Rote* Kreuz*"]
+    acronyms: ["ICRC", "МККК", "IKRK"]
+  - key: interpol
+    region: global
+    aliases:
+      en: ["Interpol"]
+      ru: ["Интерпол*"]
+      de: ["Interpol"]
+  - key: fifa
+    region: global
+    aliases:
+      en: []
+      ru: []
+      de: []
+    acronyms: ["FIFA", "ФИФА"]
+  - key: international_olympic_committee
+    region: global
+    aliases:
+      en: ["International Olympic Committee"]
+      ru: ["Международн* Олимпийск* Комитет*"]
+      de: ["Internationale* Olympische* Komitee*"]
+    acronyms: ["IOC", "МОК"]
+  - key: hamas
+    region: middle_east
+    aliases:
+      en: ["Hamas"]
+      ru: ["ХАМАС", "Хамас*"]
+      de: ["Hamas"]
+  - key: hezbollah
+    region: middle_east
+    aliases:
+      en: ["Hezbollah"]
+      ru: ["Хезболл*"]
+      de: ["Hisbollah"]
+  - key: islamic_state
+    region: middle_east
+    aliases:
+      en: ["Islamic State"]
+      ru: ["Исламск* Государств*"]
+      de: ["Islamische* Staat*"]
+    acronyms: ["ISIS", "ИГИЛ"]
+
+region_names:
+  - key: middle_east_name
+    region: middle_east
+    aliases:
+      en: ["Middle East", "Mideast", "Persian Gulf"]
+      ru: ["Ближн* Восток*", "Персидск* Залив*"]
+      de: ["Nahe* Osten", "Nahost*", "Persische* Golf*"]
+  - key: balkans
+    region: southern_europe
+    aliases:
+      en: ["Balkan*"]
+      ru: ["Балкан*"]
+      de: ["Balkan*"]
+  - key: scandinavia
+    region: northern_europe
+    aliases:
+      en: ["Scandinavia*", "Nordic countries", "Baltic states"]
+      ru: ["Скандинави*", "Прибалтик*", "Балтийск* стран*"]
+      de: ["Skandinavien", "skandinavisch*", "Baltikum"]
+  - key: central_asia_name
+    region: russia_central_asia
+    aliases:
+      en: ["Central Asia*", "South Caucasus", "Caucasus"]
+      ru: ["Центральн* Ази*", "Средн* Ази*", "Кавказ*"]
+      de: ["Zentralasien", "Kaukasus"]
+  - key: southeast_asia_name
+    region: east_southeast_asia
+    aliases:
+      en: ["Southeast Asia*", "East Asia*", "Asia Pacific", "Indo Pacific"]
+      ru: ["Юго Восточн* Ази*", "Восточн* Ази*", "Азиатско Тихоокеанск*"]
+      de: ["Südostasien", "Ostasien", "Asien Pazifik", "Indopazifik"]
+  - key: south_asia_name
+    region: south_asia
+    aliases:
+      en: ["South Asia*", "Indian subcontinent"]
+      ru: ["Южн* Ази*"]
+      de: ["Südasien"]
+  - key: africa_name
+    region: africa
+    aliases:
+      en: ["Africa", "African*", "Sahel", "Sub Saharan"]
+      ru: ["Африк*", "африканск*", "Сахел*"]
+      de: ["Afrika", "afrikanisch*", "Sahel*"]
+  - key: latin_america_name
+    region: latin_america
+    aliases:
+      en: ["Latin America*", "South America*", "Caribbean"]
+      ru: ["Латинск* Америк*", "Южн* Америк*", "Карибск*"]
+      de: ["Lateinamerika*", "Südamerika*", "Karibik*"]
+  - key: north_america_name
+    region: north_america
+    aliases:
+      en: ["North America*"]
+      ru: ["Северн* Америк*"]
+      de: ["Nordamerika*"]
+  - key: eastern_europe_name
+    region: eastern_europe
+    aliases:
+      en: ["Eastern Europe*", "Central Europe*"]
+      ru: ["Восточн* Европ*", "Центральн* Европ*"]
+      de: ["Osteuropa*", "Mitteleuropa*"]
+  - key: western_europe_name
+    region: western_europe
+    aliases:
+      en: ["Western Europe*"]
+      ru: ["Западн* Европ*"]
+      de: ["Westeuropa*"]
+  - key: southern_europe_name
+    region: southern_europe
+    aliases:
+      en: ["Southern Europe*", "Mediterranean"]
+      ru: ["Южн* Европ*", "Средиземноморь*"]
+      de: ["Südeuropa*", "Mittelmeer*"]
