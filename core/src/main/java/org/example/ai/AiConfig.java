@@ -32,10 +32,40 @@ public class AiConfig {
     }
 
     public static int getMaxTextLength() {
+        return intProp("ollama.max_text_length", 2000);
+    }
+
+    public static int getFetchTimeoutSeconds() {
+        return intProp("fetch.timeout.seconds", 15);
+    }
+
+    public static int getFetchMaxBytes() {
+        return intProp("fetch.max.bytes", 2_000_000);
+    }
+
+    public static int getFetchMaxRedirects() {
+        return intProp("fetch.max.redirects", 5);
+    }
+
+    public static int getKeywordBonusMax() {
+        return intProp("keyword.bonus.max", 2);
+    }
+
+    public static java.util.Set<String> getLanguagesAllowed() {
+        String raw = props.getProperty("languages.allowed", "en,ru,de,ro");
+        java.util.Set<String> result = new java.util.LinkedHashSet<>();
+        for (String code : raw.split(",")) {
+            String trimmed = code.trim().toLowerCase();
+            if (!trimmed.isEmpty()) result.add(trimmed);
+        }
+        return java.util.Collections.unmodifiableSet(result);
+    }
+
+    private static int intProp(String key, int defaultValue) {
         try {
-            return Integer.parseInt(props.getProperty("ollama.max_text_length", "2000"));
+            return Integer.parseInt(props.getProperty(key, String.valueOf(defaultValue)));
         } catch (NumberFormatException e) {
-            return 2000;
+            return defaultValue;
         }
     }
 }
