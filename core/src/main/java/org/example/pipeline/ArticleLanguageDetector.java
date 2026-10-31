@@ -16,6 +16,15 @@ import java.util.stream.Collectors;
  */
 public class ArticleLanguageDetector {
 
+    // Wider detection pool to avoid forcing ambiguous languages onto allowed ones
+    // (e.g. Ukrainian classified as Russian when only {en,ru,de,ro} are in the detector).
+    private static final IsoCode639_1[] DETECTION_POOL = {
+        IsoCode639_1.EN, IsoCode639_1.RU, IsoCode639_1.UK, IsoCode639_1.DE,
+        IsoCode639_1.RO, IsoCode639_1.FR, IsoCode639_1.ES, IsoCode639_1.IT,
+        IsoCode639_1.PT, IsoCode639_1.PL, IsoCode639_1.NL, IsoCode639_1.TR,
+        IsoCode639_1.CS, IsoCode639_1.BG, IsoCode639_1.SR
+    };
+
     private final LanguageDetector detector;
     private final Set<String> allowedCodes;
 
@@ -24,18 +33,10 @@ public class ArticleLanguageDetector {
                 .map(String::toLowerCase)
                 .collect(Collectors.toUnmodifiableSet());
 
-        IsoCode639_1[] isos = allowedCodes.stream()
-                .map(String::toUpperCase)
-                .map(code -> {
-                    try { return IsoCode639_1.valueOf(code); }
-                    catch (IllegalArgumentException e) { return null; }
-                })
-                .filter(c -> c != null)
-                .toArray(IsoCode639_1[]::new);
-
-        this.detector = (isos.length > 0)
-                ? LanguageDetectorBuilder.fromIsoCodes639_1(isos).build()
-                : LanguageDetectorBuilder.fromAllLanguages().build();
+        this.detector = LanguageDetectorBuilder
+                .fromIsoCodes639_1(DETECTION_POOL)
+                .withMinimumRelativeDistance(0.1)
+                .build();
     }
 
     /**

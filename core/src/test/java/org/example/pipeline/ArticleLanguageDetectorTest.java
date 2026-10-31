@@ -44,4 +44,23 @@ class ArticleLanguageDetectorTest {
     void nullForNullText() {
         assertNull(detector.detect(null));
     }
+
+    @Test
+    void detectsRomanian() {
+        String text = "Vulpea maronie rapidă sare peste câinele leneș din pădure.";
+        assertEquals("ro", detector.detect(text));
+    }
+
+    @Test
+    void nullForUkrainian() {
+        // Ukrainian must NOT collapse into Russian just because uk is not in allowed set.
+        String text = "Швидка коричнева лисиця стрибнула через ледачого пса у лісі.";
+        assertNull(detector.detect(text), "Ukrainian text should return null, not 'ru'");
+    }
+
+    @Test
+    void nullForFrench() {
+        String text = "Le renard brun rapide saute par-dessus le chien paresseux dans la forêt.";
+        assertNull(detector.detect(text), "French text should return null (not in allowed set)");
+    }
 }

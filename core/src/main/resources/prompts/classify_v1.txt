@@ -1,0 +1,15 @@
+Classify the following news article excerpt.
+
+TASK
+1. Decide: is this a genuine news article? Set is_article accordingly.
+   Not an article: newsletter intros, subscription prompts, ads, error pages, paywall notices.
+2. If is_article=true, pick the single best-fitting category from the list below as "main".
+   Choose the most specific matching subtopic; if none fits well, use "General".
+3. Optionally list up to 2 more categories in "extra" if the article clearly covers them.
+   Use level HIGH for strong relevance, MEDIUM for moderate, LOW for peripheral.
+
+CATEGORIES
+{CATEGORIES}
+
+ARTICLE
+{TEXT}
