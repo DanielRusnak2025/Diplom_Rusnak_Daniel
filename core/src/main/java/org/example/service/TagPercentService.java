@@ -44,56 +44,66 @@ public class TagPercentService {
      * Устанавливает процент интереса пользователя к тегу.
      * Если связь уже существует — обновляет, иначе создаёт новую.
      */
-    public UserTagPercent setUserTagPercent(User user, Tag tag, int percent) {
+    public UserTagPercent setUserTagPercent(int userId, int tagId, int percent) {
         if (percent < -100 || percent > 100) {
             throw new IllegalArgumentException("Процент должен быть от -100 до 100");
         }
-
-        Optional<UserTagPercent> existing = userTagPercentDAO.findByUserAndTag(user, tag);
-
-        if (existing.isPresent()) {
-            // Обновляем существующую связь
-            UserTagPercent utp = existing.get();
-            utp.setPercent(percent);
-            return userTagPercentDAO.update(utp);
-        } else {
-            // Создаём новую связь
-            UserTagPercent utp = new UserTagPercent(user, tag, percent);
-            return userTagPercentDAO.save(utp);
+        UserTagId id = new UserTagId(userId, tagId);
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            session.beginTransaction();
+            try {
+                UserTagPercent existing = session.find(UserTagPercent.class, id);
+                if (existing != null) {
+                    existing.setPercent(percent);
+                    session.getTransaction().commit();
+                    return existing;
+                }
+                User user = session.find(User.class, userId);
+                if (user == null) throw new IllegalArgumentException("User not found: " + userId);
+                Tag tag = session.find(Tag.class, tagId);
+                if (tag == null) throw new IllegalArgumentException("Tag not found: " + tagId);
+                UserTagPercent utp = new UserTagPercent(user, tag, percent);
+                session.persist(utp);
+                session.getTransaction().commit();
+                return utp;
+            } catch (Exception e) {
+                if (session.getTransaction().isActive()) session.getTransaction().rollback();
+                throw e instanceof RuntimeException re ? re : new RuntimeException(e);
+            }
         }
     }
 
     /**
      * Получает все теги пользователя, дедуплицированные по имени тега.
      */
-    public List<UserTagPercent> getUserTags(User user) {
-        List<UserTagPercent> all = userTagPercentDAO.findByUser(user);
-        Map<String, UserTagPercent> deduped = new LinkedHashMap<>();
-        for (UserTagPercent utp : all) {
-            if (utp.getTag() == null) continue;
-            String key = utp.getTag().getName().toLowerCase().trim();
-            if (!deduped.containsKey(key)) {
-                deduped.put(key, utp);
+    public List<UserTagPercent> getUserTags(int userId) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            List<UserTagPercent> all = session.createQuery(
+                            "FROM UserTagPercent utp JOIN FETCH utp.tag WHERE utp.user.id = :uid",
+                            UserTagPercent.class)
+                    .setParameter("uid", userId).list();
+            Map<String, UserTagPercent> deduped = new LinkedHashMap<>();
+            for (UserTagPercent utp : all) {
+                if (utp.getTag() == null) continue;
+                String key = utp.getTag().getName().toLowerCase().trim();
+                if (!deduped.containsKey(key)) deduped.put(key, utp);
             }
+            return new ArrayList<>(deduped.values());
         }
-        return new ArrayList<>(deduped.values());
     }
 
     /**
      * Получает топ-N тегов для пользователя.
      */
-    public List<UserTagPercent> getTopUserTags(User user, int limit) {
+    public List<UserTagPercent> getTopUserTags(int userId, int limit) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             return session.createQuery(
-                            "SELECT utp FROM UserTagPercent utp " +
-                                    "JOIN FETCH utp.tag " +
-                                    "WHERE utp.user = :user " +
-                                    "ORDER BY utp.percent DESC",
-                            UserTagPercent.class
-                    )
-                    .setParameter("user", user)
+                            "FROM UserTagPercent utp JOIN FETCH utp.tag " +
+                            "WHERE utp.user.id = :uid ORDER BY utp.percent DESC",
+                            UserTagPercent.class)
+                    .setParameter("uid", userId)
                     .setMaxResults(limit)
-                    .getResultList();
+                    .list();
         }
     }
 
@@ -107,9 +117,8 @@ public class TagPercentService {
     /**
      * Удаляет связь пользователь-тег.
      */
-    public void removeUserTag(User user, Tag tag) {
-        UserTagId id = new UserTagId(user.getId(), tag.getId());
-        userTagPercentDAO.deleteById(id);
+    public void removeUserTag(int userId, int tagId) {
+        userTagPercentDAO.deleteById(new UserTagId(userId, tagId));
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -223,15 +232,18 @@ public class TagPercentService {
      * Загружает интересы пользователя по тегам в виде Map<tagId, percent>.
      * Эффективно: один запрос к БД для всех тегов.
      */
-    public Map<Integer, Integer> getUserTagMap(User user) {
-        List<UserTagPercent> userTags = userTagPercentDAO.findByUser(user);
-        Map<Integer, Integer> map = new HashMap<>();
-        for (UserTagPercent utp : userTags) {
-            if (utp.getTag() != null) {
-                map.put(utp.getTag().getId(), utp.getPercent());
+    public Map<Integer, Integer> getUserTagMap(int userId) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            List<UserTagPercent> userTags = session.createQuery(
+                            "FROM UserTagPercent utp JOIN FETCH utp.tag WHERE utp.user.id = :uid",
+                            UserTagPercent.class)
+                    .setParameter("uid", userId).list();
+            Map<Integer, Integer> map = new HashMap<>();
+            for (UserTagPercent utp : userTags) {
+                if (utp.getTag() != null) map.put(utp.getTag().getId(), utp.getPercent());
             }
+            return map;
         }
-        return map;
     }
 
     /**
@@ -266,44 +278,57 @@ public class TagPercentService {
     // ═══════════════════════════════════════════════════════════
 
     /**
-     * Корректирует UserTagPercent пользователя по каждому тегу статьи.
-     *
-     * direction = +1 (Like):     delta = round(articleTagPercent / 2.0), min 1
-     * direction = -1 (Dislike/Complaint): delta = -round(articleTagPercent / 2.0), max -1
-     * direction =  0 (Neutral):  delta = 0, веса не меняются
-     *
-     * Все операции в одной транзакции. Значения сглаживаются у границ ±100.
+     * Корректирует UserTagPercent на один шаг в заданном направлении.
+     * Делегирует applyWeightSteps(session, articleId, userId, direction, 1).
      */
-    public void adjustUserTagWeights(Article article, User user, int direction) {
-        List<ArticleTagPercent> articleTags = articleTagPercentDAO.findByArticle(article);
-        if (articleTags == null || articleTags.isEmpty()) return;
-
+    public void adjustUserTagWeights(int articleId, int userId, int direction) {
+        if (direction == 0) return;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             session.beginTransaction();
             try {
-                for (ArticleTagPercent atp : articleTags) {
-                    Tag tag = atp.getTag();
-                    if (tag == null || atp.getPercent() <= 0) continue;
-
-                    int delta = computeDelta(direction, atp.getPercent());
-                    if (delta == 0) continue; // нейтральная оценка — не трогать запись
-
-                    UserTagId utpId = new UserTagId(user.getId(), tag.getId());
-                    UserTagPercent utp = session.find(UserTagPercent.class, utpId);
-                    int current = (utp != null) ? utp.getPercent() : 0;
-
-                    int newValue = smoothClamp(current, delta);
-
-                    if (utp != null) {
-                        utp.setPercent(newValue); // managed entity — dirty checking сохранит сам
-                    } else {
-                        session.persist(new UserTagPercent(user, tag, newValue));
-                    }
-                }
+                applyWeightSteps(session, articleId, userId, direction, 1);
                 session.getTransaction().commit();
             } catch (Exception e) {
-                session.getTransaction().rollback();
-                throw e;
+                if (session.getTransaction().isActive()) session.getTransaction().rollback();
+                throw e instanceof RuntimeException re ? re : new RuntimeException(e);
+            }
+        }
+    }
+
+    /**
+     * Применяет {steps} шагов изменения UserTagPercent в открытой сессии.
+     * direction: +1=Like, -1=Dislike. При steps≤0 или direction=0 — no-op.
+     * Многошаговое применение учитывает результат предыдущего шага (приблизительно
+     * из-за нелинейности зоны сглаживания). Вызывается изнутри чужой транзакции.
+     */
+    static void applyWeightSteps(Session session, int articleId, int userId, int direction, int steps) {
+        if (steps <= 0 || direction == 0) return;
+        List<ArticleTagPercent> atps = session.createQuery(
+                "FROM ArticleTagPercent atp JOIN FETCH atp.tag WHERE atp.article.id = :aid",
+                ArticleTagPercent.class)
+                .setParameter("aid", articleId).list();
+        if (atps.isEmpty()) return;
+        User[] userHolder = {null};
+        for (int step = 0; step < steps; step++) {
+            for (ArticleTagPercent atp : atps) {
+                Tag tag = atp.getTag();
+                if (tag == null || atp.getPercent() <= 0) continue;
+                int delta = computeDelta(direction, atp.getPercent());
+                if (delta == 0) continue;
+                UserTagId utpId = new UserTagId(userId, tag.getId());
+                UserTagPercent utp = session.find(UserTagPercent.class, utpId);
+                int current = utp != null ? utp.getPercent() : 0;
+                int newValue = smoothClamp(current, delta);
+                if (utp != null) {
+                    utp.setPercent(newValue);
+                } else {
+                    if (userHolder[0] == null) {
+                        userHolder[0] = session.find(User.class, userId);
+                        if (userHolder[0] == null)
+                            throw new IllegalArgumentException("User not found: " + userId);
+                    }
+                    session.persist(new UserTagPercent(userHolder[0], tag, newValue));
+                }
             }
         }
     }
@@ -367,18 +392,15 @@ public class TagPercentService {
      * Рекомендует статьи для пользователя на основе его интересов.
      * (Упрощённая версия - можно доработать алгоритм)
      */
-    public List<Article> recommendArticlesForUser(User user, int limit) {
+    public List<Article> recommendArticlesForUser(int userId, int limit) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             List<UserTagPercent> userTopTags = session.createQuery(
-                            "SELECT utp FROM UserTagPercent utp " +
-                                    "JOIN FETCH utp.tag " +
-                                    "WHERE utp.user = :user " +
-                                    "ORDER BY utp.percent DESC",
-                            UserTagPercent.class
-                    )
-                    .setParameter("user", user)
+                            "FROM UserTagPercent utp JOIN FETCH utp.tag " +
+                            "WHERE utp.user.id = :uid ORDER BY utp.percent DESC",
+                            UserTagPercent.class)
+                    .setParameter("uid", userId)
                     .setMaxResults(3)
-                    .getResultList();
+                    .list();
 
             if (userTopTags.isEmpty()) return List.of();
 

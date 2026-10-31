@@ -100,24 +100,24 @@ public class UserService {
         }
     }
 
-    public User updateEmail(String nick, String newEmail) {
-        User user = userDAO.findByNick(nick)
-                .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден: " + nick));
+    public User updateEmail(int userId, String newEmail) {
+        User user = userDAO.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
         Optional<User> existingUser = userDAO.findByEmail(newEmail);
-        if (existingUser.isPresent() && !existingUser.get().getNick().equals(nick)) {
+        if (existingUser.isPresent() && existingUser.get().getId() != userId) {
             throw new IllegalArgumentException("Email уже используется другим пользователем: " + newEmail);
         }
         user.setEmail(newEmail);
         return userDAO.update(user);
     }
 
-    public User updatePassword(String nick, String oldPassword, String newPassword) {
-        User user = userDAO.findByNick(nick)
-                .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден: " + nick));
+    public User updatePassword(int userId, String oldPassword, String newPassword) {
+        User user = userDAO.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
         if (!PasswordHasher.verify(user.getPassword(), oldPassword)) {
             throw new IllegalArgumentException("Неверный текущий пароль");
         }
-        validatePassword(nick, newPassword);
+        validatePassword(user.getNick(), newPassword);
         List<String> last3 = passwordHistoryDAO.findLastHashes(user.getId(), 3);
         for (String oldHash : last3) {
             if (PasswordHasher.verify(oldHash, newPassword)) {
@@ -132,10 +132,10 @@ public class UserService {
         return user;
     }
 
-    public boolean updateNotificationFrequency(String nick, String frequency) {
+    public boolean updateNotificationFrequency(int userId, String frequency) {
         try {
-            User user = userDAO.findByNick(nick)
-                    .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден: " + nick));
+            User user = userDAO.findById(userId)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
             user.setNotificationFrequency(frequency);
             userDAO.update(user);
             return true;
@@ -145,19 +145,19 @@ public class UserService {
         }
     }
 
-    public User setLanguages(String nick, Set<String> languages) {
+    public User setLanguages(int userId, Set<String> languages) {
         for (String lang : languages) {
             if (!lang.matches("^[a-z]{2}$")) {
                 throw new IllegalArgumentException("Invalid language code (must be 2 lowercase letters): " + lang);
             }
         }
-        User user = userDAO.findByNick(nick)
-                .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден: " + nick));
+        User user = userDAO.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
         user.setLanguages(languages);
         return userDAO.update(user);
     }
 
-    public User setRegions(String nick, Set<String> regionKeys) {
+    public User setRegions(int userId, Set<String> regionKeys) {
         try (org.hibernate.Session session = HibernateUtil.getSessionFactory().openSession()) {
             for (String key : regionKeys) {
                 if (session.find(Region.class, key) == null) {
@@ -165,22 +165,22 @@ public class UserService {
                 }
             }
         }
-        User user = userDAO.findByNick(nick)
-                .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден: " + nick));
+        User user = userDAO.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
         user.setRegions(regionKeys);
         return userDAO.update(user);
     }
 
-    public User incrementReadArticles(String nick) {
-        User user = userDAO.findByNick(nick)
-                .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден: " + nick));
+    public User incrementReadArticles(int userId) {
+        User user = userDAO.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
         user.incrementReadArticlesCount();
         return userDAO.update(user);
     }
 
-    public User setRole(String nick, Role role) {
-        User user = userDAO.findByNick(nick)
-                .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден: " + nick));
+    public User setRole(int userId, Role role) {
+        User user = userDAO.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
         user.setRole(role);
         return userDAO.update(user);
     }
@@ -188,6 +188,10 @@ public class UserService {
     // ═══════════════════════════════════════════════════════════
     // Поиск
     // ═══════════════════════════════════════════════════════════
+
+    public Optional<User> getUserById(int userId) {
+        return userDAO.findById(userId);
+    }
 
     public Optional<User> getUserByNick(String nick) {
         return userDAO.findByNick(nick);
@@ -221,8 +225,8 @@ public class UserService {
     // Удаление
     // ═══════════════════════════════════════════════════════════
 
-    public void deleteUser(String nick) {
-        userDAO.findByNick(nick).ifPresent(u -> userDAO.deleteById(u.getId()));
+    public void deleteUser(int userId) {
+        userDAO.findById(userId).ifPresent(u -> userDAO.deleteById(u.getId()));
     }
 
     // ═══════════════════════════════════════════════════════════

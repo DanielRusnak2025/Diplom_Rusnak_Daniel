@@ -16,4 +16,10 @@ tasks.withType<JavaCompile>().configureEach {
 
 dependencies {
     implementation(libs.kotlinx.serialization.json)
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.launcher)
+}
+
+tasks.test {
+    useJUnitPlatform()
 }

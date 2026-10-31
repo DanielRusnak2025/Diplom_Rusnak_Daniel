@@ -75,8 +75,15 @@
   Облачные push (Firebase) не используются.
 - Список разрешённых отправителей писем не ведётся.
 - Нейтральная оценка не меняет весов (текущее случайное ±1–3 — убрать на этапе 1).
-- Жалоба меняет веса так же, как дизлайк, плюс создаёт запись в user_block,
-  если пользователь выбрал такой вариант.
+- Смена оценки — вариант B: |new−old| шагов в направлении sign(new−old). Примеры:
+  like→dislike = 2 шага по −1; like→neutral = 1 шаг −1; dislike→like = 2 шага +1.
+  Каждый шаг применяет computeDelta+smoothClamp последовательно (результат предыдущего
+  шага — вход для следующего). Откат приблизительный из-за нелинейности зоны сглаживания.
+  Реализовано как applyWeightSteps(Session, articleId, userId, direction, steps) в
+  TagPercentService; вызывается из upsertRating и complain.
+- Жалоба: если предыдущая оценка уже −1 — веса не меняются (только причина обновляется).
+  Если была 0 — 1 шаг −1. Если была +1 — 2 шага −1. Без предыдущей оценки — 1 шаг −1.
+  Блок user_block создаётся независимо от смены весов.
 - Удаление старых статей выключено по умолчанию (scheduler.cleanup.enabled=false).
 - Старое Java/JavaFX-приложение никогда не запускается на db_use (только db_use_test).
 - Разработка ведётся на db_use_test под пользователем newsdove_dev
@@ -104,20 +111,54 @@
 (headless main) и сохраняет статьи как раньше. ✓
 
 ### Этап 1. Очистка ядра
-- [ ] Убрать из сервисов зависимости от JavaFX и глобальное состояние
+- [x] Убрать из сервисов зависимости от JavaFX и глобальное состояние
       «текущего пользователя» — сервисы принимают userId (int) параметром.
-      V2 выполнен: User.id есть, findByNick доступен. Разблокировано.
-- [ ] Слой DTO в shared (kotlinx.serialization); сущности Hibernate не покидают сервер.
-      V2 выполнен. Ждём V5 (kind=CATEGORY/SUBTOPIC у тегов) для финального состава DTO.
+      UserService: все 8 мутирующих методов (updateEmail/Password/NotifFreq/
+      setLanguages/setRegions/incrementReadArticles/setRole/deleteUser) nick→userId.
+      ReportService: createReport/upsertRating/getReportsByUser/getRatedArticleIds/
+      getUserRatingsMap/getReportsByArticle/getAverageRatingForArticle все → int id.
+      TagPercentService: setUserTagPercent/getUserTags/getTopUserTags/getUserTagMap/
+      removeUserTag/adjustUserTagWeights/recommendArticlesForUser все → int id.
+      2026-10-31. 102 теста, 0 failures.
+- [x] Слой DTO в shared (kotlinx.serialization); сущности Hibernate не покидают сервер.
+      Добавлены: FeedArticleDto (id/title/link/publisher/language/region/score/rating/likePercent/
+      tags:List<ArticleTagDto>), ArticleTagDto (tagKey/name/kind/percent/parentKey?),
+      FeedPageDto (articles/page/pageSize/hasMore), TokenPairDto (accessToken/refreshToken/accessExpiresIn),
+      LoginRequest (login/password), RegisterRequest (nick/password/email?/languages/regions),
+      RefreshRequest (refreshToken), UserProfileDto (id/nick/email?/role/languages/regions/notifFreq),
+      RateRequest (articleId/rating), ComplaintRequest (articleId/reason:ReportReasonDto),
+      BlockRequest (type:BlockTypeDto/tagId?/regionKey?/publisher?),
+      UpdateSettingsRequest (languages?/regions?/notificationFrequency?),
+      ErrorResponse (code/message), ReportReasonDto/BlockTypeDto/RoleDto (enum).
+      Тесты: unknown enum → SerializationException; FeedPageDto/ComplaintRequest round-trip.
+      2026-10-31. 6 тестов shared, 0 failures.
 - [x] Все HQL-запросы — только с параметрами, никакой конкатенации строк.
       (аудит показал: все DAO используют именованные параметры; единственное
       исключение searchByKeywordAndDate переписано на HQL в этапе 1)
-- [ ] Юнит-тесты на скоринг (TagPercentService) и на обновление весов.
-- [ ] Сглаживание формулы обновления весов.
-- [ ] Нейтральная оценка: убрать случайный ±1–3, delta = 0, не трогать БД.
-- [ ] Жалоба (direction=-2): менять веса как дизлайк.
+- [x] Юнит-тесты на скоринг (TagPercentService) и на обновление весов.
+      TagPercentServiceTest: 46 тестов (computeDelta, smoothClamp, монотонность,
+      инварианты). UpsertRatingWeightTest: 6 тестов (like→weights, like×2→idempotent,
+      neutral→noChange, like→dislike 2 шага, like→neutral 1 шаг, dislike→like 2 шага).
+      2026-10-31.
+- [x] Сглаживание формулы обновления весов.
+      smoothClamp реализован (spec-таблица верна на 46 тестах).
+      Вызывается из upsertRating (новая оценка), complain, adjustUserTagWeights.
+- [x] Нейтральная оценка: убрать случайный ±1–3, delta = 0, не трогать БД.
+      computeDelta(0, p) = 0; adjustUserTagWeights с direction=0 не пишет в БД.
+      upsertRating с rating=0 сохраняет report, не трогает user_tag_percent.
+      Тест: neutralNewReport_noWeightChange. 2026-10-31.
+- [x] Жалоба: complain(articleId, userId, reason) — одна транзакция.
+      Upsert report(rating=-1, reasonCode) + user_block (REGION/PUBLISHER/TAG, если применимо,
+      check-before-insert) + applyWeightSteps(direction=-1, шаги по правилу из раздела 1) —
+      одна Hibernate-сессия.
+      9 тестов (ComplainTest): регион/null-регион/издатель/category-tag/без-category/
+      другой-reason/дубль-блок-silent/веса/dislike→complain→веса-не-меняются. 2026-10-31.
+- [x] upsertRating — одна транзакция (report + веса). Та же оценка → no-op.
+      Новая оценка → save + applyWeightSteps(steps=1). Смена оценки → вариант B
+      (|new−old| шагов). applyWeightSteps(Session,articleId,userId,direction,steps) —
+      единый внутренний метод в TagPercentService; устраняет дублирование кода.
 Критерии тесты зелёные, скоринг даёт те же результаты на старых данных
-(кроме эффекта сглаживания).
+(кроме эффекта сглаживания). ✓ (105 core + 6 shared тестов, 0 failures, 2026-10-31)
 
 ### Этап 2. Миграция БД (Flyway, сначала на копии)
 - [ ] V1 baseline (baselineOnMigrate) — текущая схема.

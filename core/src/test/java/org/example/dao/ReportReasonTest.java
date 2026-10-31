@@ -104,7 +104,7 @@ class ReportReasonTest {
         }
 
         // upsertRating with rating=1 — must NOT throw, must clear reasonCode
-        new ReportService().upsertRating(testArticle, testUser, 1);
+        new ReportService().upsertRating(testArticle.getId(), testUser.getId(), 1);
 
         try (Session s = HibernateUtil.getSessionFactory().openSession()) {
             Report found = s.find(Report.class, complaint.getId());
