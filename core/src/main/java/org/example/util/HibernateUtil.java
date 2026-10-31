@@ -58,6 +58,9 @@ public class HibernateUtil {
                 .addAnnotatedClass(Region.class)
                 .addAnnotatedClass(ProcessedEmail.class)
                 .addAnnotatedClass(ArticleQueue.class)
+                .addAnnotatedClass(org.example.UserBlock.class)
+                .addAnnotatedClass(org.example.RefreshToken.class)
+                .addAnnotatedClass(org.example.AuditLog.class)
                 .setProperty("hibernate.hbm2ddl.auto", "validate")
                 .buildSessionFactory();
     }

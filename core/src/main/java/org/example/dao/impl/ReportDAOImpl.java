@@ -145,12 +145,12 @@ public class ReportDAOImpl extends GenericDAOImpl<Report, Integer> implements Re
     public Map<Integer, Integer> findLikePercentageByArticleIds(Collection<Integer> articleIds) {
         if (articleIds == null || articleIds.isEmpty()) return new HashMap<>();
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            // Считаем лайки (rating=1) и все оценки (rating!=-2) по группе статей
+            // Все оценки (-1,0,1) считаются; жалобы (rating=-1 + reason_code) — как дизлайки
             String hql = "SELECT r.article.id, " +
                          "SUM(CASE WHEN r.rating = 1 THEN 1 ELSE 0 END), " +
                          "COUNT(r) " +
                          "FROM Report r " +
-                         "WHERE r.article.id IN :ids AND r.rating != -2 " +
+                         "WHERE r.article.id IN :ids " +
                          "GROUP BY r.article.id";
             List<Object[]> rows = session.createQuery(hql, Object[].class)
                     .setParameter("ids", articleIds)

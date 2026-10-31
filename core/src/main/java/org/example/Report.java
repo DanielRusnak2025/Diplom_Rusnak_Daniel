@@ -1,6 +1,9 @@
 package org.example;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.util.Date;
 
 @Entity
@@ -30,83 +33,29 @@ public class Report {
     @Column(nullable = false)
     private int rating;
 
-    @Column(columnDefinition = "TEXT")
-    private String reason;
-
-    // ───────────────────────────────────────────────
-    // Конструкторы
-    // ───────────────────────────────────────────────
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(name = "reason_code", length = 30)
+    private ReportReason reasonCode;
 
     public Report() {
     }
 
-    public Report(Article article, User user, int rating, String reason) {
+    public Report(Article article, User user, int rating) {
         this.article = article;
         this.user = user;
         this.rating = rating;
-        this.reason = reason;
-        this.date = new Date();           // текущая дата по умолчанию
+        this.date = new Date();
     }
 
-    // ───────────────────────────────────────────────
-    // Геттеры и сеттеры
-    // ───────────────────────────────────────────────
-
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public Date getDate() {
-        return date;
-    }
-
-    public void setDate(Date date) {
-        this.date = date;
-    }
-
-    public Article getArticle() {
-        return article;
-    }
-
-    public void setArticle(Article article) {
+    public Report(Article article, User user, int rating, ReportReason reasonCode) {
         this.article = article;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
         this.user = user;
-    }
-
-    public int getRating() {
-        return rating;
-    }
-
-    public void setRating(int rating) {
         this.rating = rating;
+        this.reasonCode = reasonCode;
+        this.date = new Date();
     }
 
-    public String getReason() {
-        return reason;
-    }
-
-    public void setReason(String reason) {
-        this.reason = reason;
-    }
-
-    // ───────────────────────────────────────────────
-    // Удобные методы (опционально)
-    // ───────────────────────────────────────────────
-
-    /**
-     * Устанавливает текущую дату автоматически
-     */
     @PrePersist
     protected void onCreate() {
         if (this.date == null) {
@@ -114,4 +63,21 @@ public class Report {
         }
     }
 
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+
+    public Date getDate() { return date; }
+    public void setDate(Date date) { this.date = date; }
+
+    public Article getArticle() { return article; }
+    public void setArticle(Article article) { this.article = article; }
+
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
+
+    public int getRating() { return rating; }
+    public void setRating(int rating) { this.rating = rating; }
+
+    public ReportReason getReasonCode() { return reasonCode; }
+    public void setReasonCode(ReportReason reasonCode) { this.reasonCode = reasonCode; }
 }

@@ -1,6 +1,7 @@
 package org.example.service;
 
 import org.example.Report;
+import org.example.ReportReason;
 import org.example.Article;
 import org.example.User;
 import org.example.dao.ReportDAO;
@@ -14,9 +15,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-/**
- * Сервис для работы с отчётами (оценками статей).
- */
 public class ReportService {
 
     private final ReportDAO reportDAO;
@@ -29,66 +27,45 @@ public class ReportService {
         this.reportDAO = reportDAO;
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // Создание и управление отчётами
-    // ═══════════════════════════════════════════════════════════
-
-    /**
-     * Создаёт новый отчёт (оценку статьи пользователем).
-     *
-     * @param article статья
-     * @param user пользователь
-     * @param rating рейтинг от -2 до 1
-     * @param reason причина оценки (может быть null)
-     */
-    public Report createReport(Article article, User user, int rating, String reason) {
-        // Проверяем допустимость рейтинга
-        if (rating < -2 || rating > 1) {
-            throw new IllegalArgumentException("Рейтинг должен быть от -2 до 1");
+    public Report createReport(Article article, User user, int rating, ReportReason reasonCode) {
+        if (rating < -1 || rating > 1) {
+            throw new IllegalArgumentException("Rating must be -1, 0, or 1");
         }
-
-        Report report = new Report(article, user, rating, reason);
+        Report report = reasonCode != null
+                ? new Report(article, user, rating, reasonCode)
+                : new Report(article, user, rating);
         return reportDAO.save(report);
     }
 
-    /**
-     * Создаёт или обновляет оценку пользователя для статьи (upsert).
-     * rating: 1=нравится, 0=нейтрально, -1=не нравится, -2=жалоба
-     */
     public void upsertRating(Article article, User user, int rating) {
         Optional<Report> existing = reportDAO.findByUserAndArticle(user, article);
         if (existing.isPresent()) {
             Report r = existing.get();
             r.setRating(rating);
+            if (rating != -1) r.setReasonCode(null); // changing away from dislike clears complaint
             reportDAO.update(r);
         } else {
-            reportDAO.save(new Report(article, user, rating, null));
+            reportDAO.save(new Report(article, user, rating));
         }
     }
 
-    /**
-     * Обновляет существующий отчёт.
-     */
-    public Report updateReport(int reportId, int newRating, String newReason) {
+    public Report updateReport(int reportId, int newRating, ReportReason newReasonCode) {
         Report report = reportDAO.findById(reportId)
                 .orElseThrow(() -> new IllegalArgumentException("Отчёт не найден: " + reportId));
 
-        if (newRating < -2 || newRating > 1) {
-            throw new IllegalArgumentException("Рейтинг должен быть от -2 до 1");
+        if (newRating < -1 || newRating > 1) {
+            throw new IllegalArgumentException("Rating must be -1, 0, or 1");
+        }
+        if (newReasonCode != null && newRating != -1) {
+            throw new IllegalArgumentException("reasonCode can only be set when rating is -1");
         }
 
         report.setRating(newRating);
-        if (newReason != null) {
-            report.setReason(newReason);
-        }
-        report.setDate(new Date()); // обновляем дату
+        report.setReasonCode(newRating == -1 ? newReasonCode : null);
+        report.setDate(new Date());
 
         return reportDAO.update(report);
     }
-
-    // ═══════════════════════════════════════════════════════════
-    // Поиск и получение данных
-    // ═══════════════════════════════════════════════════════════
 
     public Optional<Report> getReportById(int id) {
         return reportDAO.findById(id);
@@ -118,9 +95,6 @@ public class ReportService {
         return reportDAO.findLatestReports(limit);
     }
 
-    /**
-     * Вычисляет средний рейтинг для статьи.
-     */
     public double getAverageRatingForArticle(Article article) {
         Double average = reportDAO.calculateAverageRatingForArticle(article);
         return average != null ? average : 0.0;
@@ -130,17 +104,10 @@ public class ReportService {
         return reportDAO.count();
     }
 
-    /**
-     * Возвращает множество ID статей, уже оценённых данным пользователем.
-     */
     public Set<Integer> getRatedArticleIds(User user) {
         return reportDAO.findRatedArticleIds(user);
     }
 
-    /**
-     * Возвращает карту articleId → rating для всех оценок пользователя.
-     * Используется для отображения значков оценок в экране истории.
-     */
     public Map<Integer, Integer> getUserRatingsMap(User user) {
         Map<Integer, Integer> map = new HashMap<>();
         for (Report r : reportDAO.findByUser(user)) {
@@ -149,17 +116,9 @@ public class ReportService {
         return map;
     }
 
-    /**
-     * Возвращает карту articleId → процент лайков для списка статей.
-     * Используется для отображения значка "популярная статья" в ленте.
-     */
     public Map<Integer, Integer> getLikePercentageMap(Collection<Integer> articleIds) {
         return reportDAO.findLikePercentageByArticleIds(articleIds);
     }
-
-    // ═══════════════════════════════════════════════════════════
-    // Удаление
-    // ═══════════════════════════════════════════════════════════
 
     public void deleteReport(int reportId) {
         reportDAO.deleteById(reportId);

@@ -167,8 +167,24 @@
       db_use_test v8.3: 71 строк, link_hash NULL=0, dup=0, queue-hash mismatch=0, atp=360.
       81 тест (ArticleMetaTest +4: linkHash, UNIQUE, findByLinkHash, findOldArticlesExcludesReported).
   ⚙ Бэклог: остальные find* в ArticleDAOImpl глотают исключения — исправить на Этапе 3.
-- [ ] V9  report + reason_code.
-- [ ] V10 user_block, refresh_token, audit_log (SET NULL).
+- [x] V9  report + reason_code.
+      V9_1 Java: проверка — ни одной непустой причины в report (0 строк); V9_2 SQL:
+      ADD reason_code VARCHAR(30) NULL, CHECK rating IN(-1,0,1), CHECK reason_code IS NULL OR rating=-1,
+      CHECK reason_code IN enum, DROP reason. Report.java: reasonCode + @JdbcTypeCode(VARCHAR);
+      два конструктора Report(A,U,int) и Report(A,U,int,ReportReason); ReportService обновлён.
+      db_use_test v9.2: report=8, reason_code все NULL ✓, все 3 CHECK присутствуют.
+      3 новых теста (saveComplaint, invalidCode→CHECK, rating=1+reason→CHECK); 84 теста, 0 failures.
+- [x] V10 user_block, refresh_token, audit_log (SET NULL).
+      V10_1: user_block (id, user_id FK CASCADE, block_type VARCHAR(10) CHECK, tag_id FK RESTRICT,
+      region_key FK RESTRICT, publisher, created_at, block_key VIRTUAL GENERATED, UNIQUE(user_id,block_key),
+      CHECK exactly-one-target). V10_2: refresh_token (token_hash CHAR(64) UNIQUE, family_id,
+      created_at/expires_at NOT NULL, revoked_at NULL, replaced_by_id FK SET NULL). V10_3: audit_log
+      (actor_user_id FK SET NULL, action, target_type/id NULL, INDEX created_at/actor).
+      UserBlock/RefreshToken/AuditLog entities + DAOs; HibernateUtil обновлён.
+      db_use_test v10.3: user_block=0, refresh_token=0, audit_log=0; все FK/CHECK/UNIQUE ✓.
+      5 новых тестов (double block→UNIQUE, TAG+publisher→CHECK, delete tag→RESTRICT,
+      delete user→CASCADE blocks+tokens/SET NULL audit, dup token hash→UNIQUE); 89 тестов, 0 failures.
+  ⚙ Бэклог: удаление тега/региона — сначала удалить user_block (FK RESTRICT, не CASCADE).
 - [ ] V11 entity + entity_alias — после того как будет seed/entities.yaml.
 ⚠ **Ограничение до Этапа 3:** `scheduler.enabled` должен оставаться `false`.
   Старый пайплайн пишет `article_region` свободным текстом («Russia», «United States»)

@@ -56,22 +56,16 @@ class TagPercentServiceTest {
     }
 
     /**
-     * Complaint (direction=-2) is mapped to effective=-1 (dislike) before
-     * computeDelta is called.  Verify the mapping and that the resulting
-     * deltas are identical to plain dislike.
+     * Complaint = rating -1 + reasonCode != null.
+     * adjustUserTagWeights receives direction=-1 for both plain dislike and complaint.
+     * Verify computeDelta(-1, p) is always negative and non-zero for any article percent.
      */
     @Test
-    void complaintMappedToDislike() {
-        int complaint = -2;
-        int effective = (complaint == -2) ? -1 : complaint;
-        assertEquals(-1, effective, "complaint must map to dislike direction");
-
+    void complaintAndDislikeBothProduceNegativeDelta() {
         for (int p = 1; p <= 100; p++) {
-            assertEquals(
-                TagPercentService.computeDelta(-1, p),
-                TagPercentService.computeDelta(effective, p),
-                "delta mismatch for articlePercent=" + p
-            );
+            int delta = TagPercentService.computeDelta(-1, p);
+            assertTrue(delta < 0,
+                "direction=-1 (dislike/complaint) must produce negative delta for p=" + p);
         }
     }
 

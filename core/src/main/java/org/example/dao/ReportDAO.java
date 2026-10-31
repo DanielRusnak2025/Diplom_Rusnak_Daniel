@@ -34,7 +34,7 @@ public interface ReportDAO extends GenericDAO<Report, Integer> {
     /**
      * Находит отчёты с определённым рейтингом.
      *
-     * @param rating рейтинг (-2 .. 1)
+     * @param rating рейтинг (-1, 0, 1)
      * @return список отчётов
      */
     List<Report> findByRating(int rating);
@@ -73,7 +73,8 @@ public interface ReportDAO extends GenericDAO<Report, Integer> {
 
     /**
      * Возвращает карту articleId → процент лайков (rating=1 из всех оценок -1..1).
-     * Жалобы (rating=-2) не учитываются. Статьи без оценок не включаются в результат.
+     * Жалобы (rating=-1 + reason_code IS NOT NULL) учитываются как дизлайки.
+     * Статьи без оценок не включаются в результат.
      */
     Map<Integer, Integer> findLikePercentageByArticleIds(Collection<Integer> articleIds);
 }

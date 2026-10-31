@@ -269,8 +269,7 @@ public class TagPercentService {
      * Корректирует UserTagPercent пользователя по каждому тегу статьи.
      *
      * direction = +1 (Like):     delta = round(articleTagPercent / 2.0), min 1
-     * direction = -1 (Dislike):  delta = -round(articleTagPercent / 2.0), max -1
-     * direction = -2 (Complaint): то же, что -1
+     * direction = -1 (Dislike/Complaint): delta = -round(articleTagPercent / 2.0), max -1
      * direction =  0 (Neutral):  delta = 0, веса не меняются
      *
      * Все операции в одной транзакции. Значения сглаживаются у границ ±100.
@@ -279,9 +278,6 @@ public class TagPercentService {
         List<ArticleTagPercent> articleTags = articleTagPercentDAO.findByArticle(article);
         if (articleTags == null || articleTags.isEmpty()) return;
 
-        // Жалоба меняет веса как дизлайк
-        int effective = (direction == -2) ? -1 : direction;
-
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             session.beginTransaction();
             try {
@@ -289,7 +285,7 @@ public class TagPercentService {
                     Tag tag = atp.getTag();
                     if (tag == null || atp.getPercent() <= 0) continue;
 
-                    int delta = computeDelta(effective, atp.getPercent());
+                    int delta = computeDelta(direction, atp.getPercent());
                     if (delta == 0) continue; // нейтральная оценка — не трогать запись
 
                     UserTagId utpId = new UserTagId(user.getId(), tag.getId());

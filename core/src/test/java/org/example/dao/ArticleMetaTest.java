@@ -149,7 +149,7 @@ class ArticleMetaTest {
             s.persist(testUser);
             s.persist(withReport);
             s.persist(withoutReport);
-            s.persist(new Report(withReport, testUser, 1, "test"));
+            s.persist(new Report(withReport, testUser, 1));
             tx.commit();
         }
 
