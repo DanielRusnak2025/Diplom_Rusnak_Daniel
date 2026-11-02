@@ -4,12 +4,14 @@ import org.example.Article;
 import org.example.RejectReason;
 import org.example.Tag;
 import org.example.TagKind;
+import org.example.TagKeyword;
 import org.example.ai.AiConfig;
 import org.example.ai.ArticleClassification;
 import org.example.ai.ArticleClassifier;
 import org.example.ai.ClassificationException;
 import org.example.ai.ExtraAssignment;
 import org.example.ai.OllamaClassifier;
+import org.example.ai.RelevanceLevel;
 import org.example.ai.SubtopicInfo;
 import org.example.ai.TagInfo;
 import org.example.dao.ArticleDAO;
@@ -22,34 +24,63 @@ import org.example.util.UrlNormalizer;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.logging.Logger;
 
 public class QueueWorker {
 
     private static final Logger log = Logger.getLogger(QueueWorker.class.getName());
 
-    static final int LOCK_MINUTES  = 10;
-    static final int MAX_ATTEMPTS  = 3;
-    // relative weight given to the main category vs extra assignments
-    private static final int PRIMARY_WEIGHT = 6;
+    static final int LOCK_MINUTES = 10;
+    static final int MAX_ATTEMPTS = 3;
 
-    private final ArticleQueueDAO          queueDAO;
-    private final ArticleDAO               articleDAO;
-    private final ArticleClassifier        classifier;
-    private final PageLoader               pageLoader;
-    private final ArticleLanguageDetector  languageDetector;
-    private final EntityMatcher            entityMatcher;
-    private final List<TagInfo>            taxonomy;
-    private final int                      taxonomyVersion;
-    private final String                   classifierModel;
-    private final String                   promptVersion;
+    // Read from /seed/taxonomy.yaml once; written to article.taxonomy_version.
+    static final int TAXONOMY_YAML_VERSION = loadTaxonomyYamlVersion();
+
+    private static int loadTaxonomyYamlVersion() {
+        try (InputStream is = QueueWorker.class.getResourceAsStream("/seed/taxonomy.yaml");
+             BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (line.startsWith("version:")) {
+                    return Integer.parseInt(line.substring("version:".length()).trim());
+                }
+            }
+        } catch (Exception ignored) {}
+        return 1;
+    }
+
+    // Number of chars of article text used for keyword matching (title prepended separately).
+    private static final int KEYWORD_TEXT_CHARS = 500;
+
+    private final ArticleQueueDAO                       queueDAO;
+    private final ArticleDAO                            articleDAO;
+    private final ArticleClassifier                     classifier;
+    private final PageLoader                            pageLoader;
+    private final ArticleLanguageDetector               languageDetector;
+    private final EntityMatcher                         entityMatcher;
+    private final List<TagInfo>                         taxonomy;
+    private final int                                   taxonomyVersion;
+    private final String                                classifierModel;
+    private final String                                promptVersion;
+    // language-code → (category_id → keyword patterns from all subtopics of that category)
+    private final Map<String, Map<Integer, List<String>>> keywordsByLang;
+    private final int                                   maxBonus;
 
     // ── Production constructor ────────────────────────────────────────────────
 
@@ -60,6 +91,8 @@ public class QueueWorker {
             new ArticleDAOImpl(),
             loadEntityMatcherFromDb(),
             loadTaxonomyFromDb(),
+            loadKeywordsFromDb(),
+            AiConfig.getKeywordBonusMax(),
             AiConfig.getOllamaModel(),
             OllamaClassifier.PROMPT_VERSION,
             new ArticleLanguageDetector(AiConfig.getLanguagesAllowed())
@@ -75,19 +108,32 @@ public class QueueWorker {
             ArticleDAO articleDAO,
             EntityMatcher entityMatcher,
             List<TagInfo> taxonomy,
+            Map<String, Map<Integer, List<String>>> keywordsByLang,
+            int maxBonus,
             String classifierModel,
             String promptVersion,
             ArticleLanguageDetector languageDetector) {
-        this.classifier      = classifier;
-        this.pageLoader      = pageLoader;
-        this.queueDAO        = queueDAO;
-        this.articleDAO      = articleDAO;
-        this.entityMatcher   = entityMatcher;
-        this.taxonomy        = List.copyOf(taxonomy);
-        this.taxonomyVersion = taxonomy.size();
-        this.classifierModel = classifierModel;
-        this.promptVersion   = promptVersion;
+        this.classifier       = classifier;
+        this.pageLoader       = pageLoader;
+        this.queueDAO         = queueDAO;
+        this.articleDAO       = articleDAO;
+        this.entityMatcher    = entityMatcher;
+        this.taxonomy         = List.copyOf(taxonomy);
+        this.taxonomyVersion  = TAXONOMY_YAML_VERSION;
+        this.classifierModel  = classifierModel;
+        this.promptVersion    = promptVersion;
         this.languageDetector = languageDetector;
+        this.maxBonus         = maxBonus;
+
+        Map<String, Map<Integer, List<String>>> copy = new HashMap<>();
+        for (Map.Entry<String, Map<Integer, List<String>>> e : keywordsByLang.entrySet()) {
+            Map<Integer, List<String>> inner = new HashMap<>();
+            for (Map.Entry<Integer, List<String>> ie : e.getValue().entrySet()) {
+                inner.put(ie.getKey(), List.copyOf(ie.getValue()));
+            }
+            copy.put(e.getKey(), Collections.unmodifiableMap(inner));
+        }
+        this.keywordsByLang = Collections.unmodifiableMap(copy);
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -120,9 +166,16 @@ public class QueueWorker {
 
     // ── Per-item pipeline ─────────────────────────────────────────────────────
 
-    private void processOne(ClaimedItem item) {
+    private void processOne(ClaimedItem item) throws Exception {
         // 1. Fetch + parse page
-        PageLoader.Result fetch = pageLoader.load(item.url());
+        PageLoader.Result fetch;
+        try {
+            fetch = pageLoader.load(item.url());
+        } catch (PageLoader.SsrfViolationException e) {
+            queueDAO.markRejected(item.id(), RejectReason.INVALID_URL, item.lockToken());
+            log.info("[QueueWorker] q=" + item.id() + " REJECTED INVALID_URL (SSRF): " + e.getMessage());
+            return;
+        }
         if (fetch == null) {
             queueDAO.markRejected(item.id(), RejectReason.FETCH_FAILED, item.lockToken());
             log.info("[QueueWorker] q=" + item.id() + " REJECTED FETCH_FAILED");
@@ -152,7 +205,6 @@ public class QueueWorker {
         // 4. Duplicate check by link_hash of final URL
         Optional<Article> existingByHash = articleDAO.findByLinkHash(linkHash);
         if (item.articleId() == null) {
-            // New item: any existing article with this hash is a duplicate
             if (existingByHash.isPresent()) {
                 queueDAO.markRejected(item.id(), RejectReason.DUPLICATE, item.lockToken());
                 log.info("[QueueWorker] q=" + item.id()
@@ -160,7 +212,6 @@ public class QueueWorker {
                 return;
             }
         } else {
-            // Reclassification: hash collision with a DIFFERENT article → reject, leave old article intact
             if (existingByHash.isPresent() && existingByHash.get().getId() != item.articleId()) {
                 queueDAO.markRejected(item.id(), RejectReason.DUPLICATE, item.lockToken());
                 log.info("[QueueWorker] q=" + item.id()
@@ -193,8 +244,10 @@ public class QueueWorker {
 
         // 7. Persist article + tags
         int articleId = (item.articleId() != null)
-                ? reclassify(item.articleId(), finalUrl, langCode, region, ac, fetch.parsed())
-                : createNew(finalUrl, langCode, region, ac, fetch.parsed());
+                ? reclassify(item.articleId(), finalUrl, langCode, region, ac,
+                             fetch.parsed(), fetch.parsed().textForAi())
+                : createNew(finalUrl, langCode, region, ac,
+                            fetch.parsed(), fetch.parsed().textForAi());
 
         queueDAO.markDone(item.id(), articleId, item.lockToken());
         log.info("[QueueWorker] q=" + item.id() + " DONE article_id=" + articleId);
@@ -203,28 +256,27 @@ public class QueueWorker {
     // ── Persistence ───────────────────────────────────────────────────────────
 
     private int createNew(String finalUrl, String langCode, String region,
-                          ArticleClassification ac, ParseResult parsed) {
+                          ArticleClassification ac, ParseResult parsed, String textForAi) {
         Article article = new Article();
         article.setLink(finalUrl);
         article.setTitle(truncate(parsed.title(), 500));
         article.setPublisher(truncate(parsed.publisher(), 255));
-        article.setArticleLanguage(isoToFull(langCode));
+        article.setArticleLanguage(langCode);
         article.setArticleRegion(region);
         article.setClassifierModel(truncate(classifierModel, 100));
         article.setPromptVersion(truncate(promptVersion, 20));
         article.setTaxonomyVersion(taxonomyVersion);
-        article.setPublicationDate(new java.util.Date());
+        article.setPublicationDate(parseDateOrNow(parsed.publishedDate()));
         Article saved = articleDAO.save(article);
-        saveTagPercents(saved.getId(), ac);
+        saveTagPercents(saved.getId(), ac, langCode, parsed.title(), textForAi);
         return saved.getId();
     }
 
     private int reclassify(int existingId, String finalUrl, String langCode, String region,
-                            ArticleClassification ac, ParseResult parsed) {
+                            ArticleClassification ac, ParseResult parsed, String textForAi) {
         Optional<Article> opt = articleDAO.findById(existingId);
         if (opt.isEmpty()) {
-            // Article was deleted since queue entry was created — create a new one
-            return createNew(finalUrl, langCode, region, ac, parsed);
+            return createNew(finalUrl, langCode, region, ac, parsed, textForAi);
         }
         Article article = opt.get();
         article.setLink(finalUrl);
@@ -234,14 +286,15 @@ public class QueueWorker {
         if (parsed.publisher() != null && !parsed.publisher().isBlank()) {
             article.setPublisher(truncate(parsed.publisher(), 255));
         }
-        article.setArticleLanguage(isoToFull(langCode));
+        article.setArticleLanguage(langCode);
         article.setArticleRegion(region);
         article.setClassifierModel(truncate(classifierModel, 100));
         article.setPromptVersion(truncate(promptVersion, 20));
         article.setTaxonomyVersion(taxonomyVersion);
+        article.setPublicationDate(parseDateOrNow(parsed.publishedDate()));
         articleDAO.update(article);
         deleteTagsForArticle(existingId);
-        saveTagPercents(existingId, ac);
+        saveTagPercents(existingId, ac, langCode, parsed.title(), textForAi);
         return existingId;
     }
 
@@ -257,30 +310,41 @@ public class QueueWorker {
     }
 
     /**
-     * Inserts article_tag_percent rows: one per category (percents sum to 100),
-     * plus one row for the main subtopic (percent = its category's percent).
+     * Inserts article_tag_percent rows using ArticleScorer.
+     * One row per category (percents sum to 100), plus one row for the main subtopic
+     * (percent = its parent category's percent).
+     *
+     * Keyword bonus: for each category, counts matching keyword rules from all its
+     * subtopics in the article's language (title + first KEYWORD_TEXT_CHARS of text).
      */
-    private void saveTagPercents(int articleId, ArticleClassification ac) {
-        List<int[]> assignments = buildCategoryAssignments(ac); // [tagId, percent] pairs
+    private void saveTagPercents(int articleId, ArticleClassification ac,
+                                 String langCode, String title, String textForAi) {
+        Map<Integer, RelevanceLevel> assignments = buildAssignments(ac);
 
-        int mainPercent = 0;
-        for (int[] pair : assignments) {
-            if (pair[0] == ac.mainCategoryId()) {
-                mainPercent = pair[1];
-                break;
-            }
-        }
+        Map<Integer, List<String>> kwForLang =
+                keywordsByLang.getOrDefault(langCode, Map.of());
+
+        String snippet = (title != null ? title + " " : "") +
+                (textForAi != null && textForAi.length() > KEYWORD_TEXT_CHARS
+                        ? textForAi.substring(0, KEYWORD_TEXT_CHARS)
+                        : (textForAi != null ? textForAi : ""));
+        String normalizedText = KeywordMatcher.normalize(snippet);
+
+        Map<Integer, Integer> percents =
+                ArticleScorer.score(assignments, kwForLang, normalizedText, maxBonus);
+
+        int mainPercent = percents.getOrDefault(ac.mainCategoryId(), 0);
 
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
 
-            for (int[] pair : assignments) {
+            for (Map.Entry<Integer, Integer> e : percents.entrySet()) {
                 session.createNativeMutationQuery(
                         "INSERT INTO article_tag_percent (article_id, tag_id, percent) " +
                         "VALUES (:a, :t, :p)")
                         .setParameter("a", articleId)
-                        .setParameter("t", pair[0])
-                        .setParameter("p", pair[1])
+                        .setParameter("t", e.getKey())
+                        .setParameter("p", e.getValue())
                         .executeUpdate();
             }
 
@@ -299,44 +363,19 @@ public class QueueWorker {
     }
 
     /**
-     * Distributes 100% across categories using relative weights.
-     * Main category → PRIMARY_WEIGHT; extras → their RelevanceLevel.weight.
-     * Returns [tagId, percent] pairs summing to 100. Deduplicates by tagId.
+     * Builds RelevanceLevel assignment map from ArticleClassification.
+     * Main category → HIGH; extras → their own level. Extras that duplicate the main are ignored.
      */
-    private List<int[]> buildCategoryAssignments(ArticleClassification ac) {
-        List<int[]> weighted = new ArrayList<>();
-        Set<Integer> seen = new HashSet<>();
-
-        weighted.add(new int[]{ac.mainCategoryId(), PRIMARY_WEIGHT});
-        seen.add(ac.mainCategoryId());
-
+    private static Map<Integer, RelevanceLevel> buildAssignments(ArticleClassification ac) {
+        Map<Integer, RelevanceLevel> assignments = new LinkedHashMap<>();
+        assignments.put(ac.mainCategoryId(), RelevanceLevel.HIGH);
         for (ExtraAssignment ex : ac.extra()) {
-            if (seen.add(ex.categoryId())) {
-                weighted.add(new int[]{ex.categoryId(), ex.level().weight});
-            }
+            assignments.putIfAbsent(ex.categoryId(), ex.level());
         }
-
-        int totalWeight = 0;
-        for (int[] w : weighted) totalWeight += w[1];
-
-        List<int[]> result = new ArrayList<>(weighted.size());
-        int assigned = 0;
-        for (int i = 0; i < weighted.size(); i++) {
-            int tagId  = weighted.get(i)[0];
-            int weight = weighted.get(i)[1];
-            int percent;
-            if (i == weighted.size() - 1) {
-                percent = Math.max(1, 100 - assigned);
-            } else {
-                percent = Math.max(1, (int) Math.round(weight * 100.0 / totalWeight));
-                assigned += percent;
-            }
-            result.add(new int[]{tagId, percent});
-        }
-        return result;
+        return assignments;
     }
 
-    // ── Taxonomy / EntityMatcher loaders (used by production constructor) ─────
+    // ── Static loaders (taxonomy, entity matcher, keywords — once per processQueue) ──
 
     private static EntityMatcher loadEntityMatcherFromDb() {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
@@ -347,6 +386,12 @@ public class QueueWorker {
     private static List<TagInfo> loadTaxonomyFromDb() {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             return loadTaxonomyFrom(session);
+        }
+    }
+
+    private static Map<String, Map<Integer, List<String>>> loadKeywordsFromDb() {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            return loadKeywordsFrom(session);
         }
     }
 
@@ -374,21 +419,42 @@ public class QueueWorker {
                 .toList();
     }
 
+    /**
+     * Package-private so QueueWorkerTest can reuse it.
+     * Returns: language-code → (category_id → keyword patterns from all subtopics).
+     */
+    static Map<String, Map<Integer, List<String>>> loadKeywordsFrom(Session session) {
+        List<TagKeyword> all = session.createQuery(
+                "SELECT tk FROM TagKeyword tk JOIN FETCH tk.tag t LEFT JOIN FETCH t.parent",
+                TagKeyword.class)
+                .getResultList();
+
+        Map<String, Map<Integer, List<String>>> result = new HashMap<>();
+        for (TagKeyword tk : all) {
+            Tag subtopic = tk.getTag();
+            Tag parent   = subtopic.getParent();
+            if (parent == null) continue;
+            int    catId = parent.getId();
+            String lang  = tk.getLanguage().toLowerCase();
+            result.computeIfAbsent(lang, k -> new HashMap<>())
+                  .computeIfAbsent(catId, k -> new ArrayList<>())
+                  .add(tk.getPattern());
+        }
+        return result;
+    }
+
     // ── Utilities ─────────────────────────────────────────────────────────────
 
-    private static String isoToFull(String code) {
-        return switch (code.toLowerCase()) {
-            case "en" -> "English";
-            case "de" -> "German";
-            case "ru" -> "Russian";
-            case "ro" -> "Romanian";
-            case "fr" -> "French";
-            case "es" -> "Spanish";
-            case "it" -> "Italian";
-            case "uk" -> "Ukrainian";
-            case "pt" -> "Portuguese";
-            default  -> code;
-        };
+    private static Date parseDateOrNow(String iso) {
+        if (iso != null && !iso.isBlank()) {
+            try {
+                return Date.from(OffsetDateTime.parse(iso).toInstant());
+            } catch (DateTimeParseException ignored) {}
+            try {
+                return Date.from(LocalDate.parse(iso).atStartOfDay(ZoneOffset.UTC).toInstant());
+            } catch (DateTimeParseException ignored) {}
+        }
+        return new Date();
     }
 
     private static String truncate(String s, int max) {

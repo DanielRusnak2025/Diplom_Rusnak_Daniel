@@ -4,6 +4,8 @@ import org.example.Article;
 import org.example.QueueStatus;
 import org.example.RejectReason;
 import org.example.ai.ArticleClassification;
+import org.example.ai.ExtraAssignment;
+import org.example.ai.RelevanceLevel;
 import org.example.ai.TagInfo;
 import org.example.dao.impl.ArticleDAOImpl;
 import org.example.dao.impl.ArticleQueueDAOImpl;
@@ -17,8 +19,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -36,6 +40,7 @@ class QueueWorkerTest {
 
     private List<TagInfo>             taxonomy;
     private int                       firstCategoryId;
+    private int                       secondCategoryId;
     private ArticleLanguageDetector   langDetectorEnOnly;
     private ArticleDAOImpl            articleDAO;
 
@@ -46,7 +51,10 @@ class QueueWorkerTest {
         }
         if (taxonomy.isEmpty()) throw new IllegalStateException(
                 "No CATEGORY tags in db_use_test_it — taxonomy seed (V5_4) may not have run");
+        if (taxonomy.size() < 2) throw new IllegalStateException(
+                "Need at least 2 CATEGORY tags for keyword bonus test");
         firstCategoryId    = taxonomy.get(0).id();
+        secondCategoryId   = taxonomy.get(1).id();
         langDetectorEnOnly = new ArticleLanguageDetector(Set.of("en"));
         articleDAO         = new ArticleDAOImpl();
     }
@@ -64,8 +72,8 @@ class QueueWorkerTest {
                     .setParameter("url", url)
                     .setParameter("hash", hash)
                     .executeUpdate();
-            int id = ((Number) s.createNativeQuery(
-                    "SELECT LAST_INSERT_ID()", Integer.class).getSingleResult()).intValue();
+            int id = s.createNativeQuery(
+                    "SELECT LAST_INSERT_ID()", Integer.class).getSingleResult();
             tx.commit();
             return id;
         }
@@ -83,8 +91,8 @@ class QueueWorkerTest {
                     .setParameter("hash", hash)
                     .setParameter("aid", articleId)
                     .executeUpdate();
-            int id = ((Number) s.createNativeQuery(
-                    "SELECT LAST_INSERT_ID()", Integer.class).getSingleResult()).intValue();
+            int id = s.createNativeQuery(
+                    "SELECT LAST_INSERT_ID()", Integer.class).getSingleResult();
             tx.commit();
             return id;
         }
@@ -124,6 +132,18 @@ class QueueWorkerTest {
         }
     }
 
+    private int atpPercent(int articleId, int tagId) {
+        try (Session s = HibernateUtil.getSessionFactory().openSession()) {
+            Object raw = s.createNativeQuery(
+                    "SELECT percent FROM article_tag_percent WHERE article_id=:a AND tag_id=:t",
+                    Object.class)
+                    .setParameter("a", articleId)
+                    .setParameter("t", tagId)
+                    .getSingleResult();
+            return raw != null ? ((Number) raw).intValue() : 0;
+        }
+    }
+
     private int insertArticle(String link) {
         Article a = new Article();
         a.setLink(link);
@@ -139,7 +159,8 @@ class QueueWorkerTest {
                 classifier, loader,
                 new ArticleQueueDAOImpl(), articleDAO,
                 new EntityMatcher(List.of()),
-                taxonomy, "stub-model", "v0",
+                taxonomy, Map.of(), 2,
+                "stub-model", "v0",
                 langDetectorEnOnly);
     }
 
@@ -171,6 +192,12 @@ class QueueWorkerTest {
         Integer articleId = queueArticleId(qid);
         assertNotNull(articleId, "queue.article_id must be set after DONE");
         assertTrue(atpCount(articleId) >= 1, "at least one article_tag_percent row expected");
+
+        org.example.Article saved = articleDAO.findById(articleId).orElseThrow();
+        assertEquals("en", saved.getArticleLanguage(),
+                "article_language must be ISO code, not full name");
+        assertEquals(QueueWorker.TAXONOMY_YAML_VERSION, (int) saved.getTaxonomyVersion(),
+                "taxonomy_version must match taxonomy.yaml version field");
     }
 
     @Test
@@ -200,7 +227,6 @@ class QueueWorkerTest {
         String url = BASE + "4";
         int qid = insertPending(url);
 
-        // Romanian text — not in en-only detector set
         PageLoader roLoader = u -> new PageLoader.Result(
                 new ParseResult("Știre", "test.invalid", null, u,
                         "Premierul a anunțat astăzi o nouă politică economică importantă pentru România."),
@@ -215,7 +241,7 @@ class QueueWorkerTest {
     @Test
     void duplicateLinkHash_rejectsWithDuplicate() {
         String url = BASE + "5";
-        insertArticle(url); // pre-existing article with same link_hash
+        insertArticle(url);
         int qid = insertPending(url);
 
         worker(isArticleClassifier(firstCategoryId), engLoader(url)).processQueue(1);
@@ -230,7 +256,6 @@ class QueueWorkerTest {
         int existingArticleId = insertArticle(url);
         int qid = insertPendingWithArticle(url, existingArticleId);
 
-        // Verify there are no ATPs before processing
         assertEquals(0, atpCount(existingArticleId));
 
         worker(isArticleClassifier(firstCategoryId), engLoader(url)).processQueue(1);
@@ -242,19 +267,130 @@ class QueueWorkerTest {
 
     @Test
     void reclassification_finalUrlMatchesDifferentArticle_rejectsDuplicate() {
-        String urlA = BASE + "7a"; // article being reclassified
-        String urlB = BASE + "7b"; // a different article
+        String urlA = BASE + "7a";
+        String urlB = BASE + "7b";
 
         int articleA = insertArticle(urlA);
-        insertArticle(urlB); // B exists with its own hash
+        insertArticle(urlB);
 
-        // Queue item points to articleA but the page loader returns urlB as the final URL
-        // → hash of urlB matches articleB → DUPLICATE
         int qid = insertPendingWithArticle(urlA, articleA);
 
         worker(isArticleClassifier(firstCategoryId), engLoader(urlB)).processQueue(1);
 
         assertEquals(QueueStatus.REJECTED, queueStatus(qid));
         assertEquals(RejectReason.DUPLICATE, rejectReason(qid));
+    }
+
+    @Test
+    void ssrf_rejectsWithInvalidUrl() {
+        int qid = insertPending(BASE + "8");
+
+        PageLoader ssrfLoader = url -> {
+            throw new PageLoader.SsrfViolationException("SSRF blocked: loopback");
+        };
+
+        worker(isArticleClassifier(firstCategoryId), ssrfLoader).processQueue(1);
+
+        assertEquals(QueueStatus.REJECTED, queueStatus(qid));
+        assertEquals(RejectReason.INVALID_URL, rejectReason(qid));
+    }
+
+    @Test
+    void publicationDate_usesPublishedDate_whenPresent() {
+        String url = BASE + "10";
+        int qid = insertPending(url);
+
+        String isoDate = "2024-06-15T12:00:00Z"; // noon UTC — unambiguous in any JVM timezone
+        PageLoader datedLoader = u -> new PageLoader.Result(
+                new ParseResult("Test", "test.invalid", isoDate, u,
+                        "The prime minister announced a new economic policy today."),
+                u);
+
+        worker(isArticleClassifier(firstCategoryId), datedLoader).processQueue(1);
+
+        Integer articleId = queueArticleId(qid);
+        assertNotNull(articleId);
+        org.example.Article saved = articleDAO.findById(articleId).orElseThrow();
+
+        // @Temporal(DATE) stores only year/month/day; Hibernate reads back using JVM default timezone.
+        // Noon UTC = June 15 in every timezone from UTC-11 to UTC+11, so no boundary ambiguity.
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(saved.getPublicationDate());
+        assertEquals(2024,         cal.get(Calendar.YEAR),         "year must come from parsedDate");
+        assertEquals(Calendar.JUNE, cal.get(Calendar.MONTH),       "month must come from parsedDate");
+        assertEquals(15,           cal.get(Calendar.DAY_OF_MONTH), "day must come from parsedDate");
+    }
+
+    @Test
+    void publicationDate_fallsBackToNow_whenAbsent() {
+        String url = BASE + "11";
+        int qid = insertPending(url);
+
+        // Capture today's date before processing
+        Calendar today = Calendar.getInstance();
+
+        PageLoader noDateLoader = u -> new PageLoader.Result(
+                new ParseResult("Test", "test.invalid", null, u,
+                        "The prime minister announced a new economic policy today."),
+                u);
+        worker(isArticleClassifier(firstCategoryId), noDateLoader).processQueue(1);
+
+        Integer articleId = queueArticleId(qid);
+        assertNotNull(articleId);
+
+        // @Temporal(DATE) stores only year/month/day — compare at that granularity.
+        Calendar stored = Calendar.getInstance();
+        stored.setTime(articleDAO.findById(articleId).orElseThrow().getPublicationDate());
+
+        assertEquals(today.get(Calendar.YEAR),         stored.get(Calendar.YEAR),         "year must be today");
+        assertEquals(today.get(Calendar.MONTH),        stored.get(Calendar.MONTH),        "month must be today");
+        assertEquals(today.get(Calendar.DAY_OF_MONTH), stored.get(Calendar.DAY_OF_MONTH), "day must be today");
+    }
+
+    @Test
+    void keywordBonus_raisesPercent_cappedAtMax() {
+        // Two categories: both assigned HIGH(3).
+        // Inject 3 matching keywords for firstCategory with maxBonus=2 → bonus capped at 2.
+        // first raw=3+2=5, second raw=3. Total=8.
+        // Largest-remainder: first=63 (5*100/8=62.5→63), second=37.
+        // Without cap (bonus=3): first=6, total=9 → first=67. Verifies cap is active.
+        Map<String, Map<Integer, List<String>>> kw = Map.of(
+                "en", Map.of(firstCategoryId,
+                        List.of("parliament", "budget", "prime minister")));
+
+        String url = BASE + "9";
+        int qid = insertPending(url);
+
+        org.example.ai.ArticleClassifier bothCats = (text, tax) -> new ArticleClassification(
+                true, firstCategoryId, null,
+                List.of(new ExtraAssignment(secondCategoryId, RelevanceLevel.HIGH)));
+
+        // Text matches all 3 patterns
+        PageLoader kl = u -> new PageLoader.Result(
+                new ParseResult("Parliament budget vote", "test.invalid", null, u,
+                        "The prime minister announced the budget. Parliament approved it."),
+                u);
+
+        QueueWorker w = new QueueWorker(
+                bothCats, kl,
+                new ArticleQueueDAOImpl(), articleDAO,
+                new EntityMatcher(List.of()),
+                taxonomy, kw, 2,
+                "stub-model", "v0", langDetectorEnOnly);
+
+        w.processQueue(1);
+
+        Integer articleId = queueArticleId(qid);
+        assertNotNull(articleId);
+
+        int firstPct  = atpPercent(articleId, firstCategoryId);
+        int secondPct = atpPercent(articleId, secondCategoryId);
+
+        assertEquals(100, firstPct + secondPct, "ATP category percents must sum to 100");
+        assertTrue(firstPct > 50,
+                "keyword bonus must raise firstCategory above equal split (50%): got " + firstPct);
+        // Cap check: with maxBonus=2, raw=5/8→63%; uncapped raw=6/9→67%; so must be ≤63
+        assertTrue(firstPct <= 63,
+                "bonus must be capped at maxBonus=2 (expect ≤63%): got " + firstPct);
     }
 }

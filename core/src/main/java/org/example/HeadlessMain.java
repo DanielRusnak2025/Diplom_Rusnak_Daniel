@@ -2,7 +2,7 @@ package org.example;
 
 import org.example.ai.OllamaClassifier;
 import org.example.email.EmailConfig;
-import org.example.pipeline.JsoupPageLoader;
+import org.example.pipeline.PageFetcherLoader;
 import org.example.pipeline.QueueWorker;
 import org.example.scheduler.EmailScheduler;
 import org.example.service.ArticleService;
@@ -93,7 +93,7 @@ public class HeadlessMain {
 
         if (processQueueCount > 0) {
             log.info("[QueueWorker] --process-queue {} — loading classifier and page loader…", processQueueCount);
-            QueueWorker worker = new QueueWorker(new OllamaClassifier(), new JsoupPageLoader());
+            QueueWorker worker = new QueueWorker(new OllamaClassifier(), new PageFetcherLoader());
             int processed = worker.processQueue(processQueueCount);
             log.info("[QueueWorker] processed={}", processed);
             System.exit(0);
