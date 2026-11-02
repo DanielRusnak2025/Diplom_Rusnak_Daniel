@@ -2,6 +2,7 @@ package org.example;
 
 import org.example.ai.OllamaClassifier;
 import org.example.email.EmailConfig;
+import org.example.pipeline.ModelComparisonRunner;
 import org.example.pipeline.PageFetcherLoader;
 import org.example.pipeline.QueueWorker;
 import org.example.scheduler.EmailScheduler;
@@ -15,7 +16,9 @@ import org.hibernate.cfg.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.List;
 
 public class HeadlessMain {
 
@@ -24,6 +27,8 @@ public class HeadlessMain {
     public static void main(String[] args) {
         boolean migrateMode = Arrays.asList(args).contains("--migrate");
         int processQueueCount = parseProcessQueue(args);
+        List<String> compareModels = parseCompareModels(args);
+        int compareLimit = parseCompareLimit(args);
         boolean schedulerEnabled = EmailConfig.isSchedulerEnabled();
         boolean cleanupEnabled   = EmailConfig.isCleanupEnabled();
 
@@ -35,6 +40,7 @@ public class HeadlessMain {
 
         String mode = migrateMode ? "MIGRATE"
                     : processQueueCount > 0 ? "PROCESS-QUEUE(" + processQueueCount + ")"
+                    : !compareModels.isEmpty() ? "COMPARE-MODELS"
                     : "RUN";
         log.info("[Config] mode={}  scheduler.enabled={}  cleanup.enabled={}  db.url={}  db.user={}",
                 mode, schedulerEnabled, cleanupEnabled, dbUrl, dbUser);
@@ -99,6 +105,18 @@ public class HeadlessMain {
             System.exit(0);
         }
 
+        if (!compareModels.isEmpty()) {
+            log.info("[compare-models] models={} limit={}", compareModels, compareLimit);
+            try {
+                new ModelComparisonRunner(compareModels, compareLimit)
+                        .run(Path.of("docs/benchmarks"));
+            } catch (Exception e) {
+                log.error("[compare-models] failed: {}", e.getMessage(), e);
+                System.exit(1);
+            }
+            System.exit(0);
+        }
+
         if (!schedulerEnabled) {
             log.info("[Config] scheduler.enabled=false — exiting.");
             return;
@@ -122,5 +140,31 @@ public class HeadlessMain {
             }
         }
         return 0;
+    }
+
+    /** Parses {@code --compare-models m1,m2,m3} → list of model names. */
+    private static List<String> parseCompareModels(String[] args) {
+        for (int i = 0; i < args.length - 1; i++) {
+            if ("--compare-models".equals(args[i])) {
+                String raw = args[i + 1].trim();
+                if (!raw.isEmpty()) {
+                    return Arrays.asList(raw.split(","));
+                }
+            }
+        }
+        return List.of();
+    }
+
+    /** Parses {@code --compare-limit N} → N (default 20). */
+    private static int parseCompareLimit(String[] args) {
+        for (int i = 0; i < args.length - 1; i++) {
+            if ("--compare-limit".equals(args[i])) {
+                try {
+                    int n = Integer.parseInt(args[i + 1]);
+                    if (n > 0) return n;
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        return 0; // 0 = no limit (load all PENDING URLs)
     }
 }

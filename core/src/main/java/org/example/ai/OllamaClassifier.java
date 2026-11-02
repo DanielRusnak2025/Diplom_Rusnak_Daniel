@@ -46,8 +46,13 @@ public class OllamaClassifier implements ArticleClassifier {
                         .build());
     }
 
-    /** Test / custom constructor. */
-    OllamaClassifier(String ollamaUrl, String model, OkHttpClient client) {
+    /** Creates an instance for the given model, reusing the provided URL and HTTP client. */
+    public static OllamaClassifier forModel(String model, String ollamaUrl, OkHttpClient client) {
+        return new OllamaClassifier(ollamaUrl, model, client);
+    }
+
+    /** Custom / test constructor. */
+    public OllamaClassifier(String ollamaUrl, String model, OkHttpClient client) {
         this.ollamaUrl = ollamaUrl;
         this.model = model;
         this.client = client;
@@ -76,6 +81,39 @@ public class OllamaClassifier implements ArticleClassifier {
                 throw new ClassificationException("Classification failed after retry", e2);
             }
         }
+    }
+
+    /**
+     * Builds the Ollama request body JSON for use outside the classifier (e.g. benchmarking).
+     * @param includeThink when true adds {@code "think": false} to the request
+     */
+    public String buildRequestBody(String text, List<TagInfo> taxonomy, boolean includeThink) {
+        List<TagInfo> cats = List.copyOf(taxonomy);
+        Map<String, Object> schema = buildJsonSchema(cats);
+        String prompt = buildPrompt(text, cats);
+
+        Map<String, Object> message = Map.of("role", "user", "content", prompt);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("model", model);
+        body.put("messages", List.of(message));
+        body.put("stream", false);
+        if (includeThink) body.put("think", false);
+        body.put("options", Map.of("temperature", 0));
+        body.put("format", schema);
+        try {
+            return mapper.writeValueAsString(body);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to build Ollama request body", e);
+        }
+    }
+
+    /**
+     * Parses a raw Ollama API response body for use outside the classifier (e.g. benchmarking).
+     * @throws IOException if the JSON is malformed or required fields are absent
+     */
+    public ArticleClassification parseResponse(String responseJson, List<TagInfo> taxonomy)
+            throws IOException {
+        return parse(responseJson, indexByName(List.copyOf(taxonomy)));
     }
 
     private String callOllama(String requestBody) throws ClassificationException {

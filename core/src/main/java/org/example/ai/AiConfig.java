@@ -51,6 +51,10 @@ public class AiConfig {
         return intProp("keyword.bonus.max", 2);
     }
 
+    public static int getBenchmarkTimeoutSeconds() {
+        return intProp("benchmark.timeout.seconds", 300);
+    }
+
     public static java.util.Set<String> getLanguagesAllowed() {
         String raw = props.getProperty("languages.allowed", "en,ru,de,ro");
         java.util.Set<String> result = new java.util.LinkedHashSet<>();
