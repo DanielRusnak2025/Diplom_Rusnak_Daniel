@@ -1,6 +1,9 @@
 package org.example;
 
+import org.example.ai.OllamaClassifier;
 import org.example.email.EmailConfig;
+import org.example.pipeline.JsoupPageLoader;
+import org.example.pipeline.QueueWorker;
 import org.example.scheduler.EmailScheduler;
 import org.example.service.ArticleService;
 import org.example.util.HibernateUtil;
@@ -20,6 +23,7 @@ public class HeadlessMain {
 
     public static void main(String[] args) {
         boolean migrateMode = Arrays.asList(args).contains("--migrate");
+        int processQueueCount = parseProcessQueue(args);
         boolean schedulerEnabled = EmailConfig.isSchedulerEnabled();
         boolean cleanupEnabled   = EmailConfig.isCleanupEnabled();
 
@@ -29,9 +33,11 @@ public class HeadlessMain {
         String dbUser = hCfg.getProperty("hibernate.connection.username");
         String dbPass = hCfg.getProperty("hibernate.connection.password");
 
+        String mode = migrateMode ? "MIGRATE"
+                    : processQueueCount > 0 ? "PROCESS-QUEUE(" + processQueueCount + ")"
+                    : "RUN";
         log.info("[Config] mode={}  scheduler.enabled={}  cleanup.enabled={}  db.url={}  db.user={}",
-                migrateMode ? "MIGRATE" : "RUN",
-                schedulerEnabled, cleanupEnabled, dbUrl, dbUser);
+                mode, schedulerEnabled, cleanupEnabled, dbUrl, dbUser);
 
         if (dbUrl == null || !dbUrl.contains("db_use_test")) {
             log.error("[SAFETY] DB is not db_use_test: {}. Fix hibernate.cfg.xml.", dbUrl);
@@ -85,6 +91,14 @@ public class HeadlessMain {
         long count = articleService.getTotalArticles();
         log.info("[DB] articles in db_use_test: {}", count);
 
+        if (processQueueCount > 0) {
+            log.info("[QueueWorker] --process-queue {} — loading classifier and page loader…", processQueueCount);
+            QueueWorker worker = new QueueWorker(new OllamaClassifier(), new JsoupPageLoader());
+            int processed = worker.processQueue(processQueueCount);
+            log.info("[QueueWorker] processed={}", processed);
+            System.exit(0);
+        }
+
         if (!schedulerEnabled) {
             log.info("[Config] scheduler.enabled=false — exiting.");
             return;
@@ -96,5 +110,17 @@ public class HeadlessMain {
             emailScheduler.stop();
         }));
         emailScheduler.start();
+    }
+
+    private static int parseProcessQueue(String[] args) {
+        for (int i = 0; i < args.length - 1; i++) {
+            if ("--process-queue".equals(args[i])) {
+                try {
+                    int n = Integer.parseInt(args[i + 1]);
+                    if (n > 0) return n;
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        return 0;
     }
 }

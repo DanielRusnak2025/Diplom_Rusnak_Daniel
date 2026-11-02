@@ -18,7 +18,7 @@ public class OllamaClassifier implements ArticleClassifier {
 
     private static final Logger LOG = Logger.getLogger(OllamaClassifier.class.getName());
     private static final AtomicInteger SUBTOPIC_MISMATCH_COUNT = new AtomicInteger();
-    static final String PROMPT_VERSION = "v1";
+    public static final String PROMPT_VERSION = "v1";
 
     private static final String PROMPT_TEMPLATE;
     static {
