@@ -13,6 +13,7 @@ public class EmailMessage {
     private String htmlBody;   // HTML тело (для извлечения скрытых ссылок)
     private String from;       // от кого (например: news@bbc.com)
     private Date receivedDate; // когда получено
+    private String messageId;  // raw Message-ID header value (for idempotency)
 
     public EmailMessage(String subject, String body, String from, Date receivedDate) {
         this.subject = subject;
@@ -27,6 +28,8 @@ public class EmailMessage {
     public void setHtmlBody(String htmlBody) { this.htmlBody = htmlBody; }
     public String getFrom() { return from; }
     public Date getReceivedDate() { return receivedDate; }
+    public String getMessageId() { return messageId; }
+    public void setMessageId(String messageId) { this.messageId = messageId; }
 
     @Override
     public String toString() {

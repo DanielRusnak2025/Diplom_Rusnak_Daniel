@@ -11,10 +11,7 @@ import java.util.stream.Collectors;
  */
 public class LinkFilter {
 
-    // Максимум URL одного домена из одного письма — навигационные ссылки повторяются
-    private static final int MAX_PER_DOMAIN = 3;
-
-    // Максимум URL на одно письмо — ограничение нагрузки на AI
+    // Максимум URL на одно письмо — ограничение нагрузки на очередь
     private static final int MAX_PER_EMAIL = 25;
 
     // Домены за пейволлом — контент недоступен без подписки
@@ -61,27 +58,12 @@ public class LinkFilter {
                 .distinct()
                 .collect(Collectors.toList());
 
-        // Ограничиваем по доменам: не более MAX_PER_DOMAIN ссылок с одного домена
-        Map<String, Integer> domainCount = new HashMap<>();
-        List<String> limited = new ArrayList<>();
-
-        for (String url : filtered) {
-            String domain = extractDomain(url);
-            if (domain == null) continue;
-
-            int count = domainCount.getOrDefault(domain, 0);
-            if (count < MAX_PER_DOMAIN) {
-                limited.add(url);
-                domainCount.put(domain, count + 1);
-            }
-        }
-
         // Глобальный лимит на письмо
-        if (limited.size() > MAX_PER_EMAIL) {
-            limited = limited.subList(0, MAX_PER_EMAIL);
+        if (filtered.size() > MAX_PER_EMAIL) {
+            filtered = filtered.subList(0, MAX_PER_EMAIL);
         }
 
-        return limited;
+        return filtered;
     }
 
     public boolean isLikelyArticle(String url) {
@@ -125,15 +107,4 @@ public class LinkFilter {
         }
     }
 
-    private String extractDomain(String url) {
-        try {
-            URI uri = new URI(url);
-            String host = uri.getHost();
-            if (host == null) return null;
-            // Убираем www. для группировки
-            return host.toLowerCase().replaceFirst("^www\\.", "");
-        } catch (Exception e) {
-            return null;
-        }
-    }
 }

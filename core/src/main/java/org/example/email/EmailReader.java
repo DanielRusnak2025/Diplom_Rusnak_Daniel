@@ -90,9 +90,12 @@ public class EmailReader {
                     String from    = message.getFrom()[0].toString();
                     String body    = extractText(message);
                     String html    = extractHtml(message);
+                    String[] midArr = message.getHeader("Message-ID");
+                    String mid = (midArr != null && midArr.length > 0) ? midArr[0].trim() : null;
 
                     EmailMessage emailMessage = new EmailMessage(subject, body, from, message.getReceivedDate());
                     emailMessage.setHtmlBody(html);
+                    emailMessage.setMessageId(mid);
 
                     System.out.println("\nПрочитано: " + emailMessage);
 

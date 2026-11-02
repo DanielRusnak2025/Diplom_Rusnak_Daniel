@@ -1,38 +1,39 @@
 package org.example.scheduler;
 
-import org.example.Tag;
-import org.example.ai.ArticleExtractor;
-import org.example.ai.ArticleSaver;
-import org.example.ai.ExtractedArticle;
 import org.example.ai.LinkExtractor;
 import org.example.ai.LinkFilter;
-import org.example.dao.impl.TagDAOImpl;
 import org.example.email.EmailConfig;
 import org.example.email.EmailMessage;
 import org.example.email.EmailReader;
+import org.example.pipeline.ArticleQueueEnqueuer;
+import org.example.pipeline.ProcessedEmailLog;
 import org.example.service.ArticleService;
+import org.example.util.HibernateUtil;
+import org.example.util.UrlNormalizer;
+import org.hibernate.Session;
+import org.hibernate.Transaction;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 /**
  * Запускает pipeline по таймеру:
- * Gmail → извлечь все ссылки → отфильтровать → AI параллельно → БД
+ * Gmail → извлечь ссылки → отфильтровать → article_queue (AI-обработка идёт отдельно через --process-queue)
+ *
+ * Each email is processed in a single transaction:
+ *   1. INSERT processed_email (placeholder with links_saved = 0)
+ *   2. INSERT article_queue rows with that email_id
+ *   3. UPDATE processed_email.links_saved = actual inserted count
+ * On any failure the whole transaction is rolled back; the email will be retried on the next run.
  */
 public class EmailScheduler {
 
-    // Читаем из email.properties (с дефолтами на случай старого файла без этих ключей)
     private final int intervalMinutes;
-    private final int parallelRequests;
     private final int cleanupDays;
 
-    // Системные письма — фильтруем при чтении
     private static final List<String> SYSTEM_DOMAINS = List.of(
             "accounts.google.com", "security.google.com", "mail.google.com",
             "facebook.com", "twitter.com", "linkedin.com", "github.com"
@@ -45,32 +46,26 @@ public class EmailScheduler {
     private final EmailReader             emailReader;
     private final LinkExtractor           linkExtractor;
     private final LinkFilter              linkFilter;
-    private final ArticleExtractor        extractor;
-    private final ArticleSaver            saver;
-    private final TagDAOImpl              tagDAO;
+    private final ArticleQueueEnqueuer    enqueuer;
+    private final ProcessedEmailLog       processedLog;
     private final ArticleService          articleService;
     private final ScheduledExecutorService scheduler;
-    private final ExecutorService          articleExecutor;
 
     public EmailScheduler() {
-        this.intervalMinutes  = EmailConfig.getSchedulerIntervalMinutes();
-        this.parallelRequests = EmailConfig.getParallelRequests();
-        this.cleanupDays      = EmailConfig.getCleanupDays();
+        this.intervalMinutes = EmailConfig.getSchedulerIntervalMinutes();
+        this.cleanupDays     = EmailConfig.getCleanupDays();
 
-        this.emailReader    = new EmailReader(EmailConfig.getEmail(), EmailConfig.getAppPassword());
-        this.linkExtractor  = new LinkExtractor();
-        this.linkFilter     = new LinkFilter();
-        this.extractor      = new ArticleExtractor();
-        this.saver          = new ArticleSaver();
-        this.tagDAO         = new TagDAOImpl();
+        this.emailReader  = new EmailReader(EmailConfig.getEmail(), EmailConfig.getAppPassword());
+        this.linkExtractor = new LinkExtractor();
+        this.linkFilter    = new LinkFilter();
+        this.enqueuer      = new ArticleQueueEnqueuer();
+        this.processedLog  = new ProcessedEmailLog();
         this.articleService = new ArticleService();
-        this.scheduler      = Executors.newSingleThreadScheduledExecutor();
-        this.articleExecutor = Executors.newFixedThreadPool(parallelRequests);
+        this.scheduler     = Executors.newSingleThreadScheduledExecutor();
     }
 
     public void start() {
-        System.out.println("EmailScheduler запущен. Интервал: " + intervalMinutes
-                + " мин, параллельность: " + parallelRequests);
+        System.out.println("EmailScheduler запущен. Интервал: " + intervalMinutes + " мин");
         scheduler.scheduleAtFixedRate(
                 this::runPipeline,
                 0,
@@ -81,8 +76,22 @@ public class EmailScheduler {
 
     public void stop() {
         scheduler.shutdown();
-        articleExecutor.shutdown();
         System.out.println("EmailScheduler остановлен");
+    }
+
+    /**
+     * Computes a stable hash for email deduplication.
+     * Uses Message-ID header when present; falls back to SHA-256 of (from|receivedDateISO|subject).
+     */
+    public static String computeMessageHash(EmailMessage email) {
+        String mid = email.getMessageId();
+        if (mid != null && !mid.isBlank()) {
+            return UrlNormalizer.hash(mid);
+        }
+        String receivedIso = email.getReceivedDate() != null
+                ? email.getReceivedDate().toInstant().toString() : "null";
+        String subject = email.getSubject() != null ? email.getSubject() : "";
+        return UrlNormalizer.hash(email.getFrom() + "|" + receivedIso + "|" + subject);
     }
 
     private boolean isSystemEmail(EmailMessage email) {
@@ -102,24 +111,13 @@ public class EmailScheduler {
             if (EmailConfig.isCleanupEnabled()) {
                 int cleaned = articleService.deleteOldArticles(cleanupDays);
                 if (cleaned > 0) {
-                    System.out.println("🗑 Автоочистка: удалено " + cleaned
+                    System.out.println("Автоочистка: удалено " + cleaned
                             + " статей старше " + cleanupDays + " дней");
                 }
             }
 
-            if (!extractor.isOllamaAvailable()) {
-                System.err.println("❌ Ollama недоступна — pipeline пропущен. Запустите: ollama serve");
-                return;
-            }
-            System.out.println("✅ Ollama доступна");
-
-            List<String> existingTagNames = tagDAO.findAll().stream()
-                    .map(Tag::getName)
-                    .collect(Collectors.toList());
-            System.out.println("Тегов в БД: " + existingTagNames.size());
-
-            AtomicInteger totalSaved   = new AtomicInteger(0);
-            AtomicInteger totalSkipped = new AtomicInteger(0);
+            AtomicInteger totalEnqueued = new AtomicInteger(0);
+            AtomicInteger totalSkipped  = new AtomicInteger(0);
 
             int totalEmails = emailReader.readAndProcess(email -> {
                 if (isSystemEmail(email)) {
@@ -128,35 +126,47 @@ public class EmailScheduler {
                     return;
                 }
 
+                String hash = computeMessageHash(email);
+                if (processedLog.isAlreadyProcessed(hash)) {
+                    System.out.println("  Письмо уже обработано (пропуск): " + email.getSubject());
+                    totalSkipped.incrementAndGet();
+                    return;
+                }
+
                 List<String> allLinks     = linkExtractor.extractLinks(email);
                 List<String> articleLinks = linkFilter.filter(allLinks);
-                System.out.println("  Ссылок: " + allLinks.size() + " → после фильтра: " + articleLinks.size());
+                System.out.println("  Ссылок: " + allLinks.size()
+                        + " → после фильтра: " + articleLinks.size());
 
                 if (articleLinks.isEmpty()) {
                     System.out.println("  Нет статей — пропускаем письмо");
                     return;
                 }
 
-                AtomicInteger savedCount   = new AtomicInteger(0);
-                AtomicInteger skippedCount = new AtomicInteger(0);
+                String domain = extractSenderDomain(email.getFrom());
 
-                List<CompletableFuture<Void>> futures = articleLinks.stream()
-                        .map(url -> CompletableFuture.runAsync(
-                                () -> processUrl(url, existingTagNames, savedCount, skippedCount),
-                                articleExecutor))
-                        .collect(Collectors.toList());
-
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-
-                System.out.println("  ✅ Письмо обработано: сохранено " + savedCount.get()
-                        + ", пропущено " + skippedCount.get());
-
-                totalSaved.addAndGet(savedCount.get());
-                totalSkipped.addAndGet(skippedCount.get());
+                try (Session s = HibernateUtil.getSessionFactory().openSession()) {
+                    Transaction tx = s.beginTransaction();
+                    try {
+                        Integer emailId = processedLog.insertPlaceholder(
+                                hash, domain, email.getReceivedDate(),
+                                allLinks.size(), allLinks.size() - articleLinks.size(), s);
+                        int inserted = enqueuer.enqueue(articleLinks, emailId, s);
+                        processedLog.updateSavedCount(emailId, inserted, s);
+                        tx.commit();
+                        System.out.println("  Добавлено в очередь: " + inserted + " новых URL");
+                        totalEnqueued.addAndGet(inserted);
+                    } catch (Exception e) {
+                        tx.rollback();
+                        System.err.println("  Ошибка обработки письма '"
+                                + email.getSubject() + "': " + e.getMessage()
+                                + " — будет повторена");
+                    }
+                }
             });
 
             if (totalEmails < 0) {
-                System.err.println("❌ Не удалось подключиться к Gmail — pipeline прерван");
+                System.err.println("Не удалось подключиться к Gmail — pipeline прерван");
                 return;
             }
             if (totalEmails == 0) {
@@ -165,36 +175,21 @@ public class EmailScheduler {
             }
 
             System.out.println("\n=== Итог: писем " + totalEmails
-                    + ", сохранено " + totalSaved.get()
+                    + ", добавлено в очередь " + totalEnqueued.get()
                     + ", пропущено " + totalSkipped.get() + " ===");
 
         } catch (Throwable e) {
-            // Ловим Throwable (не только Exception) — ExceptionInInitializerError тоже Error
             System.err.println("Критическая ошибка pipeline: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    private void processUrl(String url, List<String> existingTagNames,
-                            AtomicInteger savedCount, AtomicInteger skippedCount) {
-        String thread = Thread.currentThread().getName();
-        System.out.println("  [" + thread + "] → " + url);
-        try {
-            ExtractedArticle extracted = extractor.extract(url, existingTagNames);
-
-            if (extracted == null) {
-                System.out.println("  [" + thread + "] пропущен (не статья или редирект)");
-                skippedCount.incrementAndGet();
-                return;
-            }
-
-            System.out.println("  [" + thread + "] AI: \"" + extracted.getTitle() + "\"");
-            boolean ok = saver.save(extracted);
-            if (ok) savedCount.incrementAndGet(); else skippedCount.incrementAndGet();
-
-        } catch (Exception e) {
-            System.err.println("  [" + thread + "] ошибка [" + url + "]: " + e.getMessage());
-            skippedCount.incrementAndGet();
-        }
+    private static String extractSenderDomain(String from) {
+        if (from == null) return "unknown";
+        int atIdx = from.indexOf('@');
+        if (atIdx < 0) return from.toLowerCase().trim();
+        String rest = from.substring(atIdx + 1).trim();
+        int gtIdx = rest.indexOf('>');
+        return (gtIdx >= 0 ? rest.substring(0, gtIdx) : rest).toLowerCase();
     }
 }
