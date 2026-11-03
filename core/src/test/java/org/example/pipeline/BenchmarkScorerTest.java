@@ -115,4 +115,67 @@ class BenchmarkScorerTest {
         String[] fields = BenchmarkScorer.parseCsvLine("a,,c");
         assertArrayEquals(new String[]{"a", "", "c"}, fields);
     }
+
+    // ── External gold tests ───────────────────────────────────────────────────
+
+    @Test
+    void loadGoldLabels_parsesUrlGoldArtGoldCat() throws IOException {
+        Path gold = Files.createTempFile("gold-", ".csv");
+        Files.writeString(gold,
+                "url,gold_is_article,gold_category\n" +
+                "https://a.com/article,true,Technology\n" +
+                "https://b.com/news?utm_source=x,false,\n",
+                java.nio.charset.StandardCharsets.UTF_8);
+        gold.toFile().deleteOnExit();
+
+        java.util.Map<String, String[]> labels = BenchmarkScorer.loadGoldLabels(gold);
+        // utm_ params stripped by normalizer
+        assertTrue(labels.containsKey("https://a.com/article"), "a.com entry must be present");
+        assertArrayEquals(new String[]{"true", "Technology"}, labels.get("https://a.com/article"));
+    }
+
+    @Test
+    void computeSection_withExternalGold_matchesByNormalizedUrl() throws IOException {
+        // Benchmark CSV has utm_ in URL; gold CSV has clean URL — normalizer must match them
+        String benchHeader =
+                "url,domain,title,lang,gold_is_article,gold_category," +
+                "m1_is_article,m1_category,m1_subtopic,m1_latency_ms,m1_think_fallback,m1_tokens_per_second\n";
+        Path csv = writeCsv(benchHeader +
+                "https://a.com/article?utm_source=feed,a.com,T1,en,,,true,Technology,General,1000,false,10.0\n");
+
+        Path gold = Files.createTempFile("gold-ext-", ".csv");
+        Files.writeString(gold,
+                "url,gold_is_article,gold_category\nhttps://a.com/article,true,Technology\n",
+                java.nio.charset.StandardCharsets.UTF_8);
+        gold.toFile().deleteOnExit();
+
+        java.util.Map<String, String[]> labels = BenchmarkScorer.loadGoldLabels(gold);
+        String section = BenchmarkScorer.computeSection(csv, labels);
+
+        assertTrue(section.contains("100.0% (1/1)"),
+                "gold from external file must match via URL normalization: " + section);
+    }
+
+    @Test
+    void appendToReport_withGoldFile_writesSection() throws IOException {
+        Path dir = Files.createTempDirectory("scorer-gold-test-");
+        Path csv = dir.resolve("model-comparison-2026-01-01.csv");
+        Path md  = dir.resolve("model-comparison-2026-01-01.md");
+        Path gold = dir.resolve("gold.csv");
+
+        Files.writeString(csv, HEADER +
+                "https://a.com,a.com,T,en,,,true,Technology,General,1000,false,10.0\n",
+                java.nio.charset.StandardCharsets.UTF_8);
+        Files.writeString(md, "# Report\n\n", java.nio.charset.StandardCharsets.UTF_8);
+        Files.writeString(gold,
+                "url,gold_is_article,gold_category\nhttps://a.com,true,Technology\n",
+                java.nio.charset.StandardCharsets.UTF_8);
+
+        BenchmarkScorer.appendToReport(csv, gold);
+
+        String result = Files.readString(md, java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(result.contains("## Accuracy vs gold"), "section must be appended");
+        assertTrue(result.contains("gold from external file"), "must note external gold source");
+        assertTrue(result.contains("100.0% (1/1)"), "accuracy must be 100%: " + result);
+    }
 }

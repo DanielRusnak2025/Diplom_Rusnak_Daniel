@@ -1,13 +1,17 @@
 package org.example.pipeline;
 
+import org.example.util.UrlNormalizer;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Reads a benchmark CSV with filled gold_is_article / gold_category columns
@@ -28,7 +32,19 @@ public class BenchmarkScorer {
      * "## Accuracy vs gold" section to the .md file in the same directory.
      */
     public static void appendToReport(Path csvPath) throws IOException {
-        String section = computeSection(csvPath);
+        appendToReport(csvPath, null);
+    }
+
+    /**
+     * Reads {@code csvPath} and an optional external {@code goldCsvPath}
+     * (format: {@code url,gold_is_article,gold_category}), merges gold labels by
+     * normalized URL, and appends "## Accuracy vs gold" to the matching .md.
+     * When {@code goldCsvPath} is null, gold labels must be filled in the benchmark CSV itself.
+     */
+    public static void appendToReport(Path csvPath, Path goldCsvPath) throws IOException {
+        String section = goldCsvPath != null
+                ? computeSection(csvPath, loadGoldLabels(goldCsvPath))
+                : computeSection(csvPath);
         String stem = csvPath.getFileName().toString();
         if (!stem.endsWith(".csv")) throw new IOException("Expected .csv path: " + csvPath);
         Path mdPath = csvPath.getParent().resolve(stem.substring(0, stem.length() - 4) + ".md");
@@ -43,10 +59,20 @@ public class BenchmarkScorer {
 
     /** Builds the "## Accuracy vs gold" markdown section from the CSV. */
     public static String computeSection(Path csvPath) throws IOException {
+        return computeSection(csvPath, Map.of());
+    }
+
+    /**
+     * Builds the section, optionally supplementing inline gold with an external gold map.
+     * {@code externalGold} maps normalized URL → {gold_is_article, gold_category} (both strings).
+     * External gold takes precedence over inline gold columns.
+     */
+    static String computeSection(Path csvPath, Map<String, String[]> externalGold) throws IOException {
         List<String[]> rows = parseCsv(csvPath);
         if (rows.isEmpty()) throw new IOException("CSV is empty: " + csvPath);
         String[] header = rows.get(0);
 
+        int urlIdx     = indexOf(header, "url");
         int goldArtIdx = indexOf(header, "gold_is_article");
         int goldCatIdx = indexOf(header, "gold_category");
         if (goldArtIdx < 0 || goldCatIdx < 0)
@@ -59,9 +85,13 @@ public class BenchmarkScorer {
         }
         if (modelNames.isEmpty()) throw new IOException("No model columns found in CSV");
 
-        long goldFilled = rows.stream().skip(1)
-                .filter(r -> r.length > goldArtIdx && !r[goldArtIdx].isEmpty())
-                .count();
+        // Effective gold: merge inline + external (external wins)
+        boolean hasExternalGold = !externalGold.isEmpty();
+        long goldFilled = 0;
+        for (String[] row : rows.subList(1, rows.size())) {
+            String eff = effectiveGoldArt(row, urlIdx, goldArtIdx, externalGold);
+            if (eff != null && !eff.isEmpty()) goldFilled++;
+        }
         if (goldFilled == 0) return "\n## Accuracy vs gold\n\n*(no gold labels filled yet)*\n";
 
         List<ModelAccuracy> accuracies = new ArrayList<>();
@@ -70,17 +100,18 @@ public class BenchmarkScorer {
             int catIdx = indexOf(header, model + "_category");
             int artCorr = 0, artTotal = 0, catCorr = 0, catTotal = 0;
             for (String[] row : rows.subList(1, rows.size())) {
-                if (row.length <= goldArtIdx || row[goldArtIdx].isEmpty()) continue;
+                String goldArt = effectiveGoldArt(row, urlIdx, goldArtIdx, externalGold);
+                if (goldArt == null || goldArt.isEmpty()) continue;
+                String goldCat = effectiveGoldCat(row, urlIdx, goldCatIdx, externalGold);
                 artTotal++;
-                String goldArt  = row[goldArtIdx].trim().toLowerCase();
                 String modelArt = cell(row, artIdx).toLowerCase();
                 if (goldArt.equals(modelArt)) artCorr++;
 
                 // Category is only comparable when both gold and model agree it's an article.
                 if ("true".equals(goldArt) && "true".equals(modelArt)
-                        && row.length > goldCatIdx && !row[goldCatIdx].isEmpty()) {
+                        && goldCat != null && !goldCat.isEmpty()) {
                     catTotal++;
-                    if (cell(row, catIdx).equals(row[goldCatIdx].trim())) catCorr++;
+                    if (cell(row, catIdx).equals(goldCat)) catCorr++;
                 }
             }
             accuracies.add(new ModelAccuracy(model, artCorr, artTotal, catCorr, catTotal));
@@ -88,6 +119,7 @@ public class BenchmarkScorer {
 
         StringBuilder sb = new StringBuilder();
         sb.append("\n## Accuracy vs gold\n\n");
+        if (hasExternalGold) sb.append("*(gold from external file)*\n\n");
         sb.append("Gold labels filled: ").append(goldFilled).append(" / ")
           .append(rows.size() - 1).append(" rows\n\n");
         sb.append("| Model | is_article accuracy | main_category accuracy |\n");
@@ -102,6 +134,53 @@ public class BenchmarkScorer {
               .append(" |\n");
         }
         return sb.toString();
+    }
+
+    /**
+     * Loads gold labels from an external CSV (format: url,gold_is_article,gold_category).
+     * Returns map: normalized URL → {gold_is_article, gold_category}.
+     */
+    static Map<String, String[]> loadGoldLabels(Path goldCsvPath) throws IOException {
+        List<String[]> rows = parseCsv(goldCsvPath);
+        if (rows.isEmpty()) throw new IOException("Gold CSV is empty: " + goldCsvPath);
+        String[] header = rows.get(0);
+        int urlIdx    = indexOf(header, "url");
+        int artIdx    = indexOf(header, "gold_is_article");
+        int catIdx    = indexOf(header, "gold_category");
+        if (urlIdx < 0 || artIdx < 0 || catIdx < 0)
+            throw new IOException("Gold CSV must have url, gold_is_article, gold_category columns");
+        Map<String, String[]> result = new HashMap<>();
+        for (String[] row : rows.subList(1, rows.size())) {
+            String rawUrl = cell(row, urlIdx);
+            if (rawUrl.isEmpty()) continue;
+            String norm = tryNormalizeUrl(rawUrl);
+            result.put(norm, new String[]{cell(row, artIdx), cell(row, catIdx)});
+        }
+        return result;
+    }
+
+    private static String effectiveGoldArt(String[] row, int urlIdx, int goldArtIdx,
+                                            Map<String, String[]> external) {
+        if (!external.isEmpty() && urlIdx >= 0) {
+            String norm = tryNormalizeUrl(cell(row, urlIdx));
+            String[] g = external.get(norm);
+            if (g != null && !g[0].isEmpty()) return g[0].trim().toLowerCase();
+        }
+        return (goldArtIdx >= 0 && goldArtIdx < row.length) ? row[goldArtIdx].trim().toLowerCase() : null;
+    }
+
+    private static String effectiveGoldCat(String[] row, int urlIdx, int goldCatIdx,
+                                            Map<String, String[]> external) {
+        if (!external.isEmpty() && urlIdx >= 0) {
+            String norm = tryNormalizeUrl(cell(row, urlIdx));
+            String[] g = external.get(norm);
+            if (g != null && !g[1].isEmpty()) return g[1].trim();
+        }
+        return (goldCatIdx >= 0 && goldCatIdx < row.length) ? row[goldCatIdx].trim() : null;
+    }
+
+    private static String tryNormalizeUrl(String url) {
+        try { return UrlNormalizer.normalize(url); } catch (IllegalArgumentException e) { return url; }
     }
 
     // ── CSV parser (RFC 4180) ─────────────────────────────────────────────────

@@ -43,7 +43,8 @@ public class ModelComparisonRunner {
 
     // ── Internal data types ───────────────────────────────────────────────────
 
-    record ArticleInput(String url, String title, String domain, String lang, String text) {}
+    record ArticleInput(String url, String title, String domain, String lang, String text,
+                        int textChars, String extractSource) {}
 
     /**
      * Result of a single model call.
@@ -59,7 +60,8 @@ public class ModelComparisonRunner {
                       boolean thinkFallback, boolean timeout, Double tokensPerSecond) {}
 
     /** Per-model benchmark result. measurements.get(i) corresponds to benchArticles.get(i). */
-    record ModelRunResult(String model, boolean thinkNotSupported, List<CallResult> measurements) {}
+    record ModelRunResult(String model, boolean thinkNotSupported, List<CallResult> measurements,
+                          int subtopicMismatches) {}
 
     private record HttpResult(int code, String body, boolean timedOut) {}
 
@@ -119,12 +121,18 @@ public class ModelComparisonRunner {
     // ── Entry point ───────────────────────────────────────────────────────────
 
     public void run(Path outputDir) throws IOException {
-        List<String> urls = testUrls != null ? testUrls : loadUrlsFromQueue();
+        List<String> rawUrls = testUrls != null ? testUrls : loadUrlsFromQueue();
 
-        if (urls.isEmpty()) {
+        if (rawUrls.isEmpty()) {
             log.warning("[compare-models] No PENDING URLs available. Aborting.");
             return;
         }
+
+        // Deduplicate by normalized input URL before fetching
+        List<String> urls = deduplicateByInputUrl(rawUrls);
+        int inputDeduped = rawUrls.size() - urls.size();
+        if (inputDeduped > 0)
+            log.info("[compare-models] Deduped " + inputDeduped + " duplicate input URL(s)");
         log.info("[compare-models] URLs to benchmark: " + urls.size());
 
         // Fetch + parse each page once (all go into stats — warmup uses dummy text)
@@ -169,7 +177,8 @@ public class ModelComparisonRunner {
                                 ? String.format(" %.1f tok/s", r.tokensPerSecond()) : "")
                         + (r.thinkFallback() ? " THINK_FALLBACK" : ""));
             }
-            results.put(model, new ModelRunResult(model, thinkNotSupported, measurements));
+            results.put(model, new ModelRunResult(model, thinkNotSupported, measurements,
+                    classifier.subtopicMismatchCount()));
         }
 
         // Write output
@@ -360,14 +369,21 @@ public class ModelComparisonRunner {
 
     private List<ArticleInput> fetchPages(List<String> urls) {
         List<ArticleInput> result = new ArrayList<>();
+        Set<String> seenFinalUrls = new HashSet<>();
         for (String url : urls) {
             try {
                 PageLoader.Result res = pageLoader.load(url);
                 if (res == null) { log.warning("[compare-models] fetch=null: " + url); continue; }
+                String finalNorm = tryNormalize(res.finalUrl());
+                if (!seenFinalUrls.add(finalNorm)) {
+                    log.info("[compare-models] dedup by redirect: " + url + " → " + res.finalUrl());
+                    continue;
+                }
                 String lang   = langDetector.detect(res.parsed().textForAi());
                 String domain = extractDomain(url);
                 result.add(new ArticleInput(url, res.parsed().title(), domain, lang,
-                        res.parsed().textForAi()));
+                        res.parsed().textForAi(),
+                        res.parsed().textChars(), res.parsed().extractSource()));
             } catch (PageLoader.SsrfViolationException e) {
                 log.warning("[compare-models] SSRF blocked: " + url);
             }
@@ -380,7 +396,7 @@ public class ModelComparisonRunner {
     void writeCsv(List<ArticleInput> articles, Map<String, ModelRunResult> results, Path out)
             throws IOException {
         StringBuilder sb = new StringBuilder();
-        sb.append("url,domain,title,lang,gold_is_article,gold_category");
+        sb.append("url,domain,title,lang,text_chars,extract_source,gold_is_article,gold_category");
         for (String m : models) {
             String p = csvSafe(m);
             sb.append(',').append(p).append("_is_article");
@@ -397,7 +413,9 @@ public class ModelComparisonRunner {
             sb.append(csvField(a.url())).append(',')
               .append(csvField(a.domain())).append(',')
               .append(csvField(a.title())).append(',')
-              .append(csvField(a.lang())).append(",,"); // gold_is_article, gold_category (fill by hand)
+              .append(csvField(a.lang())).append(',')
+              .append(a.textChars()).append(',')
+              .append(csvField(a.extractSource())).append(",,"); // gold_is_article, gold_category (fill by hand)
             for (String m : models) {
                 List<CallResult> meas = results.get(m).measurements();
                 if (i < meas.size()) {
@@ -408,7 +426,7 @@ public class ModelComparisonRunner {
                       .append(',').append(r.latencyMs())
                       .append(',').append(r.thinkFallback())
                       .append(',').append(r.tokensPerSecond() != null
-                              ? String.format("%.2f", r.tokensPerSecond()) : "");
+                              ? String.format(Locale.US, "%.2f", r.tokensPerSecond()) : "");
                 } else {
                     sb.append(",,,,,,");
                 }
@@ -452,7 +470,8 @@ public class ModelComparisonRunner {
         for (String row : List.of(
                 "p50 latency (ms)", "p95 latency (ms)",
                 "% invalid (1st attempt)", "% invalid (after retry)", "% timeouts",
-                "% is_article=true", "p50 tokens/s", "think=false supported")) {
+                "% is_article=true", "% subtopic substituted", "p50 tokens/s",
+                "think=false supported")) {
             sb.append("| ").append(row).append(" |");
             for (String m : models) {
                 sb.append(' ').append(statCell(row, results.get(m))).append(" |");
@@ -509,16 +528,18 @@ public class ModelComparisonRunner {
 
         // ── Per-article results ───────────────────────────────────────────────
         sb.append("## Per-article results\n\n");
-        sb.append("| Domain | Title | Lang |");
+        sb.append("| Domain | Title | Lang | text_chars | extract_source |");
         for (String m : models) sb.append(' ').append(m).append(" |");
-        sb.append("\n|---|---|---|");
+        sb.append("\n|---|---|---|---|---|");
         for (int i = 0; i < models.size(); i++) sb.append("---|");
         sb.append('\n');
         for (int i = 0; i < articles.size(); i++) {
             ArticleInput a = articles.get(i);
             sb.append("| ").append(mdCell(a.domain()))
               .append(" | ").append(mdCell(a.title()))
-              .append(" | ").append(mdCell(a.lang())).append(" |");
+              .append(" | ").append(mdCell(a.lang()))
+              .append(" | ").append(a.textChars())
+              .append(" | ").append(mdCell(a.extractSource())).append(" |");
             for (String m : models) {
                 List<CallResult> meas = results.get(m).measurements();
                 if (i < meas.size()) {
@@ -552,22 +573,28 @@ public class ModelComparisonRunner {
                 long bad = m.stream()
                         .filter(r -> r.firstAttemptParseFailed() || r.parseError())
                         .count();
-                return String.format("%.1f%%", bad * 100.0 / m.size());
+                return String.format(Locale.US, "%.1f%%", bad * 100.0 / m.size());
             }
             case "% invalid (after retry)" -> {
                 if (m.isEmpty()) return "n/a";
                 long bad = m.stream().filter(CallResult::parseError).count();
-                return String.format("%.1f%%", bad * 100.0 / m.size());
+                return String.format(Locale.US, "%.1f%%", bad * 100.0 / m.size());
             }
             case "% timeouts" -> {
                 if (m.isEmpty()) return "n/a";
                 long t = m.stream().filter(CallResult::timeout).count();
-                return String.format("%.1f%%", t * 100.0 / m.size());
+                return String.format(Locale.US, "%.1f%%", t * 100.0 / m.size());
             }
             case "% is_article=true" -> {
                 if (m.isEmpty()) return "n/a";
                 long art = m.stream().filter(r -> !r.parseError() && r.isArticle()).count();
-                return String.format("%.1f%%", art * 100.0 / m.size());
+                return String.format(Locale.US, "%.1f%%", art * 100.0 / m.size());
+            }
+            case "% subtopic substituted" -> {
+                long artCount = m.stream().filter(r -> !r.parseError() && r.isArticle()).count();
+                if (artCount == 0) return "n/a";
+                return String.format(Locale.US, "%.1f%% (%d articles)",
+                        mr.subtopicMismatches() * 100.0 / artCount, mr.subtopicMismatches());
             }
             case "p50 tokens/s" -> {
                 List<Double> tpsList = m.stream()
@@ -577,7 +604,7 @@ public class ModelComparisonRunner {
                         .toList();
                 if (tpsList.isEmpty()) return "n/a";
                 int idx = Math.max(0, (int) Math.ceil(tpsList.size() * 50.0 / 100) - 1);
-                return String.format("%.1f", tpsList.get(idx));
+                return String.format(Locale.US, "%.1f", tpsList.get(idx));
             }
             case "think=false supported" -> { return mr.thinkNotSupported() ? "no" : "yes"; }
             default -> { return "—"; }
@@ -621,6 +648,27 @@ public class ModelComparisonRunner {
     }
 
     // ── Utilities ─────────────────────────────────────────────────────────────
+
+    private static List<String> deduplicateByInputUrl(List<String> urls) {
+        Set<String> seen = new LinkedHashSet<>();
+        for (String url : urls) seen.add(tryNormalize(url));
+        if (seen.size() == urls.size()) return new ArrayList<>(urls);
+        // Rebuild in original order, keeping first occurrence
+        List<String> result = new ArrayList<>(seen.size());
+        Set<String> added = new HashSet<>();
+        for (String url : urls) {
+            if (added.add(tryNormalize(url))) result.add(url);
+        }
+        return result;
+    }
+
+    private static String tryNormalize(String url) {
+        try {
+            return org.example.util.UrlNormalizer.normalize(url);
+        } catch (IllegalArgumentException e) {
+            return url; // keep as-is if not a valid HTTP(S) URL
+        }
+    }
 
     private List<String> loadUrlsFromQueue() {
         try (Session s = HibernateUtil.getSessionFactory().openSession()) {

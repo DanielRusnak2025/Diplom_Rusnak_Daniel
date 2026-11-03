@@ -152,12 +152,12 @@ class OllamaClassifierTest {
                 "main", Map.of("category", "Politics", "subtopic", "Markets"),
                 "extra", List.of())));
 
-        int before = OllamaClassifier.subtopicMismatchCount();
+        int before = classifier.subtopicMismatchCount();
         ArticleClassification result = classifier.classify("Political news", TAXONOMY);
 
         assertEquals(1, result.mainCategoryId());   // Politics
         assertEquals(10, result.mainSubtopicId());  // General (id=10)
-        assertEquals(before + 1, OllamaClassifier.subtopicMismatchCount());
+        assertEquals(before + 1, classifier.subtopicMismatchCount());
     }
 
     // ── retry logic ───────────────────────────────────────────────────────────

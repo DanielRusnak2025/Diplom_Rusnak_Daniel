@@ -168,7 +168,8 @@ class QueueWorkerTest {
         return url -> new PageLoader.Result(
                 new ParseResult("Test Title", "test.invalid", null, finalUrl,
                         "The prime minister announced a new economic policy today. " +
-                        "Parliament approved the budget after weeks of debate."),
+                        "Parliament approved the budget after weeks of debate.",
+                        0, ""),
                 finalUrl);
     }
 
@@ -229,7 +230,8 @@ class QueueWorkerTest {
 
         PageLoader roLoader = u -> new PageLoader.Result(
                 new ParseResult("Știre", "test.invalid", null, u,
-                        "Premierul a anunțat astăzi o nouă politică economică importantă pentru România."),
+                        "Premierul a anunțat astăzi o nouă politică economică importantă pentru România.",
+                        0, ""),
                 u);
 
         worker(isArticleClassifier(firstCategoryId), roLoader).processQueue(1);
@@ -303,7 +305,7 @@ class QueueWorkerTest {
         String isoDate = "2024-06-15T12:00:00Z"; // noon UTC — unambiguous in any JVM timezone
         PageLoader datedLoader = u -> new PageLoader.Result(
                 new ParseResult("Test", "test.invalid", isoDate, u,
-                        "The prime minister announced a new economic policy today."),
+                        "The prime minister announced a new economic policy today.", 0, ""),
                 u);
 
         worker(isArticleClassifier(firstCategoryId), datedLoader).processQueue(1);
@@ -331,7 +333,7 @@ class QueueWorkerTest {
 
         PageLoader noDateLoader = u -> new PageLoader.Result(
                 new ParseResult("Test", "test.invalid", null, u,
-                        "The prime minister announced a new economic policy today."),
+                        "The prime minister announced a new economic policy today.", 0, ""),
                 u);
         worker(isArticleClassifier(firstCategoryId), noDateLoader).processQueue(1);
 
@@ -368,7 +370,7 @@ class QueueWorkerTest {
         // Text matches all 3 patterns
         PageLoader kl = u -> new PageLoader.Result(
                 new ParseResult("Parliament budget vote", "test.invalid", null, u,
-                        "The prime minister announced the budget. Parliament approved it."),
+                        "The prime minister announced the budget. Parliament approved it.", 0, ""),
                 u);
 
         QueueWorker w = new QueueWorker(

@@ -37,7 +37,8 @@ class ModelComparisonRunnerTest {
     private static final ParseResult PARSE_RESULT = new ParseResult(
             "Test Title", "Test Publisher", "2026-01-01",
             "https://example.com/article",
-            "This is an English test article about technology and software.");
+            "This is an English test article about technology and software.",
+            0, "");
 
     @BeforeEach
     void setUp() throws IOException {
@@ -274,7 +275,8 @@ class ModelComparisonRunnerTest {
         ParseResult special = new ParseResult(
                 "Title with, comma and \"quote\"", "pub", "2026-01-01",
                 "https://example.com",
-                "English text about technology, software, and systems.");
+                "English text about technology, software, and systems.",
+                0, "");
 
         List<String> urls = List.of("https://a.invalid/1");
         server.enqueue(ollamaResponse(true, "Technology")); // warmup

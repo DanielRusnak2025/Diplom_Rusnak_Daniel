@@ -5,5 +5,7 @@ public record ParseResult(
         String publisher,
         String publishedDate,
         String canonicalUrl,
-        String textForAi
+        String textForAi,
+        int textChars,
+        String extractSource
 ) {}

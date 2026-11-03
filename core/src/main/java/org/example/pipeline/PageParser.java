@@ -14,6 +14,8 @@ public final class PageParser {
 
     private PageParser() {}
 
+    private record TextResult(String text, String source) {}
+
     public static ParseResult parse(String html, String finalUrl) {
         Document doc = Jsoup.parse(html, finalUrl);
 
@@ -21,9 +23,10 @@ public final class PageParser {
         String publisher = extractPublisher(doc, finalUrl);
         String publishedDate = extractPublishedDate(doc);
         String canonical = extractCanonical(doc, finalUrl);
-        String textForAi = extractTextForAi(doc);
+        TextResult tr = extractTextForAi(doc);
 
-        return new ParseResult(title, publisher, publishedDate, canonical, textForAi);
+        return new ParseResult(title, publisher, publishedDate, canonical,
+                tr.text(), tr.text().length(), tr.source());
     }
 
     private static String extractTitle(Document doc) {
@@ -56,7 +59,7 @@ public final class PageParser {
         return href.isEmpty() ? finalUrl : href;
     }
 
-    private static String extractTextForAi(Document doc) {
+    private static TextResult extractTextForAi(Document doc) {
         // Work on a clone to avoid mutating the parsed document
         Document work = doc.clone();
         work.select("nav, header, footer, aside, script, style").remove();
@@ -65,7 +68,7 @@ public final class PageParser {
         Element article = work.selectFirst("article");
         if (article != null) {
             String text = article.text().trim();
-            if (!text.isEmpty()) return truncate(text);
+            if (!text.isEmpty()) return new TextResult(truncate(text), "article body");
         }
 
         // Fall back to the largest <p> element by text length
@@ -77,12 +80,13 @@ public final class PageParser {
             if (len > maxLen) { maxLen = len; largest = p; }
         }
         if (largest != null && maxLen > 0) {
-            return truncate(largest.text().trim());
+            return new TextResult(truncate(largest.text().trim()), "largest <p>");
         }
 
         // Last resort: body text
         Element body = work.body();
-        return body != null ? truncate(body.text().trim()) : "";
+        String text = body != null ? truncate(body.text().trim()) : "";
+        return new TextResult(text, "fallback");
     }
 
     private static String truncate(String text) {

@@ -29,8 +29,10 @@ public class HeadlessMain {
         // --score-benchmark needs no DB — handle before Flyway/Hibernate init
         String scoreCsvArg = parseScoreBenchmark(args);
         if (scoreCsvArg != null) {
+            String goldArg = parseGold(args);
             try {
-                BenchmarkScorer.appendToReport(Path.of(scoreCsvArg));
+                Path goldPath = goldArg != null ? Path.of(goldArg) : null;
+                BenchmarkScorer.appendToReport(Path.of(scoreCsvArg), goldPath);
                 log.info("[score-benchmark] Done.");
             } catch (Exception e) {
                 log.error("[score-benchmark] failed: {}", e.getMessage(), e);
@@ -187,6 +189,17 @@ public class HeadlessMain {
     private static String parseScoreBenchmark(String[] args) {
         for (int i = 0; i < args.length - 1; i++) {
             if ("--score-benchmark".equals(args[i])) {
+                String v = args[i + 1].trim();
+                if (!v.isEmpty()) return v;
+            }
+        }
+        return null;
+    }
+
+    /** Parses {@code --gold <csv>} → path string, or null if absent. */
+    private static String parseGold(String[] args) {
+        for (int i = 0; i < args.length - 1; i++) {
+            if ("--gold".equals(args[i])) {
                 String v = args[i + 1].trim();
                 if (!v.isEmpty()) return v;
             }
