@@ -6,9 +6,9 @@ import org.hibernate.type.SqlTypes;
 import java.util.ArrayList;
 import java.util.List;
 
-@jakarta.persistence.Entity
+@Entity
 @Table(name = "entity")
-public class Entity {
+public class KnownEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,12 +27,12 @@ public class Entity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "country_id")
-    private Entity country;
+    private KnownEntity country;
 
     @OneToMany(mappedBy = "entity", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<EntityAlias> aliases = new ArrayList<>();
 
-    public Entity() {}
+    public KnownEntity() {}
 
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
@@ -46,8 +46,8 @@ public class Entity {
     public String getRegionKey() { return regionKey; }
     public void setRegionKey(String regionKey) { this.regionKey = regionKey; }
 
-    public Entity getCountry() { return country; }
-    public void setCountry(Entity country) { this.country = country; }
+    public KnownEntity getCountry() { return country; }
+    public void setCountry(KnownEntity country) { this.country = country; }
 
     public List<EntityAlias> getAliases() { return aliases; }
     public void setAliases(List<EntityAlias> aliases) { this.aliases = aliases; }

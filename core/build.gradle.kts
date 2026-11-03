@@ -1,4 +1,4 @@
-﻿plugins {
+plugins {
     `java-library`
     application
 }
@@ -27,7 +27,7 @@ dependencies {
     // ORM
     implementation(libs.hibernate.core)
 
-    // JDBC driver вЂ” runtime only
+    // JDBC driver — runtime only
     runtimeOnly(libs.mysql.connector.j)
 
     // Email (Gmail IMAP)
@@ -36,7 +36,7 @@ dependencies {
     // HTTP client (Ollama calls)
     implementation(libs.okhttp)
 
-    // Jackson BOM вЂ” aligns all jackson-* modules to one version
+    // Jackson BOM — aligns all jackson-* modules to one version
     implementation(platform(libs.jackson.bom))
 
     // JSON (AI response parsing)
@@ -79,4 +79,3 @@ tasks.named<JavaExec>("run") {
     (findProperty("dbName") as String?)?.let { systemProperty("newsdove.db.name", it) }
     systemProperty("newsdove.benchmark.dir", rootProject.file("docs/benchmarks").absolutePath)
 }
-

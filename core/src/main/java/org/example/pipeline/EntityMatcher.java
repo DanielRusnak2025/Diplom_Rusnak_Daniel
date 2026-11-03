@@ -1,6 +1,6 @@
 package org.example.pipeline;
 
-import org.example.Entity;
+import org.example.KnownEntity;
 import org.example.EntityKind;
 import org.hibernate.Session;
 
@@ -35,11 +35,11 @@ public final class EntityMatcher {
      * For PLACE entities the region is resolved via their country row.
      */
     public static EntityMatcher loadFromDatabase(Session session) {
-        List<Entity> rows = session.createQuery(
-                "SELECT DISTINCT e FROM Entity e " +
+        List<KnownEntity> rows = session.createQuery(
+                "SELECT DISTINCT e FROM KnownEntity e " +
                 "LEFT JOIN FETCH e.aliases " +
                 "LEFT JOIN FETCH e.country",
-                Entity.class).list();
+                KnownEntity.class).list();
 
         List<EntityData> data = rows.stream().map(e -> {
             String regionKey = (e.getKind() == EntityKind.PLACE)

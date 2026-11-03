@@ -2,7 +2,7 @@ package org.example;
 
 import jakarta.persistence.*;
 
-@jakarta.persistence.Entity
+@Entity
 @Table(name = "entity_alias")
 public class EntityAlias {
 
@@ -12,7 +12,7 @@ public class EntityAlias {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "entity_id", nullable = false)
-    private Entity entity;
+    private KnownEntity entity;
 
     @Column(name = "language", length = 5)
     private String language;
@@ -28,8 +28,8 @@ public class EntityAlias {
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 
-    public Entity getEntity() { return entity; }
-    public void setEntity(Entity entity) { this.entity = entity; }
+    public KnownEntity getEntity() { return entity; }
+    public void setEntity(KnownEntity entity) { this.entity = entity; }
 
     public String getLanguage() { return language; }
     public void setLanguage(String language) { this.language = language; }
