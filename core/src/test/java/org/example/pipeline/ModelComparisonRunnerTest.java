@@ -34,11 +34,15 @@ class ModelComparisonRunnerTest {
             new TagInfo(1, "Technology", "Tech articles",
                     List.of(new SubtopicInfo(101, "General"))));
 
+    private static final String PARSE_TEXT =
+            "This is an English test article about technology and software development. " +
+            "The latest advances in artificial intelligence have transformed how developers build systems. " +
+            "New frameworks and tools are being released every month to improve productivity and code quality.";
+
     private static final ParseResult PARSE_RESULT = new ParseResult(
             "Test Title", "Test Publisher", "2026-01-01",
             "https://example.com/article",
-            "This is an English test article about technology and software.",
-            0, "");
+            PARSE_TEXT, PARSE_TEXT.length(), "article", null);
 
     @BeforeEach
     void setUp() throws IOException {
@@ -272,11 +276,13 @@ class ModelComparisonRunnerTest {
 
     @Test
     void writeCsv_specialCharactersEscaped() throws IOException {
+        String specialText = "English text about technology, software, and modern systems development. " +
+                "The article discusses programming languages, frameworks, and tools used by engineers. " +
+                "Readers can learn about new developments in the computing world and related fields.";
         ParseResult special = new ParseResult(
                 "Title with, comma and \"quote\"", "pub", "2026-01-01",
-                "https://example.com",
-                "English text about technology, software, and systems.",
-                0, "");
+                "https://example.com/article",
+                specialText, specialText.length(), "article", null);
 
         List<String> urls = List.of("https://a.invalid/1");
         server.enqueue(ollamaResponse(true, "Technology")); // warmup

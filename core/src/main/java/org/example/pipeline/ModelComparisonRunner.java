@@ -44,7 +44,7 @@ public class ModelComparisonRunner {
     // ── Internal data types ───────────────────────────────────────────────────
 
     record ArticleInput(String url, String title, String domain, String lang, String text,
-                        int textChars, String extractSource) {}
+                        int textChars, String extractSource, String skipReason) {}
 
     /**
      * Result of a single model call.
@@ -57,7 +57,8 @@ public class ModelComparisonRunner {
      */
     record CallResult(long latencyMs, boolean isArticle, String mainCategory, String mainSubtopic,
                       boolean parseError, boolean firstAttemptParseFailed,
-                      boolean thinkFallback, boolean timeout, Double tokensPerSecond) {}
+                      boolean thinkFallback, boolean timeout, Double tokensPerSecond,
+                      boolean preFiltered) {}
 
     /** Per-model benchmark result. measurements.get(i) corresponds to benchArticles.get(i). */
     record ModelRunResult(String model, boolean thinkNotSupported, List<CallResult> measurements,
@@ -163,19 +164,27 @@ public class ModelComparisonRunner {
             boolean thinkNotSupported = warmup.thinkFallback();
             List<CallResult> measurements = new ArrayList<>(benchArticles.size());
             for (int i = 0; i < benchArticles.size(); i++) {
-                CallResult r = callModel(classifier, benchArticles.get(i).text());
+                ArticleInput a = benchArticles.get(i);
+                CallResult r;
+                if (a.skipReason() != null) {
+                    r = new CallResult(0, false, null, null, false, false, false, false, null, true);
+                    log.info("[compare-models]   [" + (i + 1) + "/" + benchArticles.size() + "] "
+                            + model + " SKIP(" + a.skipReason() + ")");
+                } else {
+                    r = callModel(classifier, a.text());
+                    log.info("[compare-models]   [" + (i + 1) + "/" + benchArticles.size() + "] "
+                            + model + " " + r.latencyMs() + "ms"
+                            + (r.parseError() ? " PARSE_ERROR" : "")
+                            + (r.timeout() ? " TIMEOUT" : "")
+                            + (r.firstAttemptParseFailed() && !r.parseError() ? " RETRIED_OK" : "")
+                            + (!r.parseError() && r.isArticle() ? " article=" + r.mainCategory() : "")
+                            + (!r.parseError() && !r.isArticle() ? " not-article" : "")
+                            + (r.tokensPerSecond() != null
+                                    ? String.format(" %.1f tok/s", r.tokensPerSecond()) : "")
+                            + (r.thinkFallback() ? " THINK_FALLBACK" : ""));
+                }
                 if (r.thinkFallback()) thinkNotSupported = true;
                 measurements.add(r);
-                log.info("[compare-models]   [" + (i + 1) + "/" + benchArticles.size() + "] "
-                        + model + " " + r.latencyMs() + "ms"
-                        + (r.parseError() ? " PARSE_ERROR" : "")
-                        + (r.timeout() ? " TIMEOUT" : "")
-                        + (r.firstAttemptParseFailed() && !r.parseError() ? " RETRIED_OK" : "")
-                        + (!r.parseError() && r.isArticle() ? " article=" + r.mainCategory() : "")
-                        + (!r.parseError() && !r.isArticle() ? " not-article" : "")
-                        + (r.tokensPerSecond() != null
-                                ? String.format(" %.1f tok/s", r.tokensPerSecond()) : "")
-                        + (r.thinkFallback() ? " THINK_FALLBACK" : ""));
             }
             results.put(model, new ModelRunResult(model, thinkNotSupported, measurements,
                     classifier.subtopicMismatchCount()));
@@ -217,11 +226,11 @@ public class ModelComparisonRunner {
 
         if (resp.code() < 0) {
             return new CallResult(latency, false, null, null, true, false,
-                    thinkFallback, resp.timedOut(), null);
+                    thinkFallback, resp.timedOut(), null, false);
         }
         if (resp.code() < 200 || resp.code() >= 300) {
             return new CallResult(latency, false, null, null, true, false,
-                    thinkFallback, false, null);
+                    thinkFallback, false, null, false);
         }
 
         Double tps = parseTokensPerSecond(resp.body());
@@ -239,11 +248,11 @@ public class ModelComparisonRunner {
 
             if (retryResp.code() < 0) {
                 return new CallResult(latency, false, null, null, true, true,
-                        thinkFallback, retryResp.timedOut(), null);
+                        thinkFallback, retryResp.timedOut(), null, false);
             }
             if (retryResp.code() < 200 || retryResp.code() >= 300) {
                 return new CallResult(latency, false, null, null, true, true,
-                        thinkFallback, false, null);
+                        thinkFallback, false, null, false);
             }
 
             Double retryTps = parseTokensPerSecond(retryResp.body());
@@ -253,7 +262,7 @@ public class ModelComparisonRunner {
             } catch (IOException e2) {
                 log.warning("[compare-models] parse error (attempt 2): " + e2.getMessage());
                 return new CallResult(latency, false, null, null, true, true,
-                        thinkFallback, false, null);
+                        thinkFallback, false, null, false);
             }
         }
     }
@@ -276,7 +285,7 @@ public class ModelComparisonRunner {
             }
         }
         return new CallResult(latencyMs, ac.isArticle(), cat, sub, false,
-                firstAttemptParseFailed, thinkFallback, timeout, tps);
+                firstAttemptParseFailed, thinkFallback, timeout, tps, false);
     }
 
     private Double parseTokensPerSecond(String responseJson) {
@@ -379,11 +388,12 @@ public class ModelComparisonRunner {
                     log.info("[compare-models] dedup by redirect: " + url + " → " + res.finalUrl());
                     continue;
                 }
+                String skipReason = ArticlePreFilter.check(res.parsed(), res.finalUrl());
                 String lang   = langDetector.detect(res.parsed().textForAi());
                 String domain = extractDomain(url);
                 result.add(new ArticleInput(url, res.parsed().title(), domain, lang,
                         res.parsed().textForAi(),
-                        res.parsed().textChars(), res.parsed().extractSource()));
+                        res.parsed().textChars(), res.parsed().extractSource(), skipReason));
             } catch (PageLoader.SsrfViolationException e) {
                 log.warning("[compare-models] SSRF blocked: " + url);
             }
@@ -396,7 +406,7 @@ public class ModelComparisonRunner {
     void writeCsv(List<ArticleInput> articles, Map<String, ModelRunResult> results, Path out)
             throws IOException {
         StringBuilder sb = new StringBuilder();
-        sb.append("url,domain,title,lang,text_chars,extract_source,gold_is_article,gold_category");
+        sb.append("url,domain,title,lang,text_chars,extract_source,skip_reason,gold_is_article,gold_category");
         for (String m : models) {
             String p = csvSafe(m);
             sb.append(',').append(p).append("_is_article");
@@ -415,18 +425,23 @@ public class ModelComparisonRunner {
               .append(csvField(a.title())).append(',')
               .append(csvField(a.lang())).append(',')
               .append(a.textChars()).append(',')
-              .append(csvField(a.extractSource())).append(",,"); // gold_is_article, gold_category (fill by hand)
+              .append(csvField(a.extractSource())).append(',')
+              .append(csvField(a.skipReason())).append(",,"); // gold_is_article, gold_category (fill by hand)
             for (String m : models) {
                 List<CallResult> meas = results.get(m).measurements();
                 if (i < meas.size()) {
                     CallResult r = meas.get(i);
-                    sb.append(',').append(r.isArticle())
-                      .append(',').append(csvField(r.mainCategory()))
-                      .append(',').append(csvField(r.mainSubtopic()))
-                      .append(',').append(r.latencyMs())
-                      .append(',').append(r.thinkFallback())
-                      .append(',').append(r.tokensPerSecond() != null
-                              ? String.format(Locale.US, "%.2f", r.tokensPerSecond()) : "");
+                    if (r.preFiltered()) {
+                        sb.append(",,,,,,");
+                    } else {
+                        sb.append(',').append(r.isArticle())
+                          .append(',').append(csvField(r.mainCategory()))
+                          .append(',').append(csvField(r.mainSubtopic()))
+                          .append(',').append(r.latencyMs())
+                          .append(',').append(r.thinkFallback())
+                          .append(',').append(r.tokensPerSecond() != null
+                                  ? String.format(Locale.US, "%.2f", r.tokensPerSecond()) : "");
+                    }
                 } else {
                     sb.append(",,,,,,");
                 }
@@ -453,8 +468,10 @@ public class ModelComparisonRunner {
               .append(modelSizes.getOrDefault(m, "unknown")).append(" |\n");
         }
         sb.append('\n');
+        long preFilteredCount = articles.stream().filter(a -> a.skipReason() != null).count();
         sb.append("- **Articles:** ").append(articles.size()).append(" fetched");
         if (fetchFailed > 0) sb.append(", ").append(fetchFailed).append(" failed to fetch");
+        if (preFilteredCount > 0) sb.append(", ").append(preFilteredCount).append(" pre-filtered (no AI call)");
         sb.append(" (").append(totalUrls).append(" total URLs from queue)\n");
         sb.append("- **Warmup:** 1 call per model with fixed dummy text"
                 + " (excluded from statistics)\n\n");
@@ -485,7 +502,7 @@ public class ModelComparisonRunner {
         Set<String> allCats = new LinkedHashSet<>();
         for (String m : models) {
             results.get(m).measurements().stream()
-                    .filter(r -> !r.parseError() && r.isArticle() && r.mainCategory() != null)
+                    .filter(r -> !r.preFiltered() && !r.parseError() && r.isArticle() && r.mainCategory() != null)
                     .map(CallResult::mainCategory)
                     .forEach(allCats::add);
         }
@@ -499,7 +516,7 @@ public class ModelComparisonRunner {
                 sb.append("| ").append(cat).append(" |");
                 for (String m : models) {
                     long n = results.get(m).measurements().stream()
-                            .filter(r -> !r.parseError() && r.isArticle() && cat.equals(r.mainCategory()))
+                            .filter(r -> !r.preFiltered() && !r.parseError() && r.isArticle() && cat.equals(r.mainCategory()))
                             .count();
                     sb.append(' ').append(n).append(" |");
                 }
@@ -528,9 +545,9 @@ public class ModelComparisonRunner {
 
         // ── Per-article results ───────────────────────────────────────────────
         sb.append("## Per-article results\n\n");
-        sb.append("| Domain | Title | Lang | text_chars | extract_source |");
+        sb.append("| Domain | Title | Lang | text_chars | extract_source | skip_reason |");
         for (String m : models) sb.append(' ').append(m).append(" |");
-        sb.append("\n|---|---|---|---|---|");
+        sb.append("\n|---|---|---|---|---|---|");
         for (int i = 0; i < models.size(); i++) sb.append("---|");
         sb.append('\n');
         for (int i = 0; i < articles.size(); i++) {
@@ -539,12 +556,15 @@ public class ModelComparisonRunner {
               .append(" | ").append(mdCell(a.title()))
               .append(" | ").append(mdCell(a.lang()))
               .append(" | ").append(a.textChars())
-              .append(" | ").append(mdCell(a.extractSource())).append(" |");
+              .append(" | ").append(mdCell(a.extractSource()))
+              .append(" | ").append(mdCell(a.skipReason())).append(" |");
             for (String m : models) {
                 List<CallResult> meas = results.get(m).measurements();
                 if (i < meas.size()) {
                     CallResult r = meas.get(i);
-                    if (r.parseError()) {
+                    if (r.preFiltered()) {
+                        sb.append(" SKIP |");
+                    } else if (r.parseError()) {
                         sb.append(r.timeout() ? " TIMEOUT |" : " ERROR |");
                     } else if (!r.isArticle()) {
                         sb.append(" not-article |");
@@ -563,8 +583,12 @@ public class ModelComparisonRunner {
 
     // ── Statistics helpers ────────────────────────────────────────────────────
 
+    private static List<CallResult> activeResults(ModelRunResult mr) {
+        return mr.measurements().stream().filter(r -> !r.preFiltered()).toList();
+    }
+
     private String statCell(String metric, ModelRunResult mr) {
-        List<CallResult> m = mr.measurements();
+        List<CallResult> m = activeResults(mr);
         switch (metric) {
             case "p50 latency (ms)" -> { return String.valueOf(latencyPercentile(m, 50)); }
             case "p95 latency (ms)" -> { return String.valueOf(latencyPercentile(m, 95)); }
@@ -630,7 +654,7 @@ public class ModelComparisonRunner {
         for (int i = 0; i < n; i++) {
             CallResult c1 = r1.measurements().get(i);
             CallResult c2 = r2.measurements().get(i);
-            if (!c1.parseError() && !c2.parseError()) {
+            if (!c1.preFiltered() && !c2.preFiltered() && !c1.parseError() && !c2.parseError()) {
                 artTotal++;
                 if (c1.isArticle() == c2.isArticle()) artMatch++;
                 if (c1.isArticle() && c2.isArticle()) {

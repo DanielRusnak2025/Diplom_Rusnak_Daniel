@@ -38,6 +38,16 @@ class QueueWorkerTest {
 
     private static final String BASE = "https://test.invalid/qwt-";
 
+    private static final String ENG_TEXT =
+            "The prime minister announced a new economic policy today affecting all citizens in the country. " +
+            "Parliament approved the budget after weeks of heated debate and extensive negotiations with experts. " +
+            "These measures are expected to boost economic growth and improve living standards nationally.";
+
+    private static final String RO_TEXT =
+            "Premierul a anuntat astazi o noua politica economica importanta pentru cetatenii tarii noastre dragi. " +
+            "Parlamentul a aprobat bugetul dupa mai multe saptamani de dezbateri intense si negocieri lungi. " +
+            "Masurile sunt asteptate sa aiba un impact pozitiv semnificativ asupra economiei nationale.";
+
     private List<TagInfo>             taxonomy;
     private int                       firstCategoryId;
     private int                       secondCategoryId;
@@ -167,9 +177,7 @@ class QueueWorkerTest {
     private static PageLoader engLoader(String finalUrl) {
         return url -> new PageLoader.Result(
                 new ParseResult("Test Title", "test.invalid", null, finalUrl,
-                        "The prime minister announced a new economic policy today. " +
-                        "Parliament approved the budget after weeks of debate.",
-                        0, ""),
+                        ENG_TEXT, ENG_TEXT.length(), "article", null),
                 finalUrl);
     }
 
@@ -229,9 +237,8 @@ class QueueWorkerTest {
         int qid = insertPending(url);
 
         PageLoader roLoader = u -> new PageLoader.Result(
-                new ParseResult("Știre", "test.invalid", null, u,
-                        "Premierul a anunțat astăzi o nouă politică economică importantă pentru România.",
-                        0, ""),
+                new ParseResult("Stire", "test.invalid", null, u,
+                        RO_TEXT, RO_TEXT.length(), "article", null),
                 u);
 
         worker(isArticleClassifier(firstCategoryId), roLoader).processQueue(1);
@@ -305,7 +312,7 @@ class QueueWorkerTest {
         String isoDate = "2024-06-15T12:00:00Z"; // noon UTC — unambiguous in any JVM timezone
         PageLoader datedLoader = u -> new PageLoader.Result(
                 new ParseResult("Test", "test.invalid", isoDate, u,
-                        "The prime minister announced a new economic policy today.", 0, ""),
+                        ENG_TEXT, ENG_TEXT.length(), "article", null),
                 u);
 
         worker(isArticleClassifier(firstCategoryId), datedLoader).processQueue(1);
@@ -333,7 +340,7 @@ class QueueWorkerTest {
 
         PageLoader noDateLoader = u -> new PageLoader.Result(
                 new ParseResult("Test", "test.invalid", null, u,
-                        "The prime minister announced a new economic policy today.", 0, ""),
+                        ENG_TEXT, ENG_TEXT.length(), "article", null),
                 u);
         worker(isArticleClassifier(firstCategoryId), noDateLoader).processQueue(1);
 
@@ -370,7 +377,7 @@ class QueueWorkerTest {
         // Text matches all 3 patterns
         PageLoader kl = u -> new PageLoader.Result(
                 new ParseResult("Parliament budget vote", "test.invalid", null, u,
-                        "The prime minister announced the budget. Parliament approved it.", 0, ""),
+                        ENG_TEXT, ENG_TEXT.length(), "article", null),
                 u);
 
         QueueWorker w = new QueueWorker(
@@ -394,5 +401,53 @@ class QueueWorkerTest {
         // Cap check: with maxBonus=2, raw=5/8→63%; uncapped raw=6/9→67%; so must be ≤63
         assertTrue(firstPct <= 63,
                 "bonus must be capped at maxBonus=2 (expect ≤63%): got " + firstPct);
+    }
+
+    @Test
+    void preFilter_rootUrl_rejectsWithRootUrl() {
+        String url = BASE + "14";
+        int qid = insertPending(url);
+
+        PageLoader rootLoader = u -> new PageLoader.Result(
+                new ParseResult("Some Title", "test.invalid", null, "https://test.invalid/",
+                        ENG_TEXT, ENG_TEXT.length(), "article", null),
+                "https://test.invalid/");
+
+        worker(isArticleClassifier(firstCategoryId), rootLoader).processQueue(1);
+
+        assertEquals(QueueStatus.REJECTED, queueStatus(qid));
+        assertEquals(RejectReason.ROOT_URL, rejectReason(qid));
+    }
+
+    @Test
+    void preFilter_tooShort_rejectsWithTextTooShort() {
+        String url = BASE + "15";
+        int qid = insertPending(url);
+
+        PageLoader shortLoader = u -> new PageLoader.Result(
+                new ParseResult("Short", "test.invalid", null, u,
+                        "Too short.", 10, "fallback", null),
+                u);
+
+        worker(isArticleClassifier(firstCategoryId), shortLoader).processQueue(1);
+
+        assertEquals(QueueStatus.REJECTED, queueStatus(qid));
+        assertEquals(RejectReason.TEXT_TOO_SHORT, rejectReason(qid));
+    }
+
+    @Test
+    void preFilter_notFound_rejectsWithNotFound() {
+        String url = BASE + "16";
+        int qid = insertPending(url);
+
+        PageLoader notFoundLoader = u -> new PageLoader.Result(
+                new ParseResult("404 Page Not Found", "test.invalid", null, u,
+                        ENG_TEXT, ENG_TEXT.length(), "article", null),
+                u);
+
+        worker(isArticleClassifier(firstCategoryId), notFoundLoader).processQueue(1);
+
+        assertEquals(QueueStatus.REJECTED, queueStatus(qid));
+        assertEquals(RejectReason.NOT_FOUND, rejectReason(qid));
     }
 }

@@ -182,6 +182,19 @@ public class QueueWorker {
             return;
         }
 
+        // 1b. Pre-filter (root URL, soft-404, too-short — no Ollama call needed)
+        String skipReason = ArticlePreFilter.check(fetch.parsed(), fetch.finalUrl());
+        if (skipReason != null) {
+            RejectReason rr = switch (skipReason) {
+                case "root-url"  -> RejectReason.ROOT_URL;
+                case "not-found" -> RejectReason.NOT_FOUND;
+                default          -> RejectReason.TEXT_TOO_SHORT;
+            };
+            queueDAO.markRejected(item.id(), rr, item.lockToken());
+            log.info("[QueueWorker] q=" + item.id() + " REJECTED " + rr + " (" + skipReason + ")");
+            return;
+        }
+
         // 2. Language detection (null → not in allowed set)
         String langCode = languageDetector.detect(fetch.parsed().textForAi());
         if (langCode == null) {

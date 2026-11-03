@@ -114,4 +114,78 @@ class PageParserTest {
         ParseResult r = PageParser.parse(html, BASE_URL);
         assertEquals(2000, r.textForAi().length());
     }
+
+    @Test
+    void extractSource_pContainer_whenNoArticle() {
+        String html = """
+                <html><body>
+                  <div id="small"><p>Short text.</p></div>
+                  <div id="main">
+                    <p>First paragraph with substantial content about the topic.</p>
+                    <p>Second paragraph continuing the story with more details here.</p>
+                    <p>Third paragraph wrapping up the main points of the article.</p>
+                  </div>
+                </body></html>""";
+        ParseResult r = PageParser.parse(html, BASE_URL);
+        assertEquals("p-container", r.extractSource());
+        assertTrue(r.textForAi().contains("First paragraph"), "text must come from the best p-container");
+    }
+
+    @Test
+    void extractSource_metaOnly_whenBodyEmpty() {
+        String html = """
+                <html><head>
+                  <meta property="og:description" content="A great article about technology."/>
+                </head><body></body></html>""";
+        ParseResult r = PageParser.parse(html, BASE_URL);
+        assertEquals("meta-only", r.extractSource());
+        assertTrue(r.textForAi().contains("great article"), "text must come from og:description");
+    }
+
+    @Test
+    void extractSource_article_navAndFooterStripped() {
+        String html = """
+                <html><body>
+                  <nav><p>Nav link one</p><p>Nav link two</p></nav>
+                  <article><p>Real article body text here.</p></article>
+                  <footer><p>Footer copyright text</p></footer>
+                </body></html>""";
+        ParseResult r = PageParser.parse(html, BASE_URL);
+        assertEquals("article", r.extractSource());
+        assertFalse(r.textForAi().contains("Nav link"), "nav must be stripped");
+        assertFalse(r.textForAi().contains("Footer copyright"), "footer must be stripped");
+        assertTrue(r.textForAi().contains("Real article body"), "article body must be present");
+    }
+
+    @Test
+    void ogType_extractedFromMeta() {
+        String html = """
+                <html><head>
+                  <meta property="og:type" content="article"/>
+                </head><body></body></html>""";
+        ParseResult r = PageParser.parse(html, BASE_URL);
+        assertEquals("article", r.ogType());
+    }
+
+    @Test
+    void ogType_nullWhenAbsent() {
+        String html = "<html><head></head><body></body></html>";
+        ParseResult r = PageParser.parse(html, BASE_URL);
+        assertNull(r.ogType());
+    }
+
+    @Test
+    void textForAi_includesTitleAndMetaDescription() {
+        String html = """
+                <html><head>
+                  <title>My Article</title>
+                  <meta name="description" content="A brief summary of the article."/>
+                </head><body>
+                  <article><p>The full article body text goes here.</p></article>
+                </body></html>""";
+        ParseResult r = PageParser.parse(html, BASE_URL);
+        assertTrue(r.textForAi().contains("My Article"), "title must be included");
+        assertTrue(r.textForAi().contains("brief summary"), "meta description must be included");
+        assertTrue(r.textForAi().contains("full article body"), "body text must be included");
+    }
 }

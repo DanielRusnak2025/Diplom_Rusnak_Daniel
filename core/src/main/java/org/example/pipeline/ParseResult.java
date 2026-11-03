@@ -7,5 +7,6 @@ public record ParseResult(
         String canonicalUrl,
         String textForAi,
         int textChars,
-        String extractSource
+        String extractSource,
+        String ogType
 ) {}

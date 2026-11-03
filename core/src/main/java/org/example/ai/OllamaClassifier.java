@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 public class OllamaClassifier implements ArticleClassifier {
 
     private static final Logger LOG = Logger.getLogger(OllamaClassifier.class.getName());
-    private final AtomicInteger SUBTOPIC_MISMATCH_COUNT = new AtomicInteger();
+    private final AtomicInteger subtopicMismatchCount = new AtomicInteger();
     public static final String PROMPT_VERSION = "v1";
 
     private static final String PROMPT_TEMPLATE;
@@ -58,7 +58,7 @@ public class OllamaClassifier implements ArticleClassifier {
         this.client = client;
     }
 
-    public int subtopicMismatchCount() { return SUBTOPIC_MISMATCH_COUNT.get(); }
+    public int subtopicMismatchCount() { return subtopicMismatchCount.get(); }
 
     @Override
     public ArticleClassification classify(String text, Collection<TagInfo> taxonomy)
@@ -170,7 +170,7 @@ public class OllamaClassifier implements ArticleClassifier {
                 .findFirst();
         if (found.isPresent()) return found.get();
 
-        int count = SUBTOPIC_MISMATCH_COUNT.incrementAndGet();
+        int count = subtopicMismatchCount.incrementAndGet();
         LOG.warning("Subtopic '" + subName + "' not in category '" + cat.name()
                 + "' (total mismatches=" + count + "); substituting 'General'");
 
