@@ -1,5 +1,6 @@
 package org.example;
 
+import jakarta.persistence.Entity;
 import jakarta.persistence.*;
 
 @Entity

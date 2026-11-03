@@ -326,11 +326,21 @@ public class ModelComparisonRunner {
                 if (resp.isSuccessful() && resp.body() != null) {
                     JsonNode list = mapper.readTree(resp.body().string()).path("models");
                     if (list.isArray()) {
+                        Map<String, String> exact   = new LinkedHashMap<>();
+                        Map<String, String> fallback = new LinkedHashMap<>();
                         for (JsonNode m : list) {
-                            String name = m.path("name").asText();
-                            long size   = m.path("size").asLong(0);
-                            if (models.contains(name)) result.put(name, formatBytes(size));
+                            String apiName = m.path("name").asText();
+                            long size = m.path("size").asLong(0);
+                            for (String model : models) {
+                                if (apiName.equals(model)) {
+                                    exact.put(model, formatBytes(size));
+                                } else if (!model.contains(":") && apiName.equals(model + ":latest")) {
+                                    fallback.put(model, formatBytes(size));
+                                }
+                            }
                         }
+                        result.putAll(fallback);
+                        result.putAll(exact); // exact match wins over :latest
                     }
                 }
             }
@@ -370,7 +380,7 @@ public class ModelComparisonRunner {
     void writeCsv(List<ArticleInput> articles, Map<String, ModelRunResult> results, Path out)
             throws IOException {
         StringBuilder sb = new StringBuilder();
-        sb.append("url,domain,title,lang");
+        sb.append("url,domain,title,lang,gold_is_article,gold_category");
         for (String m : models) {
             String p = csvSafe(m);
             sb.append(',').append(p).append("_is_article");
@@ -387,7 +397,7 @@ public class ModelComparisonRunner {
             sb.append(csvField(a.url())).append(',')
               .append(csvField(a.domain())).append(',')
               .append(csvField(a.title())).append(',')
-              .append(csvField(a.lang()));
+              .append(csvField(a.lang())).append(",,"); // gold_is_article, gold_category (fill by hand)
             for (String m : models) {
                 List<CallResult> meas = results.get(m).measurements();
                 if (i < meas.size()) {
@@ -456,7 +466,7 @@ public class ModelComparisonRunner {
         Set<String> allCats = new LinkedHashSet<>();
         for (String m : models) {
             results.get(m).measurements().stream()
-                    .filter(r -> !r.parseError() && r.mainCategory() != null)
+                    .filter(r -> !r.parseError() && r.isArticle() && r.mainCategory() != null)
                     .map(CallResult::mainCategory)
                     .forEach(allCats::add);
         }
@@ -470,7 +480,8 @@ public class ModelComparisonRunner {
                 sb.append("| ").append(cat).append(" |");
                 for (String m : models) {
                     long n = results.get(m).measurements().stream()
-                            .filter(r -> cat.equals(r.mainCategory())).count();
+                            .filter(r -> !r.parseError() && r.isArticle() && cat.equals(r.mainCategory()))
+                            .count();
                     sb.append(' ').append(n).append(" |");
                 }
                 sb.append('\n');
@@ -486,9 +497,9 @@ public class ModelComparisonRunner {
             for (int i = 0; i < models.size(); i++) {
                 for (int j = i + 1; j < models.size(); j++) {
                     String m1 = models.get(i), m2 = models.get(j);
-                    int[] ag = pairwiseAgreement(results.get(m1), results.get(m2));
+                    String[] ag = pairwiseAgreement(results.get(m1), results.get(m2));
                     sb.append("| ").append(m1).append(" vs ").append(m2).append(" | ")
-                      .append(ag[1]).append("% | ").append(ag[0]).append("% |\n");
+                      .append(ag[0]).append(" | ").append(ag[1]).append(" |\n");
                 }
             }
             sb.append('\n');
@@ -584,22 +595,29 @@ public class ModelComparisonRunner {
         return lat.get(idx);
     }
 
-    /** Returns [catMatchPct, articleMatchPct] as 0–100 integers. */
-    private int[] pairwiseAgreement(ModelRunResult r1, ModelRunResult r2) {
-        int compared = 0, catMatch = 0, artMatch = 0;
+    /** Returns [isArticleMatchFormatted, catMatchFormatted] e.g. ["100% (4/4)", "50% (1/2)"]. */
+    private String[] pairwiseAgreement(ModelRunResult r1, ModelRunResult r2) {
+        int artTotal = 0, artMatch = 0;
+        int catTotal = 0, catMatch = 0;
         int n = Math.min(r1.measurements().size(), r2.measurements().size());
         for (int i = 0; i < n; i++) {
             CallResult c1 = r1.measurements().get(i);
             CallResult c2 = r2.measurements().get(i);
             if (!c1.parseError() && !c2.parseError()) {
-                compared++;
+                artTotal++;
                 if (c1.isArticle() == c2.isArticle()) artMatch++;
-                if (c1.mainCategory() != null && c1.mainCategory().equals(c2.mainCategory()))
-                    catMatch++;
+                if (c1.isArticle() && c2.isArticle()) {
+                    catTotal++;
+                    if (c1.mainCategory() != null && c1.mainCategory().equals(c2.mainCategory()))
+                        catMatch++;
+                }
             }
         }
-        if (compared == 0) return new int[]{0, 0};
-        return new int[]{catMatch * 100 / compared, artMatch * 100 / compared};
+        String artStr = artTotal == 0 ? "n/a"
+                : (artMatch * 100 / artTotal) + "% (" + artMatch + "/" + artTotal + ")";
+        String catStr = catTotal == 0 ? "n/a"
+                : (catMatch * 100 / catTotal) + "% (" + catMatch + "/" + catTotal + ")";
+        return new String[]{artStr, catStr};
     }
 
     // ── Utilities ─────────────────────────────────────────────────────────────

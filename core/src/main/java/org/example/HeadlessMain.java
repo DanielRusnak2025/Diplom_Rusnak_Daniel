@@ -2,6 +2,7 @@ package org.example;
 
 import org.example.ai.OllamaClassifier;
 import org.example.email.EmailConfig;
+import org.example.pipeline.BenchmarkScorer;
 import org.example.pipeline.ModelComparisonRunner;
 import org.example.pipeline.PageFetcherLoader;
 import org.example.pipeline.QueueWorker;
@@ -25,6 +26,19 @@ public class HeadlessMain {
     private static final Logger log = LoggerFactory.getLogger(HeadlessMain.class);
 
     public static void main(String[] args) {
+        // --score-benchmark needs no DB — handle before Flyway/Hibernate init
+        String scoreCsvArg = parseScoreBenchmark(args);
+        if (scoreCsvArg != null) {
+            try {
+                BenchmarkScorer.appendToReport(Path.of(scoreCsvArg));
+                log.info("[score-benchmark] Done.");
+            } catch (Exception e) {
+                log.error("[score-benchmark] failed: {}", e.getMessage(), e);
+                System.exit(1);
+            }
+            System.exit(0);
+        }
+
         boolean migrateMode = Arrays.asList(args).contains("--migrate");
         int processQueueCount = parseProcessQueue(args);
         List<String> compareModels = parseCompareModels(args);
@@ -108,8 +122,9 @@ public class HeadlessMain {
         if (!compareModels.isEmpty()) {
             log.info("[compare-models] models={} limit={}", compareModels, compareLimit);
             try {
+                String benchDir = System.getProperty("newsdove.benchmark.dir", "docs/benchmarks");
                 new ModelComparisonRunner(compareModels, compareLimit)
-                        .run(Path.of("docs/benchmarks"));
+                        .run(Path.of(benchDir));
             } catch (Exception e) {
                 log.error("[compare-models] failed: {}", e.getMessage(), e);
                 System.exit(1);
@@ -166,5 +181,16 @@ public class HeadlessMain {
             }
         }
         return 0; // 0 = no limit (load all PENDING URLs)
+    }
+
+    /** Parses {@code --score-benchmark <csv>} → path string, or null if absent. */
+    private static String parseScoreBenchmark(String[] args) {
+        for (int i = 0; i < args.length - 1; i++) {
+            if ("--score-benchmark".equals(args[i])) {
+                String v = args[i + 1].trim();
+                if (!v.isEmpty()) return v;
+            }
+        }
+        return null;
     }
 }
