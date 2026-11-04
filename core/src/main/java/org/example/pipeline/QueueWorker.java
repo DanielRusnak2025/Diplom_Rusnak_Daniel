@@ -40,6 +40,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.logging.Logger;
 
 public class QueueWorker {
@@ -81,6 +82,7 @@ public class QueueWorker {
     // language-code → (category_id → keyword patterns from all subtopics of that category)
     private final Map<String, Map<Integer, List<String>>> keywordsByLang;
     private final int                                   maxBonus;
+    private final Set<String>                           newsletterHosts;
 
     // ── Production constructor ────────────────────────────────────────────────
 
@@ -95,7 +97,8 @@ public class QueueWorker {
             AiConfig.getKeywordBonusMax(),
             AiConfig.getOllamaModel(),
             OllamaClassifier.PROMPT_VERSION,
-            new ArticleLanguageDetector(AiConfig.getLanguagesAllowed())
+            new ArticleLanguageDetector(AiConfig.getLanguagesAllowed()),
+            AiConfig.getNewsletterHosts()
         );
     }
 
@@ -112,7 +115,8 @@ public class QueueWorker {
             int maxBonus,
             String classifierModel,
             String promptVersion,
-            ArticleLanguageDetector languageDetector) {
+            ArticleLanguageDetector languageDetector,
+            Set<String> newsletterHosts) {
         this.classifier       = classifier;
         this.pageLoader       = pageLoader;
         this.queueDAO         = queueDAO;
@@ -124,6 +128,7 @@ public class QueueWorker {
         this.promptVersion    = promptVersion;
         this.languageDetector = languageDetector;
         this.maxBonus         = maxBonus;
+        this.newsletterHosts  = Set.copyOf(newsletterHosts);
 
         Map<String, Map<Integer, List<String>>> copy = new HashMap<>();
         for (Map.Entry<String, Map<Integer, List<String>>> e : keywordsByLang.entrySet()) {
@@ -182,13 +187,14 @@ public class QueueWorker {
             return;
         }
 
-        // 1b. Pre-filter (root URL, soft-404, too-short — no Ollama call needed)
-        String skipReason = ArticlePreFilter.check(fetch.parsed(), fetch.finalUrl(), fetch.httpStatus());
+        // 1b. Pre-filter (newsletter host, root URL, soft-404, too-short — no Ollama call needed)
+        String skipReason = ArticlePreFilter.check(fetch.parsed(), fetch.finalUrl(), fetch.httpStatus(), newsletterHosts);
         if (skipReason != null) {
             RejectReason rr = switch (skipReason) {
-                case "root-url"  -> RejectReason.ROOT_URL;
-                case "not-found" -> RejectReason.NOT_FOUND;
-                default          -> RejectReason.TEXT_TOO_SHORT;
+                case "root-url"        -> RejectReason.ROOT_URL;
+                case "not-found"       -> RejectReason.NOT_FOUND;
+                case "newsletter-host" -> RejectReason.NEWSLETTER_HOST;
+                default                -> RejectReason.TEXT_TOO_SHORT;
             };
             queueDAO.markRejected(item.id(), rr, item.lockToken());
             log.info("[QueueWorker] q=" + item.id() + " REJECTED " + rr + " (" + skipReason + ")");

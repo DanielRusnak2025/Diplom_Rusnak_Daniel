@@ -4,6 +4,7 @@ import org.example.util.UrlNormalizer;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Set;
 import java.util.logging.Logger;
 
 public final class ArticlePreFilter {
@@ -19,6 +20,20 @@ public final class ArticlePreFilter {
      * @return null if the article should be classified normally; a skip-reason string otherwise
      */
     public static String check(ParseResult parsed, String finalUrl, int httpStatus) {
+        return check(parsed, finalUrl, httpStatus, Set.of());
+    }
+
+    /**
+     * Checks whether the article should be skipped before AI classification.
+     * @param newsletterHosts suffix-match list of newsletter hosts to block
+     * @return null if the article should be classified normally; a skip-reason string otherwise
+     */
+    public static String check(ParseResult parsed, String finalUrl, int httpStatus,
+                                Set<String> newsletterHosts) {
+        if (!newsletterHosts.isEmpty() && matchesNewsletterHost(finalUrl, newsletterHosts)) {
+            return "newsletter-host";
+        }
+
         String path = extractPath(finalUrl);
         if (path.isEmpty() || path.equals("/")) {
             // Allow URLs like "/?id=123" — non-tracking query params indicate a real article page.
@@ -48,6 +63,18 @@ public final class ArticlePreFilter {
         }
 
         return null;
+    }
+
+    private static boolean matchesNewsletterHost(String finalUrl, Set<String> newsletterHosts) {
+        try {
+            String host = new URI(finalUrl).getHost();
+            if (host == null) return false;
+            host = host.toLowerCase();
+            for (String suffix : newsletterHosts) {
+                if (host.equals(suffix) || host.endsWith("." + suffix)) return true;
+            }
+        } catch (URISyntaxException ignored) {}
+        return false;
     }
 
     private static String extractPath(String url) {

@@ -204,6 +204,14 @@ class PageParserTest {
     }
 
     @Test
+    void textForAi_urlPrependedAsFirstLine() {
+        String html = "<html><body><article><p>Article text here.</p></article></body></html>";
+        ParseResult r = PageParser.parse(html, BASE_URL);
+        assertTrue(r.textForAi().startsWith("URL: " + BASE_URL),
+                "text-for-AI must start with 'URL: <finalUrl>'");
+    }
+
+    @Test
     void textForAi_includesTitleAndMetaDescription() {
         String html = """
                 <html><head>

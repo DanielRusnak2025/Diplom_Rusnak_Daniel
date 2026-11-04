@@ -65,6 +65,17 @@ public class AiConfig {
         return java.util.Collections.unmodifiableSet(result);
     }
 
+    public static java.util.Set<String> getNewsletterHosts() {
+        String raw = props.getProperty("prefilter.newsletter_hosts", "");
+        if (raw.isBlank()) return java.util.Collections.emptySet();
+        java.util.Set<String> result = new java.util.LinkedHashSet<>();
+        for (String host : raw.split(",")) {
+            String trimmed = host.trim().toLowerCase();
+            if (!trimmed.isEmpty()) result.add(trimmed);
+        }
+        return java.util.Collections.unmodifiableSet(result);
+    }
+
     private static int intProp(String key, int defaultValue) {
         try {
             return Integer.parseInt(props.getProperty(key, String.valueOf(defaultValue)));

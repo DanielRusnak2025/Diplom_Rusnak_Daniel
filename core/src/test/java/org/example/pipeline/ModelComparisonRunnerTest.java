@@ -105,8 +105,14 @@ class ModelComparisonRunnerTest {
                 TAXONOMY, ollamaUrl(), client);
     }
 
-    private String today() {
-        return java.time.LocalDate.now().toString();
+    private Path findReportFile(String ext) throws IOException {
+        try (var s = Files.list(outDir)) {
+            return s.filter(p -> {
+                String n = p.getFileName().toString();
+                return n.startsWith("model-comparison-") && n.endsWith("." + ext);
+            }).findFirst().orElseThrow(() -> new IOException(
+                    "No model-comparison-*." + ext + " file found in " + outDir));
+        }
     }
 
     // ── Tests ─────────────────────────────────────────────────────────────────
@@ -120,10 +126,23 @@ class ModelComparisonRunnerTest {
 
         runner(List.of("test-model"), urls, stubLoader(PARSE_RESULT)).run(outDir);
 
-        assertTrue(Files.exists(outDir.resolve("model-comparison-" + today() + ".md")),
-                "Markdown report must be created");
-        assertTrue(Files.exists(outDir.resolve("model-comparison-" + today() + ".csv")),
-                "CSV report must be created");
+        assertTrue(Files.exists(findReportFile("md")), "Markdown report must be created");
+        assertTrue(Files.exists(findReportFile("csv")), "CSV report must be created");
+    }
+
+    @Test
+    void run_fileNameContainsDateTimeAndPromptVersion() throws IOException {
+        List<String> urls = List.of("https://a.invalid/1");
+        server.enqueue(ollamaResponse(true, "Technology")); // warmup
+        server.enqueue(ollamaResponse(true, "Technology")); // bench
+
+        runner(List.of("test-model"), urls, stubLoader(PARSE_RESULT)).run(outDir);
+
+        Path md = findReportFile("md");
+        String name = md.getFileName().toString();
+        assertTrue(
+            name.matches("model-comparison-\\d{4}-\\d{2}-\\d{2}-\\d{4}-v\\d+\\.md"),
+            "filename must be model-comparison-<date>-<HHmm>-<promptVersion>.md, got: " + name);
     }
 
     @Test
@@ -138,7 +157,7 @@ class ModelComparisonRunnerTest {
 
         runner(List.of("test-model"), urls, stubLoader(PARSE_RESULT)).run(outDir);
 
-        String csv = Files.readString(outDir.resolve("model-comparison-" + today() + ".csv"));
+        String csv = Files.readString(findReportFile("csv"));
         // Both URLs must appear as data rows
         long dataRows = csv.lines().filter(l -> l.startsWith("https://")).count();
         assertEquals(2, dataRows,
@@ -156,7 +175,7 @@ class ModelComparisonRunnerTest {
 
         runner(List.of("test-model"), urls, stubLoader(PARSE_RESULT)).run(outDir);
 
-        String md = Files.readString(outDir.resolve("model-comparison-" + today() + ".md"));
+        String md = Files.readString(findReportFile("md"));
         assertTrue(md.contains("think=false supported"), "MD must have think=false row");
         // think fallback during warmup propagates: model marked as not supporting think
         assertTrue(md.contains("| no |") || md.contains("| no|") || md.contains("|no |"),
@@ -171,7 +190,7 @@ class ModelComparisonRunnerTest {
 
         runner(List.of("modelA", "modelB"), urls, stubLoader(PARSE_RESULT)).run(outDir);
 
-        String header = Files.readString(outDir.resolve("model-comparison-" + today() + ".csv"))
+        String header = Files.readString(findReportFile("csv"))
                 .lines().findFirst().orElse("");
         assertTrue(header.contains("modelA_is_article"),    "CSV must have modelA_is_article");
         assertTrue(header.contains("modelB_is_article"),    "CSV must have modelB_is_article");
@@ -188,7 +207,7 @@ class ModelComparisonRunnerTest {
 
         runner(List.of("test-model"), urls, stubLoader(PARSE_RESULT)).run(outDir);
 
-        String md = Files.readString(outDir.resolve("model-comparison-" + today() + ".md"));
+        String md = Files.readString(findReportFile("md"));
         assertTrue(md.contains("## Configuration"),         "MD must have Configuration section");
         assertTrue(md.contains("## Statistics per model"),  "MD must have Statistics section");
         assertTrue(md.contains("## Category distribution"), "MD must have Category distribution");
@@ -204,7 +223,7 @@ class ModelComparisonRunnerTest {
 
         runner(List.of("m"), urls, stubLoader(PARSE_RESULT)).run(outDir);
 
-        String md = Files.readString(outDir.resolve("model-comparison-" + today() + ".md"));
+        String md = Files.readString(findReportFile("md"));
         assertTrue(md.contains("% invalid (1st attempt)"), "MD must have 1st-attempt invalid rate");
         assertTrue(md.contains("% invalid (after retry)"), "MD must have after-retry invalid rate");
         assertTrue(md.contains("% timeouts"),              "MD must have timeout rate");
@@ -223,13 +242,15 @@ class ModelComparisonRunnerTest {
     }
 
     @Test
-    void ssrfBlocked_urlsSkipped_runAbortsCleanly() {
+    void ssrfBlocked_urlsSkipped_runAbortsCleanly() throws IOException {
         // SSRF blocks all pages → no articles fetched → run aborts before writing output
         assertDoesNotThrow(() ->
                 runner(List.of("m"), List.of("https://a.invalid/1"),
                         ssrfLoader()).run(outDir));
-        assertFalse(Files.exists(outDir.resolve("model-comparison-" + today() + ".md")),
-                "No MD file when all pages fail SSRF check");
+        try (var s = Files.list(outDir)) {
+            assertFalse(s.anyMatch(p -> p.getFileName().toString().startsWith("model-comparison-")),
+                    "No report file when all pages fail SSRF check");
+        }
     }
 
     @Test
@@ -249,7 +270,7 @@ class ModelComparisonRunnerTest {
 
         runner(List.of("t"), urls, stubLoader(PARSE_RESULT)).run(outDir);
 
-        String md = Files.readString(outDir.resolve("model-comparison-" + today() + ".md"));
+        String md = Files.readString(findReportFile("md"));
         assertTrue(md.contains("ERROR"), "Parse error must appear as ERROR in per-article table");
     }
 
@@ -267,7 +288,7 @@ class ModelComparisonRunnerTest {
 
         runner(List.of("t"), urls, stubLoader(PARSE_RESULT)).run(outDir);
 
-        String md = Files.readString(outDir.resolve("model-comparison-" + today() + ".md"));
+        String md = Files.readString(findReportFile("md"));
         // "% invalid (1st attempt)" must be > 0 (retry was needed), "after retry" = 0
         assertTrue(md.contains("% invalid (1st attempt)"), "stats must show 1st-attempt rate");
         // Article should appear in results (retry succeeded)
@@ -290,7 +311,7 @@ class ModelComparisonRunnerTest {
 
         runner(List.of("m"), urls, stubLoader(special)).run(outDir);
 
-        String csv = Files.readString(outDir.resolve("model-comparison-" + today() + ".csv"));
+        String csv = Files.readString(findReportFile("csv"));
         assertTrue(csv.contains("\"Title with, comma and \"\"quote\"\"\""),
                 "CSV fields with commas/quotes must be RFC 4180 escaped");
     }

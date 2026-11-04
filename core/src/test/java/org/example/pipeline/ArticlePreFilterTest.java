@@ -2,6 +2,8 @@ package org.example.pipeline;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Set;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class ArticlePreFilterTest {
@@ -132,5 +134,40 @@ class ArticlePreFilterTest {
         assertNull(ArticlePreFilter.check(
                 pr("Real Article", LONG_TEXT, LONG_TEXT.length(), null),
                 "https://example.com/?id=123", 200));
+    }
+
+    @Test
+    void newsletterHost_exactMatch_returnsNewsletterHost() {
+        assertEquals("newsletter-host",
+                ArticlePreFilter.check(
+                        pr("Newsletter", LONG_TEXT, LONG_TEXT.length(), null),
+                        "https://mailchi.mp/abc/issue-42", 200,
+                        Set.of("mailchi.mp")));
+    }
+
+    @Test
+    void newsletterHost_subdomainMatch_returnsNewsletterHost() {
+        // us18.campaign-archive.com ends with ".campaign-archive.com"
+        assertEquals("newsletter-host",
+                ArticlePreFilter.check(
+                        pr("Newsletter", LONG_TEXT, LONG_TEXT.length(), null),
+                        "https://us18.campaign-archive.com/some-path", 200,
+                        Set.of("campaign-archive.com")));
+    }
+
+    @Test
+    void newsletterHost_emptySet_allowsThrough() {
+        // No newsletter hosts configured → 3-arg overload → allowed through
+        assertNull(ArticlePreFilter.check(
+                pr("Real Article", LONG_TEXT, LONG_TEXT.length(), null),
+                "https://mailchi.mp/abc/issue-42", 200));
+    }
+
+    @Test
+    void newsletterHost_nonMatchingHost_allowsThrough() {
+        assertNull(ArticlePreFilter.check(
+                pr("Real Article", LONG_TEXT, LONG_TEXT.length(), null),
+                "https://www.reuters.com/article/123", 200,
+                Set.of("mailchi.mp", "campaign-archive.com")));
     }
 }

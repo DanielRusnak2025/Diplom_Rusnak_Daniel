@@ -18,6 +18,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
@@ -44,7 +46,7 @@ public class ModelComparisonRunner {
     // ── Internal data types ───────────────────────────────────────────────────
 
     record ArticleInput(String url, String title, String domain, String lang, String text,
-                        int textChars, String extractSource, String skipReason) {}
+                        int textChars, String extractSource, String skipReason, String ogType) {}
 
     /**
      * Result of a single model call.
@@ -77,6 +79,7 @@ public class ModelComparisonRunner {
     private final String ollamaUrl;
     private final OkHttpClient httpClient;
     private final boolean skipMetadata; // true in test constructor (skips /api/version + /api/tags)
+    private final java.util.Set<String> newsletterHosts;
     private final ObjectMapper mapper = new ObjectMapper();
     private static final MediaType JSON_TYPE = MediaType.get("application/json; charset=utf-8");
 
@@ -93,7 +96,8 @@ public class ModelComparisonRunner {
                         .connectTimeout(30, TimeUnit.SECONDS)
                         .readTimeout(AiConfig.getBenchmarkTimeoutSeconds(), TimeUnit.SECONDS)
                         .build(),
-                false);
+                false,
+                AiConfig.getNewsletterHosts());
     }
 
     /** Test constructor — injectable components, no DB access, no metadata fetches. */
@@ -101,22 +105,24 @@ public class ModelComparisonRunner {
                           PageLoader pageLoader, ArticleLanguageDetector langDetector,
                           List<TagInfo> taxonomy, String ollamaUrl, OkHttpClient httpClient) {
         this(models, testUrls.size(), testUrls, pageLoader, langDetector,
-                taxonomy, ollamaUrl, httpClient, true);
+                taxonomy, ollamaUrl, httpClient, true, java.util.Set.of());
     }
 
     private ModelComparisonRunner(List<String> models, int limit, List<String> testUrls,
                                    PageLoader pageLoader, ArticleLanguageDetector langDetector,
                                    List<TagInfo> taxonomy, String ollamaUrl,
-                                   OkHttpClient httpClient, boolean skipMetadata) {
-        this.models       = models;
-        this.limit        = limit;
-        this.testUrls     = testUrls;
-        this.pageLoader   = pageLoader;
-        this.langDetector = langDetector;
-        this.taxonomy     = taxonomy;
-        this.ollamaUrl    = ollamaUrl;
-        this.httpClient   = httpClient;
-        this.skipMetadata = skipMetadata;
+                                   OkHttpClient httpClient, boolean skipMetadata,
+                                   java.util.Set<String> newsletterHosts) {
+        this.models           = models;
+        this.limit            = limit;
+        this.testUrls         = testUrls;
+        this.pageLoader       = pageLoader;
+        this.langDetector     = langDetector;
+        this.taxonomy         = taxonomy;
+        this.ollamaUrl        = ollamaUrl;
+        this.httpClient       = httpClient;
+        this.skipMetadata     = skipMetadata;
+        this.newsletterHosts  = newsletterHosts;
     }
 
     // ── Entry point ───────────────────────────────────────────────────────────
@@ -193,8 +199,10 @@ public class ModelComparisonRunner {
         // Write output
         Files.createDirectories(outputDir);
         String date = LocalDate.now().toString();
-        Path csvPath = outputDir.resolve("model-comparison-" + date + ".csv");
-        Path mdPath  = outputDir.resolve("model-comparison-" + date + ".md");
+        String time = LocalTime.now().format(DateTimeFormatter.ofPattern("HHmm"));
+        String stem = "model-comparison-" + date + "-" + time + "-" + OllamaClassifier.PROMPT_VERSION;
+        Path csvPath = outputDir.resolve(stem + ".csv");
+        Path mdPath  = outputDir.resolve(stem + ".md");
         writeCsv(benchArticles, results, csvPath);
         writeMd(benchArticles, results, mdPath, urls.size(), fetchFailed, ollamaVersion, modelSizes);
         log.info("[compare-models] Report: " + mdPath);
@@ -388,12 +396,13 @@ public class ModelComparisonRunner {
                     log.info("[compare-models] dedup by redirect: " + url + " → " + res.finalUrl());
                     continue;
                 }
-                String skipReason = ArticlePreFilter.check(res.parsed(), res.finalUrl(), res.httpStatus());
+                String skipReason = ArticlePreFilter.check(res.parsed(), res.finalUrl(), res.httpStatus(), newsletterHosts);
                 String lang   = langDetector.detect(res.parsed().textForAi());
                 String domain = extractDomain(url);
                 result.add(new ArticleInput(url, res.parsed().title(), domain, lang,
                         res.parsed().textForAi(),
-                        res.parsed().textChars(), res.parsed().extractSource(), skipReason));
+                        res.parsed().textChars(), res.parsed().extractSource(), skipReason,
+                        res.parsed().ogType()));
             } catch (PageLoader.SsrfViolationException e) {
                 log.warning("[compare-models] SSRF blocked: " + url);
             }
@@ -406,7 +415,7 @@ public class ModelComparisonRunner {
     void writeCsv(List<ArticleInput> articles, Map<String, ModelRunResult> results, Path out)
             throws IOException {
         StringBuilder sb = new StringBuilder();
-        sb.append("url,domain,title,lang,text_chars,extract_source,skip_reason,gold_is_article,gold_category");
+        sb.append("url,domain,title,lang,text_chars,extract_source,skip_reason,og_type,gold_is_article,gold_category");
         for (String m : models) {
             String p = csvSafe(m);
             sb.append(',').append(p).append("_is_article");
@@ -426,7 +435,8 @@ public class ModelComparisonRunner {
               .append(csvField(a.lang())).append(',')
               .append(a.textChars()).append(',')
               .append(csvField(a.extractSource())).append(',')
-              .append(csvField(a.skipReason())).append(",,"); // gold_is_article, gold_category (fill by hand)
+              .append(csvField(a.skipReason())).append(',')
+              .append(csvField(a.ogType())).append(",,"); // gold_is_article, gold_category (fill by hand)
             for (String m : models) {
                 List<CallResult> meas = results.get(m).measurements();
                 if (i < meas.size()) {
@@ -545,9 +555,9 @@ public class ModelComparisonRunner {
 
         // ── Per-article results ───────────────────────────────────────────────
         sb.append("## Per-article results\n\n");
-        sb.append("| Domain | Title | Lang | text_chars | extract_source | skip_reason |");
+        sb.append("| Domain | Title | Lang | text_chars | extract_source | skip_reason | og_type |");
         for (String m : models) sb.append(' ').append(m).append(" |");
-        sb.append("\n|---|---|---|---|---|---|");
+        sb.append("\n|---|---|---|---|---|---|---|");
         for (int i = 0; i < models.size(); i++) sb.append("---|");
         sb.append('\n');
         for (int i = 0; i < articles.size(); i++) {
@@ -557,7 +567,8 @@ public class ModelComparisonRunner {
               .append(" | ").append(mdCell(a.lang()))
               .append(" | ").append(a.textChars())
               .append(" | ").append(mdCell(a.extractSource()))
-              .append(" | ").append(mdCell(a.skipReason())).append(" |");
+              .append(" | ").append(mdCell(a.skipReason()))
+              .append(" | ").append(mdCell(a.ogType())).append(" |");
             for (String m : models) {
                 List<CallResult> meas = results.get(m).measurements();
                 if (i < meas.size()) {

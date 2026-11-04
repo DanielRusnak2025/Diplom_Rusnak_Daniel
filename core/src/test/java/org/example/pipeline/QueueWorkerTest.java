@@ -171,7 +171,7 @@ class QueueWorkerTest {
                 new EntityMatcher(List.of()),
                 taxonomy, Map.of(), 2,
                 "stub-model", "v0",
-                langDetectorEnOnly);
+                langDetectorEnOnly, Set.of());
     }
 
     private static PageLoader engLoader(String finalUrl) {
@@ -385,7 +385,7 @@ class QueueWorkerTest {
                 new ArticleQueueDAOImpl(), articleDAO,
                 new EntityMatcher(List.of()),
                 taxonomy, kw, 2,
-                "stub-model", "v0", langDetectorEnOnly);
+                "stub-model", "v0", langDetectorEnOnly, Set.of());
 
         w.processQueue(1);
 
@@ -449,5 +449,30 @@ class QueueWorkerTest {
 
         assertEquals(QueueStatus.REJECTED, queueStatus(qid));
         assertEquals(RejectReason.NOT_FOUND, rejectReason(qid));
+    }
+
+    @Test
+    void preFilter_newsletterHost_rejectsWithNewsletterHost() {
+        String url = BASE + "17";
+        int qid = insertPending(url);
+
+        String finalUrl = "https://campaign-archive.com/newsletter-page";
+        PageLoader newsletterLoader = u -> new PageLoader.Result(
+                new ParseResult("Newsletter Title", "campaign-archive.com", null, finalUrl,
+                        ENG_TEXT, ENG_TEXT.length(), "article", null),
+                finalUrl, 200);
+
+        QueueWorker w = new QueueWorker(
+                isArticleClassifier(firstCategoryId), newsletterLoader,
+                new ArticleQueueDAOImpl(), articleDAO,
+                new EntityMatcher(List.of()),
+                taxonomy, Map.of(), 2,
+                "stub-model", "v0", langDetectorEnOnly,
+                Set.of("campaign-archive.com"));
+
+        w.processQueue(1);
+
+        assertEquals(QueueStatus.REJECTED, queueStatus(qid));
+        assertEquals(RejectReason.NEWSLETTER_HOST, rejectReason(qid));
     }
 }
