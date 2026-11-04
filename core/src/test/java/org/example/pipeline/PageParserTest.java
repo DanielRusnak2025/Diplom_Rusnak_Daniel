@@ -132,6 +132,35 @@ class PageParserTest {
     }
 
     @Test
+    void findBestPContainer_usesDirectChildrenOnly_outerWrapperDoesNotWin() {
+        // Outer wrapper has 0 direct-child <p> — only nested divs.
+        // main-div: 3 long direct-child <p> (~50 chars each) → highest direct-child score.
+        // sidebar-div: 5 short direct-child <p> (~10 chars each) → lower direct-child score.
+        // Expected: main-div wins; sidebar text must NOT appear in output.
+        String mainPara = "This is a substantial paragraph from the main article content area here.";
+        String html = "<html><body>" +
+                "<div id=\"outer\">" +
+                "  <div id=\"main\">" +
+                "    <p>" + mainPara + " One.</p>" +
+                "    <p>" + mainPara + " Two.</p>" +
+                "    <p>" + mainPara + " Three.</p>" +
+                "  </div>" +
+                "  <div id=\"sidebar\">" +
+                "    <p>Related 1</p>" +
+                "    <p>Related 2</p>" +
+                "    <p>Related 3</p>" +
+                "    <p>Related 4</p>" +
+                "    <p>Related 5</p>" +
+                "  </div>" +
+                "</div>" +
+                "</body></html>";
+        ParseResult r = PageParser.parse(html, BASE_URL);
+        assertEquals("p-container", r.extractSource());
+        assertTrue(r.textForAi().contains(mainPara), "main article text must be present");
+        assertFalse(r.textForAi().contains("Related 1"), "sidebar text must NOT appear");
+    }
+
+    @Test
     void extractSource_metaOnly_whenBodyEmpty() {
         String html = """
                 <html><head>

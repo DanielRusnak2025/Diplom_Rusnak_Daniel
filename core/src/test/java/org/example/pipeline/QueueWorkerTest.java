@@ -178,7 +178,7 @@ class QueueWorkerTest {
         return url -> new PageLoader.Result(
                 new ParseResult("Test Title", "test.invalid", null, finalUrl,
                         ENG_TEXT, ENG_TEXT.length(), "article", null),
-                finalUrl);
+                finalUrl, 200);
     }
 
     private static org.example.ai.ArticleClassifier isArticleClassifier(int categoryId) {
@@ -239,7 +239,7 @@ class QueueWorkerTest {
         PageLoader roLoader = u -> new PageLoader.Result(
                 new ParseResult("Stire", "test.invalid", null, u,
                         RO_TEXT, RO_TEXT.length(), "article", null),
-                u);
+                u, 200);
 
         worker(isArticleClassifier(firstCategoryId), roLoader).processQueue(1);
 
@@ -313,7 +313,7 @@ class QueueWorkerTest {
         PageLoader datedLoader = u -> new PageLoader.Result(
                 new ParseResult("Test", "test.invalid", isoDate, u,
                         ENG_TEXT, ENG_TEXT.length(), "article", null),
-                u);
+                u, 200);
 
         worker(isArticleClassifier(firstCategoryId), datedLoader).processQueue(1);
 
@@ -341,7 +341,7 @@ class QueueWorkerTest {
         PageLoader noDateLoader = u -> new PageLoader.Result(
                 new ParseResult("Test", "test.invalid", null, u,
                         ENG_TEXT, ENG_TEXT.length(), "article", null),
-                u);
+                u, 200);
         worker(isArticleClassifier(firstCategoryId), noDateLoader).processQueue(1);
 
         Integer articleId = queueArticleId(qid);
@@ -378,7 +378,7 @@ class QueueWorkerTest {
         PageLoader kl = u -> new PageLoader.Result(
                 new ParseResult("Parliament budget vote", "test.invalid", null, u,
                         ENG_TEXT, ENG_TEXT.length(), "article", null),
-                u);
+                u, 200);
 
         QueueWorker w = new QueueWorker(
                 bothCats, kl,
@@ -411,7 +411,7 @@ class QueueWorkerTest {
         PageLoader rootLoader = u -> new PageLoader.Result(
                 new ParseResult("Some Title", "test.invalid", null, "https://test.invalid/",
                         ENG_TEXT, ENG_TEXT.length(), "article", null),
-                "https://test.invalid/");
+                "https://test.invalid/", 200);
 
         worker(isArticleClassifier(firstCategoryId), rootLoader).processQueue(1);
 
@@ -427,7 +427,7 @@ class QueueWorkerTest {
         PageLoader shortLoader = u -> new PageLoader.Result(
                 new ParseResult("Short", "test.invalid", null, u,
                         "Too short.", 10, "fallback", null),
-                u);
+                u, 200);
 
         worker(isArticleClassifier(firstCategoryId), shortLoader).processQueue(1);
 
@@ -443,7 +443,7 @@ class QueueWorkerTest {
         PageLoader notFoundLoader = u -> new PageLoader.Result(
                 new ParseResult("404 Page Not Found", "test.invalid", null, u,
                         ENG_TEXT, ENG_TEXT.length(), "article", null),
-                u);
+                u, 200);
 
         worker(isArticleClassifier(firstCategoryId), notFoundLoader).processQueue(1);
 

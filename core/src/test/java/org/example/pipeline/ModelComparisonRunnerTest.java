@@ -72,7 +72,7 @@ class ModelComparisonRunnerTest {
     }
 
     private PageLoader stubLoader(ParseResult result) {
-        return url -> (result == null ? null : new PageLoader.Result(result, url));
+        return url -> (result == null ? null : new PageLoader.Result(result, url, 200));
     }
 
     private PageLoader ssrfLoader() {

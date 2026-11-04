@@ -28,7 +28,7 @@ public class PageFetcherLoader implements PageLoader {
         try {
             FetchResult fr = fetcher.fetch(url);
             ParseResult parsed = PageParser.parse(fr.html(), fr.finalUrl());
-            return new Result(parsed, fr.finalUrl());
+            return new Result(parsed, fr.finalUrl(), fr.httpStatus());
         } catch (PageFetcher.SsrfException e) {
             throw new SsrfViolationException(e.getMessage());
         } catch (IOException e) {

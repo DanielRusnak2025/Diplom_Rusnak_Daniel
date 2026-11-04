@@ -183,7 +183,7 @@ public class QueueWorker {
         }
 
         // 1b. Pre-filter (root URL, soft-404, too-short — no Ollama call needed)
-        String skipReason = ArticlePreFilter.check(fetch.parsed(), fetch.finalUrl());
+        String skipReason = ArticlePreFilter.check(fetch.parsed(), fetch.finalUrl(), fetch.httpStatus());
         if (skipReason != null) {
             RejectReason rr = switch (skipReason) {
                 case "root-url"  -> RejectReason.ROOT_URL;

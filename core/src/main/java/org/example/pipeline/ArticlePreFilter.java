@@ -13,16 +13,25 @@ public final class ArticlePreFilter {
 
     /**
      * Checks whether the article should be skipped before AI classification.
+     * @param httpStatus HTTP status returned by the server (0 if unknown)
      * @return null if the article should be classified normally; a skip-reason string otherwise
      */
-    public static String check(ParseResult parsed, String finalUrl) {
+    public static String check(ParseResult parsed, String finalUrl, int httpStatus) {
         String path = extractPath(finalUrl);
         if (path.isEmpty() || path.equals("/")) {
             return "root-url";
         }
 
+        if (httpStatus == 404 || httpStatus == 410) {
+            return "not-found";
+        }
+
         String title = parsed.title() != null ? parsed.title() : "";
-        if (title.contains("404") || title.toLowerCase().contains("page not found")) {
+        String titleLower = title.toLowerCase();
+        // Narrow 404 title pattern: matches "404", "404 Not Found", "404 - Page Not Found",
+        // "404 Error", etc. — avoids false positives like "404 migrants rescued".
+        if (title.matches("(?i)\\s*404\\s*(?:[-|/:]+\\s*)?(?:not\\s+found|error|page\\b.*)?\\s*")
+                || titleLower.contains("not found")) {
             return "not-found";
         }
 

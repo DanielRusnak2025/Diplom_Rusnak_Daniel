@@ -20,7 +20,7 @@ class ArticlePreFilterTest {
     void normalArticle_returnsNull() {
         assertNull(ArticlePreFilter.check(
                 pr("Good Article", LONG_TEXT, LONG_TEXT.length(), null),
-                NORMAL_URL));
+                NORMAL_URL, 200));
     }
 
     @Test
@@ -28,7 +28,7 @@ class ArticlePreFilterTest {
         assertEquals("root-url",
                 ArticlePreFilter.check(
                         pr("Home", LONG_TEXT, LONG_TEXT.length(), null),
-                        "https://example.com/"));
+                        "https://example.com/", 200));
     }
 
     @Test
@@ -36,15 +36,31 @@ class ArticlePreFilterTest {
         assertEquals("root-url",
                 ArticlePreFilter.check(
                         pr("Home", LONG_TEXT, LONG_TEXT.length(), null),
-                        "https://example.com"));
+                        "https://example.com", 200));
     }
 
     @Test
-    void titleContains404_returnsNotFound() {
+    void http404_returnsNotFound() {
+        assertEquals("not-found",
+                ArticlePreFilter.check(
+                        pr("Whatever Page", LONG_TEXT, LONG_TEXT.length(), null),
+                        NORMAL_URL, 404));
+    }
+
+    @Test
+    void http410_returnsNotFound() {
+        assertEquals("not-found",
+                ArticlePreFilter.check(
+                        pr("Gone Page", LONG_TEXT, LONG_TEXT.length(), null),
+                        NORMAL_URL, 410));
+    }
+
+    @Test
+    void titleContains404PageNotFound_returnsNotFound() {
         assertEquals("not-found",
                 ArticlePreFilter.check(
                         pr("404 - Page Not Found", LONG_TEXT, LONG_TEXT.length(), null),
-                        NORMAL_URL));
+                        NORMAL_URL, 200));
     }
 
     @Test
@@ -52,21 +68,29 @@ class ArticlePreFilterTest {
         assertEquals("not-found",
                 ArticlePreFilter.check(
                         pr("Error: page not found", LONG_TEXT, LONG_TEXT.length(), null),
-                        NORMAL_URL));
+                        NORMAL_URL, 200));
+    }
+
+    @Test
+    void title404MigrantsRescued_notAFalsePositive_returnsNull() {
+        // "404" in title that is NOT a 404 error page
+        assertNull(ArticlePreFilter.check(
+                pr("404 migrants rescued from Mediterranean", LONG_TEXT, LONG_TEXT.length(), null),
+                NORMAL_URL, 200));
     }
 
     @Test
     void ogTypeProduct_returnsNull() {
         assertNull(ArticlePreFilter.check(
                 pr("Product Page", LONG_TEXT, LONG_TEXT.length(), "product"),
-                NORMAL_URL));
+                NORMAL_URL, 200));
     }
 
     @Test
     void ogTypeArticle_returnsNull() {
         assertNull(ArticlePreFilter.check(
                 pr("News Article", LONG_TEXT, LONG_TEXT.length(), "article"),
-                NORMAL_URL));
+                NORMAL_URL, 200));
     }
 
     @Test
@@ -74,7 +98,7 @@ class ArticlePreFilterTest {
         assertEquals("too-short",
                 ArticlePreFilter.check(
                         pr("Short", "Short text.", 150, null),
-                        NORMAL_URL));
+                        NORMAL_URL, 200));
     }
 
     @Test
@@ -82,7 +106,7 @@ class ArticlePreFilterTest {
         String text = "x".repeat(ArticlePreFilter.MIN_TEXT_CHARS);
         assertNull(ArticlePreFilter.check(
                 pr("Threshold Article", text, ArticlePreFilter.MIN_TEXT_CHARS, null),
-                NORMAL_URL));
+                NORMAL_URL, 200));
     }
 
     @Test
@@ -90,6 +114,6 @@ class ArticlePreFilterTest {
         assertEquals("root-url",
                 ArticlePreFilter.check(
                         pr("404 Page Not Found", LONG_TEXT, LONG_TEXT.length(), null),
-                        "https://example.com/"));
+                        "https://example.com/", 200));
     }
 }

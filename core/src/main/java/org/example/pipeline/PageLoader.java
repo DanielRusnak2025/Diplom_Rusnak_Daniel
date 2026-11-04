@@ -6,7 +6,7 @@ public interface PageLoader {
         public SsrfViolationException(String msg) { super(msg); }
     }
 
-    record Result(ParseResult parsed, String finalUrl) {}
+    record Result(ParseResult parsed, String finalUrl, int httpStatus) {}
 
     /**
      * Fetches and parses the page at the given URL.

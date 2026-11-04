@@ -1,3 +1,3 @@
 package org.example.pipeline;
 
-public record FetchResult(String finalUrl, String html) {}
+public record FetchResult(String finalUrl, String html, int httpStatus) {}

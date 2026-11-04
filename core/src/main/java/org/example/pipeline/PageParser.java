@@ -89,7 +89,7 @@ public final class PageParser {
 
         Element best = findBestPContainer(work);
         if (best != null) {
-            String text = joinParagraphs(best);
+            String text = joinDirectParagraphs(best);
             if (!text.isEmpty()) return new TextResult(text, "p-container");
         }
 
@@ -105,6 +105,14 @@ public final class PageParser {
                 .collect(Collectors.joining(" "));
     }
 
+    private static String joinDirectParagraphs(Element el) {
+        return el.children().stream()
+                .filter(c -> c.tagName().equals("p"))
+                .map(p -> p.text().trim())
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.joining(" "));
+    }
+
     private static Element findBestPContainer(Document work) {
         Element best = null;
         int bestLen = 0;
@@ -112,8 +120,10 @@ public final class PageParser {
             String tag = el.tagName();
             if (tag.equals("html") || tag.equals("head") || tag.equals("body") || tag.equals("p"))
                 continue;
-            int total = 0;
-            for (Element p : el.select("p")) total += p.text().length();
+            int total = el.children().stream()
+                    .filter(c -> c.tagName().equals("p"))
+                    .mapToInt(p -> p.text().length())
+                    .sum();
             if (total > bestLen) {
                 bestLen = total;
                 best = el;

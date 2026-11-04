@@ -388,7 +388,7 @@ public class ModelComparisonRunner {
                     log.info("[compare-models] dedup by redirect: " + url + " → " + res.finalUrl());
                     continue;
                 }
-                String skipReason = ArticlePreFilter.check(res.parsed(), res.finalUrl());
+                String skipReason = ArticlePreFilter.check(res.parsed(), res.finalUrl(), res.httpStatus());
                 String lang   = langDetector.detect(res.parsed().textForAi());
                 String domain = extractDomain(url);
                 result.add(new ArticleInput(url, res.parsed().title(), domain, lang,

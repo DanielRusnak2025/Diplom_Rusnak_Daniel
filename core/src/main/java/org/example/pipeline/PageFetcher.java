@@ -93,13 +93,24 @@ public class PageFetcher {
                     redirectCount++;
                     continue;
                 }
+                // Allow 404/410 HTML responses through so ArticlePreFilter can record NOT_FOUND
+                if (code == 404 || code == 410) {
+                    String ct404 = response.header("Content-Type", "");
+                    if (ct404.startsWith("text/html")) {
+                        ResponseBody body404 = response.body();
+                        if (body404 != null) {
+                            return new FetchResult(currentUrl, readWithLimit(body404, maxBytes), code);
+                        }
+                    }
+                    throw new IOException("HTTP " + code);
+                }
                 if (code < 200 || code >= 300) throw new IOException("HTTP " + code);
                 String ct = response.header("Content-Type", "");
                 if (!ct.startsWith("text/html")) throw new NonHtmlException(ct);
                 ResponseBody body = response.body();
                 if (body == null) throw new IOException("Empty response body");
                 String html = readWithLimit(body, maxBytes);
-                return new FetchResult(currentUrl, html);
+                return new FetchResult(currentUrl, html, code);
             }
         }
     }
