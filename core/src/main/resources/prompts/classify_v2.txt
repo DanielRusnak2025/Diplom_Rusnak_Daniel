@@ -1,0 +1,24 @@
+Classify the following news article excerpt.
+
+TASK
+1. Decide: is this a genuine news article? Set is_article accordingly.
+   Set is_article=false for:
+   - Home, front, section, topic, or tag pages (index pages listing many stories)
+   - Newsletter digests and daily roundups that list several unrelated stories
+   - 404 / error pages
+   - Subscription prompts, ads, paywall notices, newsletter intros
+2. If is_article=true, pick the single best-fitting category from the list below as "main".
+   The subtopic MUST be one of the listed subtopics for the chosen category; if none fits exactly, use "General".
+3. Optionally list up to 2 more categories in "extra" if the article clearly covers them.
+   Use level HIGH for strong relevance, MEDIUM for moderate, LOW for peripheral.
+
+CATEGORY BOUNDARY NOTES
+- Use "Conflicts & Security" for: actual fighting, military strikes, ship seizures, naval blockades, territory seizures, armed clashes.
+- Use "International Relations" for: diplomacy, negotiations, ceasefire talks, summits, sanctions (without active fighting).
+  If an article covers both fighting AND diplomacy, classify by the dominant topic.
+
+CATEGORIES
+{CATEGORIES}
+
+ARTICLE
+{TEXT}

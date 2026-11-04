@@ -94,6 +94,9 @@ public class BenchmarkScorer {
         }
         if (goldFilled == 0) return "\n## Accuracy vs gold\n\n*(no gold labels filled yet)*\n";
 
+        // Rows with non-empty skip_reason were pre-filtered: pipeline decided not-article.
+        int skipReasonIdx = indexOf(header, "skip_reason"); // -1 for older CSVs without this column
+
         List<ModelAccuracy> accuracies = new ArrayList<>();
         for (String model : modelNames) {
             int artIdx = indexOf(header, model + "_is_article");
@@ -105,6 +108,10 @@ public class BenchmarkScorer {
                 String goldCat = effectiveGoldCat(row, urlIdx, goldCatIdx, externalGold);
                 artTotal++;
                 String modelArt = cell(row, artIdx).toLowerCase();
+                // Pre-filtered by pipeline → pipeline decision = not-article
+                if (skipReasonIdx >= 0 && !cell(row, skipReasonIdx).isEmpty()) {
+                    modelArt = "false";
+                }
                 if (goldArt.equals(modelArt)) artCorr++;
 
                 // Category is only comparable when both gold and model agree it's an article.

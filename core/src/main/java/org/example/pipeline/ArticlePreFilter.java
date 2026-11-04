@@ -1,5 +1,7 @@
 package org.example.pipeline;
 
+import org.example.util.UrlNormalizer;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.logging.Logger;
@@ -19,7 +21,8 @@ public final class ArticlePreFilter {
     public static String check(ParseResult parsed, String finalUrl, int httpStatus) {
         String path = extractPath(finalUrl);
         if (path.isEmpty() || path.equals("/")) {
-            return "root-url";
+            // Allow URLs like "/?id=123" — non-tracking query params indicate a real article page.
+            if (!hasNonTrackingQuery(finalUrl)) return "root-url";
         }
 
         if (httpStatus == 404 || httpStatus == 410) {
@@ -54,6 +57,16 @@ public final class ArticlePreFilter {
             return path != null ? path : "";
         } catch (URISyntaxException e) {
             return "";
+        }
+    }
+
+    /** Returns true if the URL has any non-tracking query params after normalization. */
+    private static boolean hasNonTrackingQuery(String url) {
+        try {
+            String normalized = UrlNormalizer.normalize(url);
+            return normalized.contains("?");
+        } catch (IllegalArgumentException e) {
+            return false;
         }
     }
 }

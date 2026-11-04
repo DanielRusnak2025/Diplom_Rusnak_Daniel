@@ -156,6 +156,26 @@ class BenchmarkScorerTest {
                 "gold from external file must match via URL normalization: " + section);
     }
 
+    // Header format used by ModelComparisonRunner (includes text_chars, extract_source, skip_reason)
+    private static final String HEADER_WITH_SKIP =
+            "url,domain,title,lang,text_chars,extract_source,skip_reason,gold_is_article,gold_category," +
+            "m1_is_article,m1_category,m1_subtopic,m1_latency_ms,m1_think_fallback,m1_tokens_per_second\n";
+
+    @Test
+    void skipReason_nonEmpty_countsAsPredictedFalse() throws IOException {
+        // row1: gold=false, skip=too-short  → pipeline says false → correct
+        // row2: gold=true,  skip=root-url   → pipeline says false → wrong
+        // row3: gold=false, (no skip)       → model=false         → correct
+        // Expected: 2/3 is_article correct
+        String csv = HEADER_WITH_SKIP
+                + "https://a.com/p1,a.com,T1,en,150,fallback,too-short,false,,,,,,, \n"
+                + "https://b.com/p2,b.com,T2,en,100,fallback,root-url,true,Technology,,,,,, \n"
+                + "https://c.com/p3,c.com,T3,en,500,article,,false,,false,,,900,false,\n";
+        String section = BenchmarkScorer.computeSection(writeCsv(csv));
+        assertTrue(section.contains("66.7% (2/3)"),
+                "is_article accuracy must be 2/3 with skip_reason rows counted as false: " + section);
+    }
+
     @Test
     void appendToReport_withGoldFile_writesSection() throws IOException {
         Path dir = Files.createTempDirectory("scorer-gold-test-");

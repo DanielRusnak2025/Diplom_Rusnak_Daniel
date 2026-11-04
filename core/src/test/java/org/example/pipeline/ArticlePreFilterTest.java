@@ -116,4 +116,21 @@ class ArticlePreFilterTest {
                         pr("404 Page Not Found", LONG_TEXT, LONG_TEXT.length(), null),
                         "https://example.com/", 200));
     }
+
+    @Test
+    void rootUrlWithTrackingParamsOnly_returnsRootUrl() {
+        // utm_source is a tracking param → stripped by UrlNormalizer → still root-url
+        assertEquals("root-url",
+                ArticlePreFilter.check(
+                        pr("Home", LONG_TEXT, LONG_TEXT.length(), null),
+                        "https://example.com/?utm_source=newsletter", 200));
+    }
+
+    @Test
+    void rootUrlWithNonTrackingParam_allowsThrough() {
+        // id=123 is NOT a tracking param → real article page → not root-url
+        assertNull(ArticlePreFilter.check(
+                pr("Real Article", LONG_TEXT, LONG_TEXT.length(), null),
+                "https://example.com/?id=123", 200));
+    }
 }
