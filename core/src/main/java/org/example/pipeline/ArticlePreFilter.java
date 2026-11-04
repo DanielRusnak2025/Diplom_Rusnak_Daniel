@@ -5,11 +5,9 @@ import org.example.util.UrlNormalizer;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Set;
-import java.util.logging.Logger;
 
 public final class ArticlePreFilter {
 
-    private static final Logger LOG = Logger.getLogger(ArticlePreFilter.class.getName());
     static final int MIN_TEXT_CHARS = 200;
 
     private ArticlePreFilter() {}
@@ -55,7 +53,7 @@ public final class ArticlePreFilter {
 
         String ogType = parsed.ogType();
         if (ogType != null && !ogType.equalsIgnoreCase("article")) {
-            LOG.info("[PreFilter] og:type=\"" + ogType + "\" (not \"article\") — classifying anyway: " + finalUrl);
+            return "og-type";
         }
 
         if (parsed.textChars() < MIN_TEXT_CHARS) {

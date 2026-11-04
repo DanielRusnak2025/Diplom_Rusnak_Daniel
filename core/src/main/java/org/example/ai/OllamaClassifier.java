@@ -18,14 +18,14 @@ public class OllamaClassifier implements ArticleClassifier {
 
     private static final Logger LOG = Logger.getLogger(OllamaClassifier.class.getName());
     private final AtomicInteger subtopicMismatchCount = new AtomicInteger();
-    public static final String PROMPT_VERSION = "v3";
+    public static final String PROMPT_VERSION = "v4";
 
     private static final String PROMPT_TEMPLATE;
     static {
         try (InputStream in = OllamaClassifier.class
-                .getResourceAsStream("/prompts/classify_v3.txt")) {
+                .getResourceAsStream("/prompts/classify_v4.txt")) {
             if (in == null) throw new ExceptionInInitializerError(
-                    "classpath resource prompts/classify_v3.txt not found");
+                    "classpath resource prompts/classify_v4.txt not found");
             PROMPT_TEMPLATE = new String(in.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException e) {
             throw new ExceptionInInitializerError(e);

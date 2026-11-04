@@ -212,6 +212,18 @@ class PageParserTest {
     }
 
     @Test
+    void textChars_excludesUrlPrefix_emptyBodyIsTooShort() {
+        // URL is 300+ chars; no title/meta/body → textChars=0 (URL prefix not counted)
+        String longUrl = "https://example.com/" + "a".repeat(300);
+        String html = "<html><head></head><body></body></html>";
+        ParseResult r = PageParser.parse(html, longUrl);
+        assertTrue(r.textForAi().startsWith("URL: " + longUrl),
+                "textForAi must still have the URL prefix");
+        assertEquals(0, r.textChars(),
+                "textChars must be 0 when body/title/meta are empty (URL prefix excluded)");
+    }
+
+    @Test
     void textForAi_includesTitleAndMetaDescription() {
         String html = """
                 <html><head>

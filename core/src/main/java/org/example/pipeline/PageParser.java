@@ -32,8 +32,9 @@ public final class PageParser {
         String source = tr.text().isEmpty() && metaDesc != null && !metaDesc.isEmpty()
                 ? "meta-only" : tr.source();
         String combined = buildTextForAi(finalUrl, title, metaDesc, tr.text());
+        int textChars = computeTextChars(title, metaDesc, tr.text());
         return new ParseResult(title, publisher, publishedDate, canonical,
-                combined, combined.length(), source, ogType);
+                combined, textChars, source, ogType);
     }
 
     private static String extractTitle(Document doc) {
@@ -130,6 +131,14 @@ public final class PageParser {
             }
         }
         return bestLen > 0 ? best : null;
+    }
+
+    private static int computeTextChars(String title, String metaDesc, String body) {
+        List<String> parts = new ArrayList<>();
+        if (title != null && !title.isEmpty()) parts.add(title);
+        if (metaDesc != null && !metaDesc.isEmpty()) parts.add(metaDesc);
+        if (body != null && !body.isEmpty()) parts.add(body);
+        return String.join("\n", parts).length();
     }
 
     private static String buildTextForAi(String finalUrl, String title, String metaDesc, String body) {

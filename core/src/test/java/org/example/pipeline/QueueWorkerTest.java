@@ -452,6 +452,22 @@ class QueueWorkerTest {
     }
 
     @Test
+    void preFilter_ogType_rejectsWithNotArticle() {
+        String url = BASE + "18";
+        int qid = insertPending(url);
+
+        PageLoader ogLoader = u -> new PageLoader.Result(
+                new ParseResult("Product Page", "test.invalid", null, u,
+                        ENG_TEXT, ENG_TEXT.length(), "article", "website"),
+                u, 200);
+
+        worker(isArticleClassifier(firstCategoryId), ogLoader).processQueue(1);
+
+        assertEquals(QueueStatus.REJECTED, queueStatus(qid));
+        assertEquals(RejectReason.NOT_ARTICLE, rejectReason(qid));
+    }
+
+    @Test
     void preFilter_newsletterHost_rejectsWithNewsletterHost() {
         String url = BASE + "17";
         int qid = insertPending(url);

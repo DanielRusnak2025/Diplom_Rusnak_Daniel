@@ -187,13 +187,14 @@ public class QueueWorker {
             return;
         }
 
-        // 1b. Pre-filter (newsletter host, root URL, soft-404, too-short — no Ollama call needed)
+        // 1b. Pre-filter (newsletter host, root URL, soft-404, og-type, too-short — no Ollama call needed)
         String skipReason = ArticlePreFilter.check(fetch.parsed(), fetch.finalUrl(), fetch.httpStatus(), newsletterHosts);
         if (skipReason != null) {
             RejectReason rr = switch (skipReason) {
                 case "root-url"        -> RejectReason.ROOT_URL;
                 case "not-found"       -> RejectReason.NOT_FOUND;
                 case "newsletter-host" -> RejectReason.NEWSLETTER_HOST;
+                case "og-type"         -> RejectReason.NOT_ARTICLE;
                 default                -> RejectReason.TEXT_TOO_SHORT;
             };
             queueDAO.markRejected(item.id(), rr, item.lockToken());

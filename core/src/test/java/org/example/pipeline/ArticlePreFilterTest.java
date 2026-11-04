@@ -82,9 +82,17 @@ class ArticlePreFilterTest {
     }
 
     @Test
-    void ogTypeProduct_returnsNull() {
+    void ogTypeNotArticle_returnsOgType() {
+        assertEquals("og-type",
+                ArticlePreFilter.check(
+                        pr("Product Page", LONG_TEXT, LONG_TEXT.length(), "product"),
+                        NORMAL_URL, 200));
+    }
+
+    @Test
+    void ogTypeNull_allowsThrough() {
         assertNull(ArticlePreFilter.check(
-                pr("Product Page", LONG_TEXT, LONG_TEXT.length(), "product"),
+                pr("News Article", LONG_TEXT, LONG_TEXT.length(), null),
                 NORMAL_URL, 200));
     }
 
