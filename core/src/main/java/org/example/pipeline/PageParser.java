@@ -1,5 +1,6 @@
 package org.example.pipeline;
 
+import org.example.ai.AiConfig;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -19,6 +20,10 @@ public final class PageParser {
     private record TextResult(String text, String source) {}
 
     public static ParseResult parse(String html, String finalUrl) {
+        return parse(html, finalUrl, AiConfig.getIncludeUrl());
+    }
+
+    public static ParseResult parse(String html, String finalUrl, boolean includeUrl) {
         Document doc = Jsoup.parse(html, finalUrl);
 
         String title         = extractTitle(doc);
@@ -31,7 +36,7 @@ public final class PageParser {
 
         String source = tr.text().isEmpty() && metaDesc != null && !metaDesc.isEmpty()
                 ? "meta-only" : tr.source();
-        String combined = buildTextForAi(finalUrl, title, metaDesc, tr.text());
+        String combined = buildTextForAi(finalUrl, title, metaDesc, tr.text(), includeUrl);
         int textChars = computeTextChars(title, metaDesc, tr.text());
         return new ParseResult(title, publisher, publishedDate, canonical,
                 combined, textChars, source, ogType);
@@ -141,9 +146,10 @@ public final class PageParser {
         return String.join("\n", parts).length();
     }
 
-    private static String buildTextForAi(String finalUrl, String title, String metaDesc, String body) {
+    private static String buildTextForAi(String finalUrl, String title, String metaDesc,
+                                          String body, boolean includeUrl) {
         List<String> parts = new ArrayList<>();
-        if (finalUrl != null && !finalUrl.isEmpty()) parts.add("URL: " + finalUrl);
+        if (includeUrl && finalUrl != null && !finalUrl.isEmpty()) parts.add("URL: " + finalUrl);
         if (title != null && !title.isEmpty()) parts.add(title);
         if (metaDesc != null && !metaDesc.isEmpty()) parts.add(metaDesc);
         if (body != null && !body.isEmpty()) parts.add(body);

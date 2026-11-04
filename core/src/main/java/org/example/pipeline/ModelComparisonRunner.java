@@ -471,6 +471,8 @@ public class ModelComparisonRunner {
         // ── Configuration ─────────────────────────────────────────────────────
         sb.append("## Configuration\n\n");
         sb.append("- **Ollama version:** ").append(ollamaVersion).append('\n');
+        sb.append("- **Prompt version:** ").append(OllamaClassifier.PROMPT_VERSION).append('\n');
+        sb.append("- **include_url:** ").append(AiConfig.getIncludeUrl()).append('\n');
         sb.append("- **Models:**\n\n");
         sb.append("  | Model | Size |\n  |---|---|\n");
         for (String m : models) {

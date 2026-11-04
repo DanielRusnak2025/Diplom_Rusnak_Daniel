@@ -65,6 +65,10 @@ public class AiConfig {
         return java.util.Collections.unmodifiableSet(result);
     }
 
+    public static boolean getIncludeUrl() {
+        return Boolean.parseBoolean(props.getProperty("ai.include_url", "false"));
+    }
+
     public static java.util.Set<String> getNewsletterHosts() {
         String raw = props.getProperty("prefilter.newsletter_hosts", "");
         if (raw.isBlank()) return java.util.Collections.emptySet();

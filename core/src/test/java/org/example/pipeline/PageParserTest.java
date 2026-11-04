@@ -204,11 +204,21 @@ class PageParserTest {
     }
 
     @Test
-    void textForAi_urlPrependedAsFirstLine() {
+    void textForAi_includeUrlTrue_urlPrependedAsFirstLine() {
         String html = "<html><body><article><p>Article text here.</p></article></body></html>";
-        ParseResult r = PageParser.parse(html, BASE_URL);
+        ParseResult r = PageParser.parse(html, BASE_URL, true);
         assertTrue(r.textForAi().startsWith("URL: " + BASE_URL),
-                "text-for-AI must start with 'URL: <finalUrl>'");
+                "text-for-AI must start with 'URL: <finalUrl>' when includeUrl=true");
+    }
+
+    @Test
+    void textForAi_includeUrlFalse_noUrlPrefix() {
+        String html = "<html><body><article><p>Article text here.</p></article></body></html>";
+        ParseResult r = PageParser.parse(html, BASE_URL, false);
+        assertFalse(r.textForAi().startsWith("URL: "),
+                "text-for-AI must NOT start with 'URL: ' when includeUrl=false");
+        assertTrue(r.textForAi().contains("Article text"),
+                "article body must still be present");
     }
 
     @Test
@@ -216,7 +226,7 @@ class PageParserTest {
         // URL is 300+ chars; no title/meta/body → textChars=0 (URL prefix not counted)
         String longUrl = "https://example.com/" + "a".repeat(300);
         String html = "<html><head></head><body></body></html>";
-        ParseResult r = PageParser.parse(html, longUrl);
+        ParseResult r = PageParser.parse(html, longUrl, true);
         assertTrue(r.textForAi().startsWith("URL: " + longUrl),
                 "textForAi must still have the URL prefix");
         assertEquals(0, r.textChars(),
