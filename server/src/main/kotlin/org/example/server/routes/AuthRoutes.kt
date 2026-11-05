@@ -85,7 +85,7 @@ fun Route.authRoutes(
             if (userOpt.isEmpty) {
                 loginProtection.recordFailure(remoteHost, req.login)
                 withNewTransaction { session ->
-                    auditService.log(session, null, "LOGIN_FAILED", "user", null, "nick=${req.login}")
+                    auditService.log(session, null, "LOGIN_FAILED", "user", null, "nick=${req.login.take(64)}")
                 }
                 call.respond(
                     HttpStatusCode.Unauthorized,

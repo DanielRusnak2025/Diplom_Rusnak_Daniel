@@ -5,6 +5,8 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -194,5 +196,36 @@ class RefreshLogoutTest {
         }
         assertEquals(HttpStatusCode.Unauthorized, resp.status)
         assertEquals("TOKEN_EXPIRED", json.decodeFromString<ErrorResponse>(resp.bodyAsText()).code)
+    }
+
+    @Test
+    fun `concurrent refresh with same token — exactly one succeeds`() = testApplication {
+        application { module() }
+
+        val regResp = client.post("/api/v1/auth/register") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"nick":"test_concurrent","password":"Password1!","languages":[],"regions":[]}""")
+        }
+        assertEquals(HttpStatusCode.Created, regResp.status)
+        val firstPair = json.decodeFromString<TokenPairDto>(regResp.bodyAsText())
+
+        val statuses = coroutineScope {
+            val r1 = async {
+                client.post("/api/v1/auth/refresh") {
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"refreshToken":"${firstPair.refreshToken}"}""")
+                }.status
+            }
+            val r2 = async {
+                client.post("/api/v1/auth/refresh") {
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"refreshToken":"${firstPair.refreshToken}"}""")
+                }.status
+            }
+            listOf(r1.await(), r2.await())
+        }
+
+        assertEquals(1, statuses.count { it == HttpStatusCode.OK },
+            "Expected exactly one 200 OK, got: $statuses")
     }
 }

@@ -1,5 +1,6 @@
 package org.example.server.auth
 
+import jakarta.persistence.LockModeType
 import org.example.RefreshToken
 import org.example.User
 import org.hibernate.Session
@@ -27,10 +28,13 @@ class RefreshTokenService {
         return raw
     }
 
-    fun findByHash(session: Session, hash: String): RefreshToken? =
-        session.createSelectionQuery("from RefreshToken where tokenHash = :hash", RefreshToken::class.java)
-            .setParameter("hash", hash)
-            .uniqueResult()
+    fun findByHash(session: Session, hash: String): RefreshToken? {
+        val query = session.createSelectionQuery(
+            "from RefreshToken where tokenHash = :hash", RefreshToken::class.java
+        ).setParameter("hash", hash)
+        query.setLockMode(LockModeType.PESSIMISTIC_WRITE)
+        return query.uniqueResult()
+    }
 
     fun revoke(session: Session, token: RefreshToken) {
         token.revokedAt = LocalDateTime.now()
@@ -43,6 +47,15 @@ class RefreshTokenService {
         )
         .setParameter("now", LocalDateTime.now())
         .setParameter("fid", familyId)
+        .executeUpdate()
+    }
+
+    fun revokeAllForUser(session: Session, userId: Int) {
+        session.createMutationQuery(
+            "update RefreshToken set revokedAt = :now where user.id = :uid and revokedAt is null"
+        )
+        .setParameter("now", LocalDateTime.now())
+        .setParameter("uid", userId)
         .executeUpdate()
     }
 
