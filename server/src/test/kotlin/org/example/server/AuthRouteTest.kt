@@ -145,7 +145,7 @@ class AuthRouteTest {
     }
 
     @Test
-    fun `issued JWT has correct sub, role, and exp claims`() = testApplication {
+    fun `issued JWT has correct sub (userId), role, jti and exp claims`() = testApplication {
         application { module() }
         val response = client.post("/api/v1/auth/register") {
             contentType(ContentType.Application.Json)
@@ -157,9 +157,13 @@ class AuthRouteTest {
         val testSecret = System.getProperty("newsdove.jwt.secret")!!
         val verifier = JWT.require(Algorithm.HMAC256(testSecret)).withIssuer("newsdove").build()
         val decoded = verifier.verify(body.accessToken)
-        assertEquals("test_jwt", decoded.subject)
+        // sub must be an integer user id, not the nick
+        assertNotNull(decoded.subject)
+        assertNotNull(decoded.subject.toIntOrNull(), "sub should be a valid integer userId, got: ${decoded.subject}")
         assertEquals("USER", decoded.getClaim("role").asString())
         assertNotNull(decoded.expiresAt)
+        assertNotNull(decoded.id)
+        assertTrue(decoded.id.isNotBlank(), "JWT jti should be non-blank")
     }
 
     @Test

@@ -48,7 +48,7 @@ public class UserService {
     public User registerUserNoEmail(String nick, String password) {
         validatePassword(nick, password);
         if (userDAO.findByNick(nick).isPresent()) {
-            throw new IllegalArgumentException("Login is already taken");
+            throw new NickAlreadyTakenException(nick);
         }
         String hash = PasswordHasher.hash(password);
         return userDAO.saveWithHistory(new User(nick, hash, null));
