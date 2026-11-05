@@ -26,7 +26,9 @@ import org.example.server.routes.authRoutes
 import org.example.server.routes.categoryRoutes
 import org.example.server.routes.feedRoutes
 import org.example.server.routes.meRoutes
+import org.example.server.routes.rateRoutes
 import org.example.server.service.FeedService
+import org.example.service.ReportService
 import org.example.util.HibernateUtil
 
 fun Application.module() {
@@ -36,6 +38,7 @@ fun Application.module() {
     val refreshTokenService = RefreshTokenService()
     val auditService = AuditService()
     val feedService = FeedService()
+    val reportService = ReportService()
 
     install(Authentication) {
         jwt("jwt-access") {
@@ -64,7 +67,16 @@ fun Application.module() {
     install(CallLogging)
     install(StatusPages) {
         exception<BadRequestException> { call, cause ->
-            call.respond(HttpStatusCode.BadRequest, ErrorResponse("BAD_REQUEST", cause.message ?: "Bad request"))
+            val hasSerialization = generateSequence(cause as Throwable?) { it.cause }
+                .any { it is SerializationException }
+            if (hasSerialization) {
+                call.respond(
+                    HttpStatusCode.UnprocessableEntity,
+                    ErrorResponse("INVALID_REQUEST", "Invalid request body")
+                )
+            } else {
+                call.respond(HttpStatusCode.BadRequest, ErrorResponse("BAD_REQUEST", cause.message ?: "Bad request"))
+            }
         }
         exception<SerializationException> { call, _ ->
             call.respond(
@@ -89,5 +101,6 @@ fun Application.module() {
         meRoutes(loginProtection, refreshTokenService, auditService)
         categoryRoutes()
         feedRoutes(feedService)
+        rateRoutes(reportService)
     }
 }

@@ -13,7 +13,7 @@ import java.util.Base64
 
 class FeedService {
 
-    private data class ParsedCursor(val score: Long, val effDateMillis: Long, val id: Int)
+    private data class ParsedCursor(val score: Long, val effDateMicros: Long, val id: Int)
 
     private data class WhereResult(val conditions: List<String>, val params: Map<String, Any>)
 
@@ -47,10 +47,10 @@ class FeedService {
         if (parsedCursor != null) {
             query.setParameter("cursor_score", parsedCursor.score)
             query.setParameter("cursor_date",
-                LocalDateTime.ofInstant(
-                    java.time.Instant.ofEpochMilli(parsedCursor.effDateMillis),
-                    ZoneId.systemDefault()
-                )
+                java.time.Instant.ofEpochSecond(
+                    parsedCursor.effDateMicros / 1_000_000L,
+                    (parsedCursor.effDateMicros % 1_000_000L) * 1000L
+                ).atZone(ZoneId.systemDefault()).toLocalDateTime()
             )
             query.setParameter("cursor_id", parsedCursor.id)
         }
@@ -61,9 +61,10 @@ class FeedService {
         val nextCursor = if (rows.size < limit) null else {
             val last = rows.last()
             val effDate = last.get("eff_date") as LocalDateTime
+            val instant = effDate.atZone(ZoneId.systemDefault()).toInstant()
             encodeCursor(
                 score = (last.get("score") as Number).toLong(),
-                effDateMillis = effDate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                effDateMicros = instant.epochSecond * 1_000_000L + instant.nano / 1_000L,
                 id = (last.get("id") as Number).toInt()
             )
         }
@@ -233,9 +234,9 @@ class FeedService {
         }
     }
 
-    private fun encodeCursor(score: Long, effDateMillis: Long, id: Int): String =
+    private fun encodeCursor(score: Long, effDateMicros: Long, id: Int): String =
         Base64.getUrlEncoder().withoutPadding()
-            .encodeToString("$score|$effDateMillis|$id".toByteArray(Charsets.UTF_8))
+            .encodeToString("$score|$effDateMicros|$id".toByteArray(Charsets.UTF_8))
 
     private fun decodeCursor(cursor: String): ParsedCursor {
         val decoded = try {
@@ -246,8 +247,8 @@ class FeedService {
         val parts = decoded.split("|")
         if (parts.size != 3) throw IllegalArgumentException("bad cursor format")
         val score = parts[0].toLongOrNull() ?: throw IllegalArgumentException("bad cursor score")
-        val millis = parts[1].toLongOrNull() ?: throw IllegalArgumentException("bad cursor date")
+        val micros = parts[1].toLongOrNull() ?: throw IllegalArgumentException("bad cursor date")
         val id = parts[2].toIntOrNull() ?: throw IllegalArgumentException("bad cursor id")
-        return ParsedCursor(score, millis, id)
+        return ParsedCursor(score, micros, id)
     }
 }

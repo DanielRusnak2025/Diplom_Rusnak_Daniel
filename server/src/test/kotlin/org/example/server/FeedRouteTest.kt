@@ -446,6 +446,51 @@ class FeedRouteTest {
     }
 
     @Test
+    fun `pagination microsecond precision no gaps no duplicates`() = testApplication {
+        application { module() }
+        val token = registerAndLogin("feedtest_micros")
+        val userId = JWT.decode(token).subject.toInt()
+
+        // 3 articles: same score (50*50=2500), created_at differs by exactly 1 microsecond
+        // With millis-only cursor the page-2 cursor_date (.000000) != stored dates (.000001-.000003)
+        // → pages 2 and 3 would be empty. Micros fix ensures all 3 are returned.
+        val baseTime = LocalDateTime.of(2024, 1, 15, 12, 0, 0, 0)
+        withContext(Dispatchers.IO) {
+            HibernateUtil.getSessionFactory().openSession().use { session ->
+                val tx = session.beginTransaction()
+                val a1 = insertArticle(session, "feedtest_micro_1", createdAt = baseTime.plusNanos(1_000))
+                val a2 = insertArticle(session, "feedtest_micro_2", createdAt = baseTime.plusNanos(2_000))
+                val a3 = insertArticle(session, "feedtest_micro_3", createdAt = baseTime.plusNanos(3_000))
+                attachTag(session, a1, catTagId, 50)
+                attachTag(session, a2, catTagId, 50)
+                attachTag(session, a3, catTagId, 50)
+                val user = session.find(User::class.java, userId)
+                val cat = session.find(Tag::class.java, catTagId)
+                session.persist(UserTagPercent(user, cat, 50))
+                tx.commit()
+            }
+        }
+
+        val seen = mutableSetOf<Int>()
+        var cursor: String? = null
+
+        repeat(3) { page ->
+            val params = if (cursor == null) "?limit=1" else "?limit=1&cursor=$cursor"
+            val resp = feedGet(this, token, params)
+            assertEquals(HttpStatusCode.OK, resp.status, "Page $page failed")
+            val body = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
+            val items = body["items"]!!.jsonArray
+            assertEquals(1, items.size, "Page $page should have exactly 1 item")
+            val id = items[0].jsonObject["id"]!!.jsonPrimitive.int
+            assertFalse(id in seen, "Duplicate article $id on page $page")
+            seen.add(id)
+            cursor = body["nextCursor"]?.jsonPrimitive?.contentOrNull
+            if (page < 2) assertNotNull(cursor, "Expected cursor on page $page")
+        }
+        assertEquals(3, seen.size, "All 3 microsecond-precision articles must be returned across 3 pages")
+    }
+
+    @Test
     fun `invalid cursor returns 422`() = testApplication {
         application { module() }
         val token = registerAndLogin("feedtest_badcursor")
