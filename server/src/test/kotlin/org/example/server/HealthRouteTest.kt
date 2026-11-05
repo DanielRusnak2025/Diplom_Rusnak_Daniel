@@ -17,4 +17,17 @@ class HealthRouteTest {
         val body = response.bodyAsText()
         assertTrue(body.contains(""""status":"ok""""), "body was: $body")
     }
+
+    @Test
+    fun `malformed JSON body on POST register returns 4xx not 500`() = testApplication {
+        application { module() }
+        val response = client.post("/api/v1/auth/register") {
+            contentType(ContentType.Application.Json)
+            setBody("{this is not json}")
+        }
+        assertTrue(
+            response.status.value in 400..499,
+            "Expected 4xx status but got ${response.status}"
+        )
+    }
 }

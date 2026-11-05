@@ -19,9 +19,14 @@ tasks.withType<JavaCompile>().configureEach {
     options.release.set(21)
 }
 
+tasks.named<JavaExec>("run") {
+    systemProperty("newsdove.server.config", file("config/server.properties").absolutePath)
+}
+
 tasks.test {
     useJUnitPlatform()
     systemProperty("newsdove.db.name", "db_use_test_it")
+    systemProperty("newsdove.jwt.secret", "newsdove-test-secret-32-bytes-long!!")
 }
 
 dependencies {
@@ -32,10 +37,13 @@ dependencies {
     implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.content.neg)
     implementation(libs.ktor.serialization.json)
+    implementation(libs.ktor.server.auth.jwt)
     implementation(libs.ktor.server.status.pages)
     implementation(libs.ktor.server.call.logging)
+    implementation(libs.hibernate.core)
     implementation(libs.logback.classic)
 
+    testImplementation(libs.flyway.core)
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.launcher)

@@ -9,5 +9,6 @@ server.port=8080
 # server.keystore.path=/path/to/server.jks
 # server.keystore.password=CHANGE_ME
 
-# JWT signing secret (min 32 chars). Can also be set via env var NEWSDOVE_JWT_SECRET.
-# server.jwt.secret=CHANGE_ME_32_CHARS_MINIMUM_LENGTH
+# JWT signing secret (min 32 bytes). Can also be set via env var NEWSDOVE_JWT_SECRET
+# or system property -Dnewsdove.jwt.secret. Startup fails if missing or < 32 bytes.
+jwt.secret=CHANGE_ME_32_BYTES_MIN_______________________
