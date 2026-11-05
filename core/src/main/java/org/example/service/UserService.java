@@ -1,5 +1,6 @@
 package org.example.service;
 
+import org.example.PasswordHistory;
 import org.example.Region;
 import org.example.Role;
 import org.example.User;
@@ -9,6 +10,7 @@ import org.example.dao.impl.PasswordHistoryDAOImpl;
 import org.example.dao.impl.UserDAOImpl;
 import org.example.security.PasswordHasher;
 import org.example.util.HibernateUtil;
+import org.hibernate.Session;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -109,6 +111,35 @@ public class UserService {
         }
         user.setEmail(newEmail);
         return userDAO.update(user);
+    }
+
+    /**
+     * Updates the user's password within an already-open Hibernate session / transaction.
+     * The caller is responsible for committing or rolling back.
+     * Throws {@code IllegalArgumentException} on wrong current password, weak/reused new password.
+     */
+    public void updatePasswordInSession(Session session, int userId, String oldPassword, String newPassword) {
+        User user = session.find(User.class, userId);
+        if (user == null) throw new IllegalArgumentException("User not found: " + userId);
+        if (!PasswordHasher.verify(user.getPassword(), oldPassword)) {
+            throw new IllegalArgumentException("Неверный текущий пароль");
+        }
+        validatePassword(user.getNick(), newPassword);
+        List<String> last3 = session.createSelectionQuery(
+                "select ph.passwordHash from PasswordHistory ph where ph.user.id = :uid" +
+                " order by ph.createdAt desc",
+                String.class
+        ).setParameter("uid", userId).setMaxResults(3).getResultList();
+        for (String oldHash : last3) {
+            if (PasswordHasher.verify(oldHash, newPassword)) {
+                throw new IllegalArgumentException("Нельзя повторять один из последних 3 паролей");
+            }
+        }
+        LocalDateTime now = LocalDateTime.now();
+        String newHash = PasswordHasher.hash(newPassword);
+        user.setPassword(newHash);
+        user.setPasswordChangedAt(now);
+        session.persist(new PasswordHistory(user, newHash, now));
     }
 
     public User updatePassword(int userId, String oldPassword, String newPassword) {

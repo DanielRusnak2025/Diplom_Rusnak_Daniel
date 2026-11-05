@@ -23,6 +23,7 @@ import org.example.server.auth.LoginProtection
 import org.example.server.auth.RefreshTokenService
 import org.example.server.config.ServerConfig
 import org.example.server.routes.authRoutes
+import org.example.server.routes.categoryRoutes
 import org.example.server.routes.meRoutes
 import org.example.util.HibernateUtil
 
@@ -82,6 +83,7 @@ fun Application.module() {
             call.respond(HealthDto("ok"))
         }
         authRoutes(jwtConfig, loginProtection, refreshTokenService, auditService)
-        meRoutes(refreshTokenService, auditService)
+        meRoutes(loginProtection, refreshTokenService, auditService)
+        categoryRoutes()
     }
 }

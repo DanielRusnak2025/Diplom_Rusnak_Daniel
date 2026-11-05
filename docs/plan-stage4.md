@@ -329,3 +329,7 @@ _Steps 4j (validation DSL) and notifications/OpenAPI deferred to Stage 5._
 The server uses `SELECT … FOR UPDATE` pessimistic locking on the refresh-token row so that two simultaneous refresh requests with the same token cannot both succeed. However, if the Android client retries a refresh call (e.g. on a network timeout where the server already committed) and the first request was actually processed, the retry presents a token that was already rotated. The server interprets this as token reuse, revokes the entire refresh family, and returns 403 — logging the user out.
 
 **Consequence:** Use a single-flight pattern (e.g. a `Mutex`-guarded `Deferred`) so that only one refresh RPC is in-flight at a time per account. All callers that triggered a refresh wait on the same in-flight call and share its result. Never retry a refresh independently from multiple call sites.
+
+**Access tokens remain valid for up to 15 minutes after a password change (accepted trade-off).**
+
+`PUT /me/password` revokes all refresh tokens immediately, preventing new access tokens from being issued. However, any access token already in circulation stays valid until its 15-minute expiry. This is an intentional simplicity trade-off: eliminating it would require a per-token revocation store (e.g. a blocklist in Redis) consulted on every authenticated request, adding latency and infrastructure complexity. The Android client should discard its cached access token on a successful `PUT /me/password` response so that the user's own session reflects the change immediately.
