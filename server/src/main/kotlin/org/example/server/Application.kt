@@ -24,7 +24,9 @@ import org.example.server.auth.RefreshTokenService
 import org.example.server.config.ServerConfig
 import org.example.server.routes.authRoutes
 import org.example.server.routes.categoryRoutes
+import org.example.server.routes.feedRoutes
 import org.example.server.routes.meRoutes
+import org.example.server.service.FeedService
 import org.example.util.HibernateUtil
 
 fun Application.module() {
@@ -33,6 +35,7 @@ fun Application.module() {
     val loginProtection = LoginProtection()
     val refreshTokenService = RefreshTokenService()
     val auditService = AuditService()
+    val feedService = FeedService()
 
     install(Authentication) {
         jwt("jwt-access") {
@@ -85,5 +88,6 @@ fun Application.module() {
         authRoutes(jwtConfig, loginProtection, refreshTokenService, auditService)
         meRoutes(loginProtection, refreshTokenService, auditService)
         categoryRoutes()
+        feedRoutes(feedService)
     }
 }

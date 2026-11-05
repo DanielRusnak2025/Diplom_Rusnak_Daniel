@@ -143,24 +143,17 @@ public class UserService {
     }
 
     public User updatePassword(int userId, String oldPassword, String newPassword) {
-        User user = userDAO.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
-        if (!PasswordHasher.verify(user.getPassword(), oldPassword)) {
-            throw new IllegalArgumentException("Неверный текущий пароль");
-        }
-        validatePassword(user.getNick(), newPassword);
-        List<String> last3 = passwordHistoryDAO.findLastHashes(user.getId(), 3);
-        for (String oldHash : last3) {
-            if (PasswordHasher.verify(oldHash, newPassword)) {
-                throw new IllegalArgumentException("Нельзя повторять один из последних 3 паролей");
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            var tx = session.beginTransaction();
+            try {
+                updatePasswordInSession(session, userId, oldPassword, newPassword);
+                tx.commit();
+            } catch (Exception e) {
+                if (tx.isActive()) tx.rollback();
+                throw e;
             }
+            return session.find(User.class, userId);
         }
-        LocalDateTime now = LocalDateTime.now();
-        String newHash = PasswordHasher.hash(newPassword);
-        userDAO.changePassword(user.getId(), newHash, now);
-        user.setPassword(newHash);
-        user.setPasswordChangedAt(now);
-        return user;
     }
 
     public boolean updateNotificationFrequency(int userId, String frequency) {

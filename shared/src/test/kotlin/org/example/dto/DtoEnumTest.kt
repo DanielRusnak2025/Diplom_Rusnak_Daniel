@@ -40,15 +40,17 @@ class DtoEnumTest {
     @Test
     fun feedPageDtoRoundTrip() {
         val dto = FeedPageDto(
-            articles = listOf(
+            items = listOf(
                 FeedArticleDto(
                     id = 1, title = "Test Article", link = "https://example.com/1",
-                    publisher = "Example", language = "en", region = null,
-                    score = 42, rating = 1, likePercent = 75,
-                    tags = listOf(ArticleTagDto("tech/ai", "Artificial Intelligence", "CATEGORY", 80, null))
+                    publisher = "Example", publicationDate = "2024-11-01",
+                    language = "en", region = null,
+                    mainCategory = TagRefDto(id = 10, key = "technology", name = "Technology", percent = 80),
+                    subtopic = null,
+                    myRating = 1
                 )
             ),
-            page = 1, pageSize = 10, hasMore = false
+            nextCursor = "abc123"
         )
         val json = Json.encodeToString(dto)
         val decoded = Json.decodeFromString<FeedPageDto>(json)
