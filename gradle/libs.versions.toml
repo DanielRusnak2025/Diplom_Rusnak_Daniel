@@ -14,6 +14,8 @@ slf4j         = "2.0.20"
 logback       = "1.6.5"
 flyway        = "13.11.1"
 argon2-jvm    = "2.12"
+ktor          = "3.6.1"
+mockk         = "1.14.9"
 
 [libraries]
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSer" }
@@ -35,6 +37,16 @@ junit-launcher    = { module = "org.junit.platform:junit-platform-launcher", ver
 flyway-core       = { module = "org.flywaydb:flyway-core",                   version.ref = "flyway"      }
 flyway-mysql      = { module = "org.flywaydb:flyway-mysql",                  version.ref = "flyway"      }
 argon2-jvm        = { module = "de.mkammerer:argon2-jvm",                    version.ref = "argon2-jvm"  }
+ktor-server-core         = { module = "io.ktor:ktor-server-core",                  version.ref = "ktor" }
+ktor-server-netty        = { module = "io.ktor:ktor-server-netty",                 version.ref = "ktor" }
+ktor-server-content-neg  = { module = "io.ktor:ktor-server-content-negotiation",   version.ref = "ktor" }
+ktor-serialization-json  = { module = "io.ktor:ktor-serialization-kotlinx-json",   version.ref = "ktor" }
+ktor-server-auth-jwt     = { module = "io.ktor:ktor-server-auth-jwt",              version.ref = "ktor" }
+ktor-server-status-pages = { module = "io.ktor:ktor-server-status-pages",          version.ref = "ktor" }
+ktor-server-call-logging = { module = "io.ktor:ktor-server-call-logging",          version.ref = "ktor" }
+ktor-server-test-host    = { module = "io.ktor:ktor-server-test-host",             version.ref = "ktor" }
+ktor-client-content-neg  = { module = "io.ktor:ktor-client-content-negotiation",   version.ref = "ktor" }
+mockk                    = { module = "io.mockk:mockk",                            version.ref = "mockk" }
 
 [plugins]
 kotlin-jvm          = { id = "org.jetbrains.kotlin.jvm",                    version.ref = "kotlin" }

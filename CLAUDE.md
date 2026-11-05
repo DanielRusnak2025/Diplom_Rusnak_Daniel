@@ -38,6 +38,8 @@ The full migration plan with stage-by-stage checklists and completion criteria l
 16. **Before every commit run `./gradlew clean :core:test`.** Never trust incremental build results — a clean build is the only proof that compilation and tests are genuinely passing.
 17. **No file deletion (`rm`, `Remove-Item`) and no `git stash`, `git reset`, or `git checkout -- <file>` without the user's explicit confirmation.** If an unexpected pre-existing error appears, stop and report it instead of experimenting with build files or reverting them.
 18. **Write all source files as UTF-8 without BOM.** Never use PowerShell `Set-Content`, `Out-File`, or `[System.Text.Encoding]::UTF8` / `WriteAllText` with default UTF-8 encoding to write Java/Kotlin/Gradle source files — all produce a BOM. Use the Edit/Write tools or Python with `open(path, 'wb')` + `.encode('utf-8')`.
+19. **Never claim a check, lookup or tool result that has not actually completed.** If a result is pending (e.g. a fork agent not yet returned), say so explicitly. Do not state that something was "verified", "confirmed", or "returned" until the tool result is actually in the conversation.
+20. **Do not publish artifacts, pages, or anything outside the repo unless the user asks.** This includes Artifact tool publishes, file uploads to external services, and similar outbound actions.
 
 ---
 

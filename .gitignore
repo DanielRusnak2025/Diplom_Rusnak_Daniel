@@ -57,6 +57,7 @@ logs/
 .env
 email.properties
 hibernate.cfg.xml
+server/config/server.properties
 
 # JavaFX / runtime
 *.dylib

@@ -1,0 +1,13 @@
+# Copy this file to server.properties (gitignored) and fill in real values.
+# server.properties is never committed to git.
+
+# HTTP port (plain, used for /health probe and local dev)
+server.port=8080
+
+# HTTPS port (used in 4i, leave commented until TLS is set up)
+# server.https.port=8443
+# server.keystore.path=/path/to/server.jks
+# server.keystore.password=CHANGE_ME
+
+# JWT signing secret (min 32 chars). Can also be set via env var NEWSDOVE_JWT_SECRET.
+# server.jwt.secret=CHANGE_ME_32_CHARS_MINIMUM_LENGTH
