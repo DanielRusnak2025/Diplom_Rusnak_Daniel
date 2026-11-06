@@ -22,6 +22,7 @@ import org.example.server.auth.JwtConfig
 import org.example.server.auth.LoginProtection
 import org.example.server.auth.RefreshTokenService
 import org.example.server.config.ServerConfig
+import org.example.server.routes.adminRoutes
 import org.example.server.routes.authRoutes
 import org.example.server.routes.categoryRoutes
 import org.example.server.routes.feedRoutes
@@ -111,5 +112,6 @@ fun Application.module(httpsEnabled: Boolean = false) {
         categoryRoutes()
         feedRoutes(feedService)
         rateRoutes(reportService)
+        adminRoutes(auditService)
     }
 }

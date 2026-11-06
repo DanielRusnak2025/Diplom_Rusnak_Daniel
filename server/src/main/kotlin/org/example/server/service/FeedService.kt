@@ -73,7 +73,7 @@ class FeedService {
 
     fun getArticleById(session: Session, userId: Int, articleId: Int): FeedArticleDto? {
         val sql = buildSelectSql(
-            conditions = listOf("a.id = :article_id", "a.prompt_version IS NOT NULL"),
+            conditions = listOf("a.id = :article_id", "a.prompt_version IS NOT NULL", "a.hidden = FALSE"),
             havingSql = "",
             ordered = false,
             limitClause = false
@@ -141,6 +141,7 @@ class FeedService {
         val params = mutableMapOf<String, Any>()
 
         conditions.add("a.prompt_version IS NOT NULL")
+        conditions.add("a.hidden = FALSE")
         conditions.add(
             "NOT EXISTS (SELECT 1 FROM report r WHERE r.article_id = a.id AND r.user_id = :uid AND r.rating = -1)"
         )

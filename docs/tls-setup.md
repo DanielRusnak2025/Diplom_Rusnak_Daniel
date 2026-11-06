@@ -27,6 +27,10 @@ ipconfig.exe | grep -i "IPv4"
 
 Note the address (e.g. `192.168.1.42`). Substitute it for `<LAN_IP>` in step 5.
 
+> **Important:** the LAN IP must be stable. If your router assigns a different address (DHCP lease change),
+> the server cert becomes invalid for the new IP — you must regenerate it from step 4 onwards.
+> Configure a DHCP reservation in your router for the laptop's MAC address so the IP never changes.
+
 ---
 
 ## Step 3 — Generate the local CA
@@ -36,7 +40,9 @@ openssl genrsa -out ca.key 4096
 openssl req -new -x509 -days 3650 \
     -key ca.key \
     -out ca.crt \
-    -subj "/CN=NewsDove Local CA"
+    -subj "/CN=NewsDove Local CA" \
+    -addext "basicConstraints=critical,CA:TRUE" \
+    -addext "keyUsage=critical,keyCertSign,cRLSign"
 ```
 
 `ca.key` is the CA private key — keep it secret and outside the repo.
@@ -66,6 +72,9 @@ distinguished_name = req_distinguished_name
 [req_distinguished_name]
 [SAN]
 subjectAltName = IP:<LAN_IP>,DNS:localhost
+basicConstraints = CA:FALSE
+keyUsage = critical,digitalSignature,keyEncipherment
+extendedKeyUsage = serverAuth
 ```
 
 ```bash
@@ -76,6 +85,9 @@ distinguished_name = req_distinguished_name
 [req_distinguished_name]
 [SAN]
 subjectAltName = IP:192.168.1.42,DNS:localhost
+basicConstraints = CA:FALSE
+keyUsage = critical,digitalSignature,keyEncipherment
+extendedKeyUsage = serverAuth
 EOF
 ```
 
@@ -111,8 +123,7 @@ openssl pkcs12 -export \
     -inkey server.key \
     -in server.crt \
     -certfile ca.crt \
-    -name newsdove \
-    -passout pass:CHANGE_ME_STRONG_PASSWORD
+    -name newsdove
 ```
 
 ---
@@ -138,30 +149,52 @@ $env:NEWSDOVE_KEYSTORE_PASSWORD = "CHANGE_ME_STRONG_PASSWORD"
 
 ---
 
-## Step 9 — Trust the CA on Android
+## Step 9 — Allow port 8443 through Windows Firewall
 
-1. Copy `ca.crt` to the device (via ADB or shared folder).
-2. On Android: **Settings → Security → Encryption & credentials → Install a certificate → CA certificate**.
-3. Select `ca.crt`.
-4. Add a **Network Security Configuration** to `androidApp/src/main/res/xml/network_security_config.xml`:
+Run once in an elevated PowerShell (run as Administrator):
+
+```powershell
+New-NetFirewallRule `
+    -DisplayName "NewsDove HTTPS 8443" `
+    -Direction Inbound `
+    -Protocol TCP `
+    -LocalPort 8443 `
+    -Action Allow `
+    -Profile Private
+```
+
+This allows inbound connections on the Private profile only (home/work Wi-Fi).
+Do **not** enable it on the Public profile.
+
+---
+
+## Step 10 — Trust the CA on Android
+
+Bundle `ca.crt` inside the Android app — no install on the phone needed:
+
+1. Copy `ca.crt` from `C:\newsdove_tls\` to `androidApp/src/main/res/raw/newsdove_ca.crt`.
+2. Create (or update) `androidApp/src/main/res/xml/network_security_config.xml`:
    ```xml
    <network-security-config>
        <base-config>
            <trust-anchors>
                <certificates src="system"/>
-               <certificates src="user"/>
+               <certificates src="@raw/newsdove_ca"/>
            </trust-anchors>
        </base-config>
    </network-security-config>
    ```
-   And reference it in `AndroidManifest.xml`:
+3. Reference it in `AndroidManifest.xml`:
    ```xml
    <application android:networkSecurityConfig="@xml/network_security_config" ...>
    ```
 
+The app trusts only your CA alongside the system store; no user-level CA install is required, and
+the cert is baked into the APK rather than depending on per-device trust settings.
+
 ---
 
-## Step 10 — Trust the CA in a browser (optional)
+## Step 11 — Trust the CA in a browser (optional)
 
 - **Chrome/Edge (Windows)**: Settings → Privacy → Security → Manage certificates → Trusted Root Certification Authorities → Import `ca.crt`.
 - **Firefox**: Settings → Privacy & Security → Certificates → View Certificates → Authorities → Import `ca.crt`.

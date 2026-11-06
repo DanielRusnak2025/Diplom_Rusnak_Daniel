@@ -49,6 +49,9 @@ public class Article {
     @Column(length = 255)
     private String publisher;
 
+    @Column(name = "hidden", nullable = false)
+    private boolean hidden = false;
+
     @OneToMany(mappedBy = "article", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<ArticleTagPercent> articleTagPercents = new HashSet<>();
 
@@ -174,6 +177,14 @@ public class Article {
 
     public void setPublisher(String publisher) {
         this.publisher = publisher;
+    }
+
+    public boolean isHidden() {
+        return hidden;
+    }
+
+    public void setHidden(boolean hidden) {
+        this.hidden = hidden;
     }
 
     public Set<ArticleTagPercent> getArticleTagPercents() {
