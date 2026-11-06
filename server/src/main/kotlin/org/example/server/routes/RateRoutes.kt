@@ -6,8 +6,6 @@ import io.ktor.server.auth.jwt.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import org.example.Article
 import org.example.Report
@@ -41,19 +39,14 @@ fun Route.rateRoutes(reportService: ReportService) {
                     return@post
                 }
 
-                val articleOk = withNewTransaction { session ->
+                val found = withNewTransaction { session ->
                     val art = session.find(Article::class.java, articleId)
-                    art != null && art.promptVersion != null
-                }
-                if (!articleOk) {
-                    call.respond(HttpStatusCode.NotFound, ErrorResponse("NOT_FOUND", "Article not found"))
-                    return@post
+                    if (art == null || art.promptVersion == null) false
+                    else { reportService.upsertRatingInSession(session, articleId, userId, body.rating); true }
                 }
 
-                withContext(Dispatchers.IO) {
-                    reportService.upsertRating(articleId, userId, body.rating)
-                }
-                call.respond(HttpStatusCode.NoContent)
+                if (!found) call.respond(HttpStatusCode.NotFound, ErrorResponse("NOT_FOUND", "Article not found"))
+                else call.respond(HttpStatusCode.NoContent)
             }
 
             delete("/rate") {
@@ -64,43 +57,32 @@ fun Route.rateRoutes(reportService: ReportService) {
                     }
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject.toInt()
 
-                // Single session: check article + get existing rating
-                val (articleOk, existingRating) = withNewTransaction { session ->
+                // 0=notFound, 1=complaint→409, 2=noRating→204 no-op, 3=deleted→204
+                val outcome = withNewTransaction { session ->
                     val art = session.find(Article::class.java, articleId)
-                    if (art == null || art.promptVersion == null) {
-                        Pair(false, null as Int?)
-                    } else {
-                        val r = session.createSelectionQuery(
-                            "FROM Report r WHERE r.user.id = :uid AND r.article.id = :aid",
-                            Report::class.java
-                        ).setParameter("uid", userId).setParameter("aid", articleId)
-                         .uniqueResultOptional().orElse(null)
-                        Pair(true, r?.rating)
-                    }
-                }
+                    if (art == null || art.promptVersion == null) return@withNewTransaction 0
 
-                if (!articleOk) {
-                    call.respond(HttpStatusCode.NotFound, ErrorResponse("NOT_FOUND", "Article not found"))
-                    return@delete
-                }
-                if (existingRating == null) {
-                    call.respond(HttpStatusCode.NoContent)
-                    return@delete
-                }
+                    val r = session.createSelectionQuery(
+                        "FROM Report r WHERE r.user.id = :uid AND r.article.id = :aid",
+                        Report::class.java
+                    ).setParameter("uid", userId).setParameter("aid", articleId)
+                     .uniqueResultOptional().orElse(null)
 
-                // Revert weight effect using upsertRating(0) — ReportService variant B
-                if (existingRating != 0) {
-                    withContext(Dispatchers.IO) {
-                        reportService.upsertRating(articleId, userId, 0)
-                    }
-                }
-                // Delete the report row (now neutral or already neutral)
-                withNewTransaction { session ->
+                    if (r == null) return@withNewTransaction 2
+                    if (r.reasonCode != null) return@withNewTransaction 1
+
+                    if (r.rating != 0) reportService.upsertRatingInSession(session, articleId, userId, 0)
                     session.createMutationQuery(
                         "DELETE FROM Report r WHERE r.user.id = :uid AND r.article.id = :aid"
                     ).setParameter("uid", userId).setParameter("aid", articleId).executeUpdate()
+                    3
                 }
-                call.respond(HttpStatusCode.NoContent)
+
+                when (outcome) {
+                    0 -> call.respond(HttpStatusCode.NotFound, ErrorResponse("NOT_FOUND", "Article not found"))
+                    1 -> call.respond(HttpStatusCode.Conflict, ErrorResponse("COMPLAINT_CANNOT_BE_REMOVED", "Cannot delete a complaint; use the complain endpoint to update it"))
+                    else -> call.respond(HttpStatusCode.NoContent)
+                }
             }
 
             post("/complain") {
@@ -112,20 +94,15 @@ fun Route.rateRoutes(reportService: ReportService) {
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject.toInt()
                 val body = call.receive<ComplainBody>()
 
-                val articleOk = withNewTransaction { session ->
+                val reason = ReportReason.valueOf(body.reasonCode.name)
+                val found = withNewTransaction { session ->
                     val art = session.find(Article::class.java, articleId)
-                    art != null && art.promptVersion != null
-                }
-                if (!articleOk) {
-                    call.respond(HttpStatusCode.NotFound, ErrorResponse("NOT_FOUND", "Article not found"))
-                    return@post
+                    if (art == null || art.promptVersion == null) false
+                    else { reportService.complainInSession(session, articleId, userId, reason); true }
                 }
 
-                val reason = ReportReason.valueOf(body.reasonCode.name)
-                withContext(Dispatchers.IO) {
-                    reportService.complain(articleId, userId, reason)
-                }
-                call.respond(HttpStatusCode.NoContent)
+                if (!found) call.respond(HttpStatusCode.NotFound, ErrorResponse("NOT_FOUND", "Article not found"))
+                else call.respond(HttpStatusCode.NoContent)
             }
         }
     }

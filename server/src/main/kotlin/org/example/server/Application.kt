@@ -31,7 +31,7 @@ import org.example.server.service.FeedService
 import org.example.service.ReportService
 import org.example.util.HibernateUtil
 
-fun Application.module() {
+fun Application.module(httpsEnabled: Boolean = false) {
     val config = ServerConfig.load()
     val jwtConfig = JwtConfig(config.jwtSecret())
     val loginProtection = LoginProtection()
@@ -90,6 +90,15 @@ fun Application.module() {
                 HttpStatusCode.InternalServerError,
                 ErrorResponse("INTERNAL_ERROR", "Internal server error")
             )
+        }
+    }
+
+    if (httpsEnabled) {
+        intercept(ApplicationCallPipeline.Plugins) {
+            if (call.request.local.scheme == "http" && !call.request.local.uri.startsWith("/health")) {
+                call.respond(HttpStatusCode.Forbidden, ErrorResponse("HTTPS_REQUIRED", "HTTPS required for API access"))
+                finish()
+            }
         }
     }
 

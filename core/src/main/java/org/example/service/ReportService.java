@@ -66,44 +66,50 @@ public class ReportService {
     }
 
     /**
+     * Session-accepting overload — caller owns the session and transaction.
+     * Core upsert logic: same rating → no-op; new report → save + weights;
+     * changed rating → update + apply |new−old| steps (variant B).
+     */
+    public void upsertRatingInSession(Session session, int articleId, int userId, int rating) {
+        if (rating < -1 || rating > 1) throw new IllegalArgumentException("Rating must be -1, 0, or 1");
+        Article article = session.find(Article.class, articleId);
+        if (article == null) throw new IllegalArgumentException("Article not found: " + articleId);
+        User user = session.find(User.class, userId);
+        if (user == null) throw new IllegalArgumentException("User not found: " + userId);
+
+        Report existing = session.createQuery(
+                "FROM Report r WHERE r.user.id = :uid AND r.article.id = :aid", Report.class)
+                .setParameter("uid", userId).setParameter("aid", articleId)
+                .uniqueResultOptional().orElse(null);
+
+        int stepDir, steps;
+        if (existing == null) {
+            session.persist(new Report(article, user, rating));
+            stepDir = rating;
+            steps = rating != 0 ? 1 : 0;
+        } else {
+            int oldRating = existing.getRating();
+            if (oldRating == rating) return;
+            existing.setRating(rating);
+            if (rating != -1) existing.setReasonCode(null);
+            int diff = rating - oldRating;
+            stepDir = Integer.signum(diff);
+            steps = Math.abs(diff);
+        }
+
+        if (steps > 0) TagPercentService.applyWeightSteps(session, articleId, userId, stepDir, steps);
+    }
+
+    /**
      * Upserts a rating for an article, all in one transaction.
-     * Same rating → no-op. New report → save + weights (1 step, direction=rating).
-     * Changed rating → update report + apply |new−old| steps (variant B):
-     *   like→dislike = 2 steps of −1, like→neutral = 1 step of −1,
-     *   dislike→like = 2 steps of +1, neutral→like/dislike = 1 step.
-     * Rollback is approximate for multi-step due to smoothClamp non-linearity.
+     * Delegates to upsertRatingInSession for the core logic.
      */
     public void upsertRating(int articleId, int userId, int rating) {
         if (rating < -1 || rating > 1) throw new IllegalArgumentException("Rating must be -1, 0, or 1");
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             try {
-                Article article = session.find(Article.class, articleId);
-                if (article == null) throw new IllegalArgumentException("Article not found: " + articleId);
-                User user = session.find(User.class, userId);
-                if (user == null) throw new IllegalArgumentException("User not found: " + userId);
-
-                Report existing = session.createQuery(
-                        "FROM Report r WHERE r.user.id = :uid AND r.article.id = :aid", Report.class)
-                        .setParameter("uid", userId).setParameter("aid", articleId)
-                        .uniqueResultOptional().orElse(null);
-
-                int stepDir, steps;
-                if (existing == null) {
-                    session.persist(new Report(article, user, rating));
-                    stepDir = rating;
-                    steps = rating != 0 ? 1 : 0;
-                } else {
-                    int oldRating = existing.getRating();
-                    if (oldRating == rating) { tx.rollback(); return; }
-                    existing.setRating(rating);
-                    if (rating != -1) existing.setReasonCode(null);
-                    int diff = rating - oldRating;
-                    stepDir = Integer.signum(diff);
-                    steps = Math.abs(diff);
-                }
-
-                if (steps > 0) TagPercentService.applyWeightSteps(session, articleId, userId, stepDir, steps);
+                upsertRatingInSession(session, articleId, userId, rating);
                 tx.commit();
             } catch (Exception e) {
                 if (tx.isActive()) tx.rollback();
@@ -113,45 +119,45 @@ public class ReportService {
     }
 
     /**
-     * Creates or updates a complaint (rating=-1, reasonCode), creates a user block when the
-     * reason implies one, and adjusts tag weights — all in a single transaction.
-     *
-     * Weight steps: no prior rating → 1 step of −1. Prior rating was already −1 → no weight
-     * change (only reason updated). Prior rating 0 → 1 step of −1. Prior rating 1 → 2 steps of −1.
+     * Session-accepting overload — caller owns the session and transaction.
+     * Core complain logic: upsert report with reasonCode, optional user block, weight steps.
+     */
+    public void complainInSession(Session session, int articleId, int userId, ReportReason reason) {
+        Article article = session.find(Article.class, articleId);
+        if (article == null) throw new IllegalArgumentException("Article not found: " + articleId);
+        User user = session.find(User.class, userId);
+        if (user == null) throw new IllegalArgumentException("User not found: " + userId);
+
+        Report existing = session.createQuery(
+                "FROM Report r WHERE r.user.id = :uid AND r.article.id = :aid", Report.class)
+                .setParameter("uid", userId).setParameter("aid", articleId)
+                .uniqueResultOptional().orElse(null);
+        int steps;
+        if (existing == null) {
+            session.persist(new Report(article, user, -1, reason));
+            steps = 1;
+        } else {
+            int oldRating = existing.getRating();
+            existing.setRating(-1);
+            existing.setReasonCode(reason);
+            steps = (oldRating == -1) ? 0 : Math.abs(-1 - oldRating);
+        }
+
+        UserBlock block = buildBlock(session, user, article, reason);
+        if (block != null) session.persist(block);
+
+        if (steps > 0) TagPercentService.applyWeightSteps(session, articleId, userId, -1, steps);
+    }
+
+    /**
+     * Creates or updates a complaint — all in a single transaction.
+     * Delegates to complainInSession for the core logic.
      */
     public void complain(int articleId, int userId, ReportReason reason) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             Transaction tx = session.beginTransaction();
             try {
-                Article article = session.find(Article.class, articleId);
-                if (article == null) throw new IllegalArgumentException("Article not found: " + articleId);
-                User user = session.find(User.class, userId);
-                if (user == null) throw new IllegalArgumentException("User not found: " + userId);
-
-                // 1. Upsert report; compute weight steps
-                Report existing = session.createQuery(
-                        "FROM Report r WHERE r.user.id = :uid AND r.article.id = :aid", Report.class)
-                        .setParameter("uid", userId).setParameter("aid", articleId)
-                        .uniqueResultOptional().orElse(null);
-                int steps;
-                if (existing == null) {
-                    session.persist(new Report(article, user, -1, reason));
-                    steps = 1;
-                } else {
-                    int oldRating = existing.getRating();
-                    existing.setRating(-1);
-                    existing.setReasonCode(reason);
-                    // already dislike: only reason changed, weights unchanged
-                    steps = (oldRating == -1) ? 0 : Math.abs(-1 - oldRating);
-                }
-
-                // 2. Block (check-before-insert to stay clear of UNIQUE violation)
-                UserBlock block = buildBlock(session, user, article, reason);
-                if (block != null) session.persist(block);
-
-                // 3. Weight adjustment via shared helper (direction always −1)
-                if (steps > 0) TagPercentService.applyWeightSteps(session, articleId, userId, -1, steps);
-
+                complainInSession(session, articleId, userId, reason);
                 tx.commit();
             } catch (Exception e) {
                 if (tx.isActive()) tx.rollback();

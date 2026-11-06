@@ -315,6 +315,30 @@ class RateRouteTest {
     }
 
     @Test
+    fun `delete complaint returns 409`() = testApplication {
+        application { module() }
+        val token = registerAndLogin("ratetest_delcomplain")
+
+        var articleId = 0
+        withContext(Dispatchers.IO) {
+            HibernateUtil.getSessionFactory().openSession().use { session ->
+                val tx = session.beginTransaction()
+                articleId = insertClassifiedArticle(session, "ratetest_delcomplain_article").id
+                tx.commit()
+            }
+        }
+
+        val complainResp = complain(token, articleId, "MISLEADING")
+        assertEquals(HttpStatusCode.NoContent, complainResp.status, "complain should succeed")
+
+        val deleteResp = deleteRate(token, articleId)
+        assertEquals(HttpStatusCode.Conflict, deleteResp.status, "DELETE /rate on a complaint should return 409")
+
+        val body = Json.parseToJsonElement(deleteResp.bodyAsText()).jsonObject
+        assertEquals("COMPLAINT_CANNOT_BE_REMOVED", body["code"]?.jsonPrimitive?.content)
+    }
+
+    @Test
     fun `disliked article excluded from feed`() = testApplication {
         application { module() }
         val token = registerAndLogin("ratetest_feedexcl")

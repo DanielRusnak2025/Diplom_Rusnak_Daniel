@@ -23,6 +23,22 @@ class ServerConfig private constructor(private val props: Properties) {
         return secret
     }
 
+    fun httpsPort(): Int? =
+        props.getProperty("server.https.port")?.trim()?.takeIf { it.isNotEmpty() }?.toInt()
+
+    fun keystorePath(): String? =
+        props.getProperty("server.keystore.path")?.trim()?.takeIf { it.isNotEmpty() }
+
+    fun keystorePassword(): String =
+        System.getenv("NEWSDOVE_KEYSTORE_PASSWORD")?.takeIf { it.isNotEmpty() }
+            ?: props.getProperty("server.keystore.password")?.takeIf { it.isNotEmpty() }
+            ?: error(
+                "Keystore password not configured. " +
+                "Set env NEWSDOVE_KEYSTORE_PASSWORD or server.keystore.password in server.properties"
+            )
+
+    fun keyAlias(): String = props.getProperty("server.keystore.alias", "newsdove")
+
     companion object {
         private val log = LoggerFactory.getLogger(ServerConfig::class.java)
 
