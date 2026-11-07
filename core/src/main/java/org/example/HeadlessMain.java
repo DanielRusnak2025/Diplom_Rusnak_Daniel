@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -113,6 +114,35 @@ public class HeadlessMain {
         long count = articleService.getTotalArticles();
         log.info("[DB] articles in db_use_test: {}", count);
 
+        String makeAdminNick = parseMakeAdmin(args);
+        if (makeAdminNick != null) {
+            if (dbUrl == null || (!dbUrl.contains("db_use_test") && !dbUrl.contains("db_use_test_it"))) {
+                log.error("[SAFETY] --make-admin refused: DB is not db_use_test/db_use_test_it: {}", dbUrl);
+                System.exit(1);
+            }
+            try (org.hibernate.Session session = HibernateUtil.getSessionFactory().openSession()) {
+                org.hibernate.Transaction tx = session.beginTransaction();
+                User user = session.createSelectionQuery("FROM User u WHERE u.nick = :nick", User.class)
+                        .setParameter("nick", makeAdminNick).uniqueResult();
+                if (user == null) {
+                    log.error("[make-admin] User '{}' not found.", makeAdminNick);
+                    tx.rollback();
+                    System.exit(1);
+                }
+                user.setRole(Role.ADMIN);
+                AuditLog auditLog = new AuditLog();
+                auditLog.setAction("MAKE_ADMIN");
+                auditLog.setTargetType("user");
+                auditLog.setTargetId(String.valueOf(user.getId()));
+                auditLog.setDetails("nick=" + makeAdminNick);
+                auditLog.setCreatedAt(LocalDateTime.now());
+                session.persist(auditLog);
+                tx.commit();
+                log.info("[make-admin] '{}' is now ADMIN.", makeAdminNick);
+            }
+            System.exit(0);
+        }
+
         if (processQueueCount > 0) {
             log.info("[QueueWorker] --process-queue {} — loading classifier and page loader…", processQueueCount);
             QueueWorker worker = new QueueWorker(new OllamaClassifier(), new PageFetcherLoader());
@@ -200,6 +230,17 @@ public class HeadlessMain {
     private static String parseGold(String[] args) {
         for (int i = 0; i < args.length - 1; i++) {
             if ("--gold".equals(args[i])) {
+                String v = args[i + 1].trim();
+                if (!v.isEmpty()) return v;
+            }
+        }
+        return null;
+    }
+
+    /** Parses {@code --make-admin <nick>} → nick string, or null if absent. */
+    private static String parseMakeAdmin(String[] args) {
+        for (int i = 0; i < args.length - 1; i++) {
+            if ("--make-admin".equals(args[i])) {
                 String v = args[i + 1].trim();
                 if (!v.isEmpty()) return v;
             }

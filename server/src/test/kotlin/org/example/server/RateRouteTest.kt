@@ -368,4 +368,67 @@ class RateRouteTest {
             .jsonArray.map { it.jsonObject["id"]!!.jsonPrimitive.int }
         assertFalse(articleId in idsAfter, "Article must not appear in feed after dislike")
     }
+
+    private fun hideArticle(articleId: Int) {
+        HibernateUtil.getSessionFactory().openSession().use { session ->
+            val tx = session.beginTransaction()
+            val a = session.find(Article::class.java, articleId)!!
+            a.isHidden = true
+            tx.commit()
+        }
+    }
+
+    @Test
+    fun `rate hidden article returns 404`() = testApplication {
+        application { module() }
+        val token = registerAndLogin("ratetest_hidden_rate")
+
+        var articleId = 0
+        withContext(Dispatchers.IO) {
+            HibernateUtil.getSessionFactory().openSession().use { session ->
+                val tx = session.beginTransaction()
+                articleId = insertClassifiedArticle(session, "ratetest_hidden_rate_art").id
+                tx.commit()
+            }
+        }
+        hideArticle(articleId)
+
+        assertEquals(HttpStatusCode.NotFound, rate(token, articleId, 1).status)
+    }
+
+    @Test
+    fun `delete rate on hidden article returns 404`() = testApplication {
+        application { module() }
+        val token = registerAndLogin("ratetest_hidden_del")
+
+        var articleId = 0
+        withContext(Dispatchers.IO) {
+            HibernateUtil.getSessionFactory().openSession().use { session ->
+                val tx = session.beginTransaction()
+                articleId = insertClassifiedArticle(session, "ratetest_hidden_del_art").id
+                tx.commit()
+            }
+        }
+        hideArticle(articleId)
+
+        assertEquals(HttpStatusCode.NotFound, deleteRate(token, articleId).status)
+    }
+
+    @Test
+    fun `complain on hidden article returns 404`() = testApplication {
+        application { module() }
+        val token = registerAndLogin("ratetest_hidden_cmp")
+
+        var articleId = 0
+        withContext(Dispatchers.IO) {
+            HibernateUtil.getSessionFactory().openSession().use { session ->
+                val tx = session.beginTransaction()
+                articleId = insertClassifiedArticle(session, "ratetest_hidden_cmp_art").id
+                tx.commit()
+            }
+        }
+        hideArticle(articleId)
+
+        assertEquals(HttpStatusCode.NotFound, complain(token, articleId, "MISLEADING").status)
+    }
 }

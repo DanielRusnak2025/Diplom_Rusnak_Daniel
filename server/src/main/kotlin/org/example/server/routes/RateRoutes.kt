@@ -41,7 +41,7 @@ fun Route.rateRoutes(reportService: ReportService) {
 
                 val found = withNewTransaction { session ->
                     val art = session.find(Article::class.java, articleId)
-                    if (art == null || art.promptVersion == null) false
+                    if (art == null || art.promptVersion == null || art.isHidden) false
                     else { reportService.upsertRatingInSession(session, articleId, userId, body.rating); true }
                 }
 
@@ -60,7 +60,7 @@ fun Route.rateRoutes(reportService: ReportService) {
                 // 0=notFound, 1=complaint→409, 2=noRating→204 no-op, 3=deleted→204
                 val outcome = withNewTransaction { session ->
                     val art = session.find(Article::class.java, articleId)
-                    if (art == null || art.promptVersion == null) return@withNewTransaction 0
+                    if (art == null || art.promptVersion == null || art.isHidden) return@withNewTransaction 0
 
                     val r = session.createSelectionQuery(
                         "FROM Report r WHERE r.user.id = :uid AND r.article.id = :aid",
@@ -97,7 +97,7 @@ fun Route.rateRoutes(reportService: ReportService) {
                 val reason = ReportReason.valueOf(body.reasonCode.name)
                 val found = withNewTransaction { session ->
                     val art = session.find(Article::class.java, articleId)
-                    if (art == null || art.promptVersion == null) false
+                    if (art == null || art.promptVersion == null || art.isHidden) false
                     else { reportService.complainInSession(session, articleId, userId, reason); true }
                 }
 
