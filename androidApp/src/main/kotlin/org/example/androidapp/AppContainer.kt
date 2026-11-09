@@ -7,6 +7,7 @@ import org.example.androidapp.data.DataStoreTokenRepository
 import org.example.androidapp.data.TokenRepository
 import org.example.androidapp.network.ApiClient
 import org.example.androidapp.network.AuthApi
+import org.example.androidapp.network.FeedApi
 import org.example.androidapp.network.MeApi
 import org.example.androidapp.network.MetaApi
 
@@ -21,4 +22,5 @@ class AppContainer(context: Context) {
     val authApi = AuthApi(BuildConfig.BASE_URL, apiClient.anonClient, apiClient.authClient)
     val metaApi = MetaApi(BuildConfig.BASE_URL, apiClient.authClient)
     val meApi = MeApi(BuildConfig.BASE_URL, apiClient.authClient)
+    val feedApi = FeedApi(BuildConfig.BASE_URL, apiClient.authClient)
 }

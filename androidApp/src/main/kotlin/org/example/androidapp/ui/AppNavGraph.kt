@@ -23,7 +23,8 @@ import org.example.androidapp.ui.auth.LoginScreen
 import org.example.androidapp.ui.auth.LoginViewModel
 import org.example.androidapp.ui.auth.RegisterScreen
 import org.example.androidapp.ui.auth.RegisterViewModel
-import org.example.androidapp.ui.home.HomeScreen
+import org.example.androidapp.ui.feed.FeedScreen
+import org.example.androidapp.ui.feed.FeedViewModel
 import org.example.androidapp.ui.onboarding.OnboardingInterestsScreen
 import org.example.androidapp.ui.onboarding.OnboardingLanguagesScreen
 import org.example.androidapp.ui.onboarding.OnboardingRegionsScreen
@@ -136,6 +137,14 @@ fun AppNavGraph(appViewModel: AppViewModel) {
             }
         }
 
-        composable("home") { HomeScreen() }
+        composable("home") {
+            val feedVm: FeedViewModel = viewModel(factory = viewModelFactory {
+                initializer {
+                    val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as NewsDoveApp
+                    FeedViewModel(app.container.feedApi, app.container.authApi, app.container.tokenRepository)
+                }
+            })
+            FeedScreen(viewModel = feedVm)
+        }
     }
 }

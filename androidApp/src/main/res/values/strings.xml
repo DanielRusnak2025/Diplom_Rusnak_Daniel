@@ -25,6 +25,27 @@
     <string name="btn_done">Готово</string>
     <string name="btn_retry">Повторить</string>
 
-    <!-- Home screen -->
+    <!-- Feed screen -->
+    <string name="action_logout">Выйти</string>
+    <string name="feed_empty">Пока нет новостей по вашим интересам</string>
+    <string name="feed_end">Больше нет</string>
+    <string name="feed_untitled">Без названия</string>
+    <string name="cd_more">Ещё</string>
+    <string name="cd_like">Нравится</string>
+    <string name="cd_dislike">Не нравится</string>
+
+    <!-- Complaint bottom sheet -->
+    <string name="complaint_title">Пожаловаться на статью</string>
+    <string name="btn_cancel">Отмена</string>
+    <string name="btn_send">Отправить</string>
+    <string name="reason_not_interested_topic">Тема не интересна</string>
+    <string name="reason_unwanted_region">Нежелательный регион</string>
+    <string name="reason_unwanted_publisher">Нежелательный источник</string>
+    <string name="reason_not_an_article">Это не статья</string>
+    <string name="reason_broken_link">Сломанная ссылка</string>
+    <string name="reason_misleading">Вводящий в заблуждение контент</string>
+    <string name="reason_other">Другое</string>
+
+    <!-- Home screen (legacy placeholder) -->
     <string name="placeholder_feed">Ваши новости появятся здесь</string>
 </resources>

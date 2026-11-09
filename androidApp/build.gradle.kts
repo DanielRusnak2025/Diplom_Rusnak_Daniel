@@ -51,6 +51,8 @@ dependencies {
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.material3)
+    implementation(libs.compose.material.icons.core)
+    implementation(libs.compose.material.icons.extended)
     implementation(libs.compose.activity)
 
     implementation(libs.datastore.prefs)
@@ -58,6 +60,7 @@ dependencies {
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.navigation.compose)
+    implementation(libs.browser)
 
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
