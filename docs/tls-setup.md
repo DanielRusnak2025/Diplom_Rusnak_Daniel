@@ -64,27 +64,29 @@ openssl req -new \
 
 ## Step 5 — Create the SAN extension file
 
-Replace `<LAN_IP>` with the value from step 2, then save as `san.cnf`:
+Replace `<LAN_IP>` with the value from step 2, then save as `san.cnf`.
+`IP:10.0.2.2` is the fixed address the Android emulator uses to reach the host machine; keep it even
+if you do not use the emulator today.
 
 ```
 [req]
 distinguished_name = req_distinguished_name
 [req_distinguished_name]
 [SAN]
-subjectAltName = IP:<LAN_IP>,DNS:localhost
+subjectAltName = IP:<LAN_IP>,IP:10.0.2.2,DNS:localhost
 basicConstraints = CA:FALSE
 keyUsage = critical,digitalSignature,keyEncipherment
 extendedKeyUsage = serverAuth
 ```
 
 ```bash
-# Quick way to create san.cnf (replace 192.168.1.42 with your IP):
+# Quick way to create san.cnf (replace 192.168.1.42 with your LAN IP):
 cat > san.cnf << 'EOF'
 [req]
 distinguished_name = req_distinguished_name
 [req_distinguished_name]
 [SAN]
-subjectAltName = IP:192.168.1.42,DNS:localhost
+subjectAltName = IP:192.168.1.42,IP:10.0.2.2,DNS:localhost
 basicConstraints = CA:FALSE
 keyUsage = critical,digitalSignature,keyEncipherment
 extendedKeyUsage = serverAuth
@@ -128,6 +130,21 @@ openssl pkcs12 -export \
 
 ---
 
+## Re-issuing the server certificate for a new LAN IP
+
+If your LAN IP changes (DHCP reassignment), **the CA stays — repeat only steps 4–7**:
+
+1. `openssl genrsa -out server.key 2048` (or reuse the existing key)
+2. `openssl req -new -key server.key -out server.csr -subj "/CN=localhost"`
+3. Update `san.cnf` with the new IP.
+4. Sign a fresh `server.crt` (step 6).
+5. Pack a new `newsdove.p12` (step 7).
+6. Restart the server; update `server.keystore.path` if the filename changed.
+
+The Android app does not need to be rebuilt — `ca.crt` (the trust anchor) is unchanged.
+
+---
+
 ## Step 8 — Configure `server/config/server.properties`
 
 ```properties
@@ -168,6 +185,24 @@ Do **not** enable it on the Public profile.
 
 ---
 
+## USB Demo Without Wi-Fi
+
+When you want to run the demo with a physical Android device connected via USB — no shared Wi-Fi
+needed:
+
+```bash
+# Forward device port 8443 to the laptop's port 8443 (run once per USB reconnect):
+adb reverse tcp:8443 tcp:8443
+```
+
+After this, the app on the phone can reach the server at `https://localhost:8443`.
+No LAN IP is needed; the connection travels over the USB cable.
+
+The certificate already covers `DNS:localhost`, so no new cert is required.
+Remove the tunnel when done: `adb reverse --remove tcp:8443`
+
+---
+
 ## Step 10 — Trust the CA on Android
 
 Bundle `ca.crt` inside the Android app — no install on the phone needed:
@@ -203,16 +238,19 @@ the cert is baked into the APK rather than depending on per-device trust setting
 
 ## Verification
 
+> **`--ssl-no-revoke`** is required on Windows: `curl.exe` uses Schannel, which tries to check
+> certificate revocation (CRL/OCSP) and fails for a private CA with no published endpoint.
+
 ```bash
 # Test the server responds on HTTPS (once the server is running):
-curl --cacert /c/newsdove_tls/ca.crt https://localhost:8443/health
+curl.exe --ssl-no-revoke --cacert /c/newsdove_tls/ca.crt https://localhost:8443/health
 # Expected: {"status":"ok"}
 
 # Test that plain HTTP is blocked on API routes:
-curl http://localhost:8080/api/v1/feed
+curl.exe http://localhost:8080/api/v1/feed
 # Expected: 403 {"code":"HTTPS_REQUIRED",...}
 
 # Test that /health is accessible on plain HTTP:
-curl http://localhost:8080/health
+curl.exe http://localhost:8080/health
 # Expected: {"status":"ok"}
 ```
