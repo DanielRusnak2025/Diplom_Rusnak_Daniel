@@ -173,7 +173,7 @@ Main graph (logged in):
 ```
 
 **Feed screen:**
-- Cursor-based paging: `GET /api/v1/feed?after=<lastId>&limit=20`; lazy-load on scroll end.
+- Cursor-based paging: `GET /api/v1/feed?cursor=<lastId>&limit=20`; lazy-load on scroll end.
 - Article card: title, publisher, language tag, recommendation score, Like / Dislike buttons.
 - Long-press → Complain bottom sheet (reason code radio group + confirm).
 - Tap → open URL in **Custom Tabs** (no article text stored — rule 4).
@@ -188,16 +188,47 @@ Main graph (logged in):
 - 403 `HTTPS_REQUIRED` → log error + show "Server misconfiguration" toast (should never happen).
 
 **Settings screen:**
-- Display and edit language/region preferences (`GET/PUT /api/v1/me`).
-- Adjust interests: show the 15 categories from `GET /api/v1/categories` with +/− weight controls.
-- Change password (`POST /api/v1/auth/change-password`).
-- Logout: call `DELETE /api/v1/auth/logout`, clear local tokens.
+- Language / region: `GET /api/v1/me` to load; `PUT /api/v1/me/settings {languages, regions}` to save.
+- Interests: `GET /api/v1/me/interests` to load; **checkboxes only** — selected → `max(current, 50)`,
+  deselected → `0`; submit via `PUT /api/v1/me/interests {categoryIds: [...]}`.
+- Change password: `PUT /api/v1/me/password {currentPassword, newPassword}`.
+- Logout: `POST /api/v1/auth/logout` with `{refreshToken}` body → 204; clear local tokens.
 
 **Moderator screen (ADMIN only, not cached):**
 - Article list with Hide / Unhide action.
-- User list with Block / Unblock and role-change actions.
+- User list with role-change action (`PUT /api/v1/admin/users/{id}/role`); no separate "block" state on the server.
 - Complaint queue with article context and resolution action.
 - Loaded on demand, never stored in Room.
+
+---
+
+## 5.5 Client Endpoint → Server Route File
+
+All endpoints verified against `server/src/main/kotlin/org/example/server/routes/` on 2026-11-09.
+
+| Method | Endpoint | Server route file | Auth |
+|--------|----------|-------------------|------|
+| POST | `/api/v1/auth/register` | `AuthRoutes.kt` | none |
+| POST | `/api/v1/auth/login` | `AuthRoutes.kt` | none |
+| POST | `/api/v1/auth/refresh` | `AuthRoutes.kt` | none (RefreshRequest body) |
+| POST | `/api/v1/auth/logout` | `AuthRoutes.kt` | none (RefreshRequest body) → 204 |
+| GET | `/api/v1/me` | `MeRoutes.kt` | JWT |
+| PUT | `/api/v1/me/settings` | `MeRoutes.kt` | JWT |
+| PUT | `/api/v1/me/password` | `MeRoutes.kt` | JWT |
+| GET | `/api/v1/me/interests` | `MeRoutes.kt` | JWT |
+| PUT | `/api/v1/me/interests` | `MeRoutes.kt` | JWT (`{categoryIds:[...]}`) |
+| GET | `/api/v1/categories` | `CategoryRoutes.kt` | JWT |
+| GET | `/api/v1/feed` | `FeedRoutes.kt` | JWT (`?cursor=&limit=&region=&category=`) |
+| GET | `/api/v1/articles/{id}` | `FeedRoutes.kt` | JWT |
+| POST | `/api/v1/articles/{id}/rate` | `RateRoutes.kt` | JWT (`{rating: 1|-1}`) |
+| DELETE | `/api/v1/articles/{id}/rate` | `RateRoutes.kt` | JWT |
+| POST | `/api/v1/articles/{id}/complain` | `RateRoutes.kt` | JWT (`{reasonCode}`) |
+| GET | `/api/v1/admin/complaints` | `AdminRoutes.kt` | JWT MODERATOR+ |
+| PUT | `/api/v1/admin/articles/{id}/hidden` | `AdminRoutes.kt` | JWT MODERATOR+ (`{hidden:bool}`) |
+| GET | `/api/v1/admin/users` | `AdminRoutes.kt` | JWT ADMIN |
+| PUT | `/api/v1/admin/users/{id}/role` | `AdminRoutes.kt` | JWT ADMIN (`{role}`) |
+| GET | `/api/v1/admin/audit` | `AdminRoutes.kt` | JWT ADMIN |
+| GET | `/api/v1/admin/stats` | `AdminRoutes.kt` | JWT ADMIN |
 
 ---
 
@@ -264,8 +295,11 @@ No instrumented tests in Stage 5. All tests run on the JVM (`./gradlew :androidA
 
 ### 5c — Login / Register + onboarding
 - Login and Register screens + ViewModels.
-- Onboarding: language → region → interests (show 15 categories from `GET /api/v1/categories`,
-  no subtopics; submit selection via `POST /api/v1/me`).
+- Onboarding: three sequential screens — language → region → interests.
+  - Language screen: collect selection; submit via `PUT /api/v1/me/settings {languages: [...]}`.
+  - Region screen: collect selection; submit via `PUT /api/v1/me/settings {regions: [...]}`.
+  - Interests screen: show 15 categories from `GET /api/v1/categories` (no subtopics); checkboxes only;
+    submit via `PUT /api/v1/me/interests {categoryIds: [...]}` → server sets selected → `max(current,50)`, deselected → `0`.
 - Navigate to Feed on success; show inline error on failure.
 - Deliverable: manual smoke test via `adb reverse tcp:8443 tcp:8443`; register + login work end-to-end.
 
@@ -277,14 +311,15 @@ No instrumented tests in Stage 5. All tests run on the JVM (`./gradlew :androidA
 - Deliverable: feed displays articles; interactions recorded on the server.
 
 ### 5e — Settings screen
-- Language / region / interests preferences (round-trip with /api/v1/me).
-- Change password.
-- Logout.
+- Language / region: `GET /api/v1/me` to load; `PUT /api/v1/me/settings` to save.
+- Interests: `GET /api/v1/me/interests` to load; checkboxes; `PUT /api/v1/me/interests {categoryIds}` to save.
+- Change password: `PUT /api/v1/me/password`.
+- Logout: `POST /api/v1/auth/logout` with `RefreshRequest` body; clear local tokens.
 - Deliverable: settings changes survive app restart; logout clears tokens.
 
 ### 5f — Moderator screen
 - Admin-gated navigation (role check from `/api/v1/me`).
-- Hide/unhide articles, block/unblock users, complaint queue.
+- Hide/unhide articles (`PUT /api/v1/admin/articles/{id}/hidden`), user role changes (`PUT /api/v1/admin/users/{id}/role`), complaint queue (`GET /api/v1/admin/complaints`).
 - Deliverable: admin flow smoke-tested with `--make-admin`-bootstrapped account.
 
 ---
