@@ -18,7 +18,10 @@ ktor          = "3.6.1"
 mockk         = "1.14.9"
 agp              = "9.5.1"
 composeBom       = "2026.09.00"
-activityCompose  = "1.10.1"
+activityCompose  = "1.13.0"
+coroutinesTest   = "1.11.0"
+datastore        = "1.3.0"
+lifecycle        = "2.11.0"
 
 [libraries]
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSer" }
@@ -50,10 +53,17 @@ ktor-server-call-logging = { module = "io.ktor:ktor-server-call-logging",       
 ktor-server-test-host    = { module = "io.ktor:ktor-server-test-host",             version.ref = "ktor" }
 ktor-client-content-neg  = { module = "io.ktor:ktor-client-content-negotiation",   version.ref = "ktor" }
 mockk                    = { module = "io.mockk:mockk",                            version.ref = "mockk" }
-compose-bom              = { module = "androidx.compose:compose-bom",               version.ref = "composeBom" }
-compose-ui               = { module = "androidx.compose.ui:ui"                                                 }
-compose-material3        = { module = "androidx.compose.material3:material3"                                   }
-compose-activity         = { module = "androidx.activity:activity-compose"                                     }
+compose-bom              = { module = "androidx.compose:compose-bom",               version.ref = "composeBom"      }
+compose-ui               = { module = "androidx.compose.ui:ui"                                                             }
+compose-material3        = { module = "androidx.compose.material3:material3"                                               }
+compose-activity         = { module = "androidx.activity:activity-compose",          version.ref = "activityCompose" }
+datastore-prefs          = { module = "androidx.datastore:datastore-preferences",    version.ref = "datastore"       }
+lifecycle-viewmodel-ktx  = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx",  version.ref = "lifecycle"       }
+ktor-client-core         = { module = "io.ktor:ktor-client-core",                    version.ref = "ktor"            }
+ktor-client-okhttp       = { module = "io.ktor:ktor-client-okhttp",                  version.ref = "ktor"            }
+ktor-client-auth         = { module = "io.ktor:ktor-client-auth",                    version.ref = "ktor"            }
+ktor-client-mock         = { module = "io.ktor:ktor-client-mock",                    version.ref = "ktor"            }
+coroutines-test          = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutinesTest" }
 
 [plugins]
 kotlin-jvm          = { id = "org.jetbrains.kotlin.jvm",                    version.ref = "kotlin" }
