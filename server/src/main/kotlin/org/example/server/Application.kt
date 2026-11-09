@@ -27,6 +27,7 @@ import org.example.server.routes.authRoutes
 import org.example.server.routes.categoryRoutes
 import org.example.server.routes.feedRoutes
 import org.example.server.routes.meRoutes
+import org.example.server.routes.metaRoutes
 import org.example.server.routes.rateRoutes
 import org.example.server.service.FeedService
 import org.example.service.ReportService
@@ -113,5 +114,6 @@ fun Application.module(httpsEnabled: Boolean = false) {
         feedRoutes(feedService)
         rateRoutes(reportService)
         adminRoutes(auditService)
+        metaRoutes()
     }
 }

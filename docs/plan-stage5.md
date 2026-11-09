@@ -218,6 +218,8 @@ All endpoints verified against `server/src/main/kotlin/org/example/server/routes
 | GET | `/api/v1/me/interests` | `MeRoutes.kt` | JWT |
 | PUT | `/api/v1/me/interests` | `MeRoutes.kt` | JWT (`{categoryIds:[...]}`) |
 | GET | `/api/v1/categories` | `CategoryRoutes.kt` | JWT |
+| GET | `/api/v1/regions` | `MetaRoutes.kt` | JWT |
+| GET | `/api/v1/languages` | `MetaRoutes.kt` | JWT |
 | GET | `/api/v1/feed` | `FeedRoutes.kt` | JWT (`?cursor=&limit=&region=&category=`) |
 | GET | `/api/v1/articles/{id}` | `FeedRoutes.kt` | JWT |
 | POST | `/api/v1/articles/{id}/rate` | `RateRoutes.kt` | JWT (`{rating: 1|-1}`) |

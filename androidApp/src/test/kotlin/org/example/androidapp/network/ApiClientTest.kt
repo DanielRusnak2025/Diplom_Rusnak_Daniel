@@ -25,6 +25,7 @@ import org.example.dto.TokenPairDto
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -58,18 +59,23 @@ class ApiClientTest {
         }
 
         val client = ApiClient(fakeRepo, "https://test.example.com", engine, engine)
+        val statuses = java.util.Collections.synchronizedList(mutableListOf<Int>())
 
         coroutineScope {
             (1..5).map {
                 async {
-                    try { client.authClient.get("https://test.example.com/api/v1/feed") }
-                    catch (_: Exception) { }
+                    try {
+                        val resp = client.authClient.get("https://test.example.com/api/v1/feed")
+                        statuses.add(resp.status.value)
+                    } catch (_: Exception) { }
                 }
             }.forEach { it.await() }
         }
 
         assertEquals(1, refreshCount.get())
         assertEquals("new-access", fakeRepo.loadOnce()?.access)
+        assertEquals(5, statuses.size)
+        assertTrue(statuses.all { it == 200 })
     }
 
     @Test

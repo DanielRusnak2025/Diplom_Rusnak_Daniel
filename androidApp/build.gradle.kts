@@ -55,6 +55,9 @@ dependencies {
 
     implementation(libs.datastore.prefs)
     implementation(libs.lifecycle.viewmodel.ktx)
+    implementation(libs.lifecycle.viewmodel.compose)
+    implementation(libs.lifecycle.runtime.compose)
+    implementation(libs.navigation.compose)
 
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
@@ -66,4 +69,5 @@ dependencies {
     testRuntimeOnly(libs.junit.launcher)
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.coroutines.test)
+    testImplementation(libs.mockk)
 }

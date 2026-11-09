@@ -1,4 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">NewsDove</string>
+
+    <!-- Login screen -->
+    <string name="screen_login_title">Вход</string>
+    <string name="field_login">Логин</string>
+    <string name="field_password">Пароль</string>
+    <string name="btn_login">Войти</string>
+    <string name="action_go_to_register">Нет аккаунта? Зарегистрируйтесь</string>
+
+    <!-- Register screen -->
+    <string name="screen_register_title">Регистрация</string>
+    <string name="btn_register">Зарегистрироваться</string>
+    <string name="action_go_to_login">Уже есть аккаунт? Войдите</string>
+
+    <!-- Onboarding -->
+    <string name="screen_onboarding_languages_title">Языки новостей</string>
+    <string name="subtitle_onboarding_languages">Выберите языки, на которых хотите читать новости</string>
+    <string name="screen_onboarding_regions_title">Регионы</string>
+    <string name="subtitle_onboarding_regions">Выберите регионы, которые вас интересуют</string>
+    <string name="screen_onboarding_interests_title">Интересы</string>
+    <string name="subtitle_onboarding_interests">Выберите темы, которые хотите видеть в ленте</string>
+    <string name="btn_next">Далее</string>
+    <string name="btn_done">Готово</string>
+    <string name="btn_retry">Повторить</string>
+
+    <!-- Home screen -->
+    <string name="placeholder_feed">Ваши новости появятся здесь</string>
 </resources>
