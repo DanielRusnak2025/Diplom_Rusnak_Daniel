@@ -16,6 +16,9 @@ flyway        = "13.11.1"
 argon2-jvm    = "2.12"
 ktor          = "3.6.1"
 mockk         = "1.14.9"
+agp              = "9.5.1"
+composeBom       = "2026.09.00"
+activityCompose  = "1.10.1"
 
 [libraries]
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSer" }
@@ -47,7 +50,13 @@ ktor-server-call-logging = { module = "io.ktor:ktor-server-call-logging",       
 ktor-server-test-host    = { module = "io.ktor:ktor-server-test-host",             version.ref = "ktor" }
 ktor-client-content-neg  = { module = "io.ktor:ktor-client-content-negotiation",   version.ref = "ktor" }
 mockk                    = { module = "io.mockk:mockk",                            version.ref = "mockk" }
+compose-bom              = { module = "androidx.compose:compose-bom",               version.ref = "composeBom" }
+compose-ui               = { module = "androidx.compose.ui:ui"                                                 }
+compose-material3        = { module = "androidx.compose.material3:material3"                                   }
+compose-activity         = { module = "androidx.activity:activity-compose"                                     }
 
 [plugins]
 kotlin-jvm          = { id = "org.jetbrains.kotlin.jvm",                    version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization",  version.ref = "kotlin" }
+agp-application      = { id = "com.android.application",                    version.ref = "agp"    }
+kotlin-compose       = { id = "org.jetbrains.kotlin.plugin.compose",        version.ref = "kotlin" }

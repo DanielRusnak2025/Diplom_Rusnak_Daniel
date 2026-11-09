@@ -83,6 +83,9 @@ server/config/server.properties
 # Local run scripts (machine-specific paths)
 run.bat
 
+# Android local properties (sdk.dir, base URL — machine-specific, never committed)
+local.properties
+
 # Temporary files
 *.tmp
 *.swp
