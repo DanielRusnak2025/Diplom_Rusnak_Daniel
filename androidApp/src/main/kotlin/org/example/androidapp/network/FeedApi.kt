@@ -8,8 +8,10 @@ import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
-import io.ktor.http.content.TextContent
+import io.ktor.http.contentType
+import org.example.dto.ComplaintRequest
 import org.example.dto.FeedPageDto
+import org.example.dto.RateRequest
 import org.example.dto.ReportReasonDto
 
 class FeedApi(private val baseUrl: String, private val authClient: HttpClient) {
@@ -22,7 +24,8 @@ class FeedApi(private val baseUrl: String, private val authClient: HttpClient) {
 
     suspend fun rate(articleId: Int, rating: Int) {
         authClient.post("$baseUrl/api/v1/articles/$articleId/rate") {
-            setBody(TextContent("""{"rating":$rating}""", ContentType.Application.Json))
+            contentType(ContentType.Application.Json)
+            setBody(RateRequest(rating))
         }
     }
 
@@ -32,7 +35,8 @@ class FeedApi(private val baseUrl: String, private val authClient: HttpClient) {
 
     suspend fun complain(articleId: Int, reason: ReportReasonDto) {
         authClient.post("$baseUrl/api/v1/articles/$articleId/complain") {
-            setBody(TextContent("""{"reasonCode":"${reason.name}"}""", ContentType.Application.Json))
+            contentType(ContentType.Application.Json)
+            setBody(ComplaintRequest(reason))
         }
     }
 }

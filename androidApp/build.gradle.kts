@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.agp.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 val localProps = Properties()

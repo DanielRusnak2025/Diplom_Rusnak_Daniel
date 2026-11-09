@@ -6,20 +6,14 @@ import io.ktor.server.auth.jwt.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.serialization.Serializable
 import org.example.Article
 import org.example.Report
 import org.example.ReportReason
+import org.example.dto.ComplaintRequest
 import org.example.dto.ErrorResponse
-import org.example.dto.ReportReasonDto
+import org.example.dto.RateRequest
 import org.example.server.util.withNewTransaction
 import org.example.service.ReportService
-
-@Serializable
-private data class RateBody(val rating: Int)
-
-@Serializable
-private data class ComplainBody(val reasonCode: ReportReasonDto)
 
 fun Route.rateRoutes(reportService: ReportService) {
     authenticate("jwt-access") {
@@ -32,7 +26,7 @@ fun Route.rateRoutes(reportService: ReportService) {
                         return@post
                     }
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject.toInt()
-                val body = call.receive<RateBody>()
+                val body = call.receive<RateRequest>()
 
                 if (body.rating != 1 && body.rating != -1) {
                     call.respond(HttpStatusCode.UnprocessableEntity, ErrorResponse("INVALID_RATING", "Rating must be 1 or -1"))
@@ -92,7 +86,7 @@ fun Route.rateRoutes(reportService: ReportService) {
                         return@post
                     }
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject.toInt()
-                val body = call.receive<ComplainBody>()
+                val body = call.receive<ComplaintRequest>()
 
                 val reason = ReportReason.valueOf(body.reasonCode.name)
                 val found = withNewTransaction { session ->

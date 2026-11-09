@@ -3,4 +3,4 @@ package org.example.dto
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class ComplaintRequest(val articleId: Int, val reason: ReportReasonDto)
+data class ComplaintRequest(val reasonCode: ReportReasonDto)
