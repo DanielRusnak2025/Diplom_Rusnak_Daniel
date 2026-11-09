@@ -59,14 +59,14 @@ Android Keystore"). Source: developer.android.com/jetpack/androidx/releases/secu
 **compileSdk:** Compose UI 1.12.1 (from BOM 2026.09.00) requires `compileSdk 37` and AGP 9.
 Source: developer.android.com/develop/ui/compose/compiler (fetched 2026-11-09).
 
-**Kotlin plugins for `androidApp`:** Apply both explicitly:
-- `org.jetbrains.kotlin.android` — Kotlin compilation for Android (still required alongside AGP 9;
-  the official AGP 9 migration docs did not confirm any change here, and the Compose Compiler page
-  still shows it as a separate required entry)
-- `org.jetbrains.kotlin.plugin.compose` — Compose compiler; version must match Kotlin (2.4.21);
-  required for Kotlin 2.0+. Source: developer.android.com/develop/ui/compose/compiler (fetched 2026-11-09).
-- ⚠ **Verify at step 5a:** if Android Studio logs a warning that the Kotlin plugin is "already applied"
-  by AGP, remove the explicit `org.jetbrains.kotlin.android` apply and document the finding.
+**Kotlin plugins for `androidApp`:** Apply ONLY:
+- `org.jetbrains.kotlin.plugin.compose` — Compose compiler; version must match Kotlin (2.4.21).
+  Required for Kotlin 2.0+. Source: developer.android.com/develop/ui/compose/compiler (fetched 2026-11-09).
+
+**Do NOT apply `org.jetbrains.kotlin.android`.** Since AGP 9.0, Kotlin support is built into AGP.
+Applying the plugin alongside AGP 9 fails the build: "Cannot add extension with name 'kotlin'" /
+"no longer required for Kotlin support since AGP 9.0". Source: official "Migrate to built-in Kotlin"
+page, verified by user 2026-11-09.
 
 ---
 
@@ -189,7 +189,7 @@ Main graph (logged in):
 
 **Settings screen:**
 - Display and edit language/region preferences (`GET/PUT /api/v1/me`).
-- Adjust interests (tag weights): show top tags with sliders or +/− controls.
+- Adjust interests: show the 15 categories from `GET /api/v1/categories` with +/− weight controls.
 - Change password (`POST /api/v1/auth/change-password`).
 - Logout: call `DELETE /api/v1/auth/logout`, clear local tokens.
 
@@ -240,10 +240,9 @@ No instrumented tests in Stage 5. All tests run on the JVM (`./gradlew :androidA
 ## 8. Step Breakdown
 
 ### 5a — Project skeleton + build wiring
-- Add `androidApp/` module; apply AGP 9.5.1, `org.jetbrains.kotlin.android`, and
-  `org.jetbrains.kotlin.plugin.compose` (all version 2.4.21). Set `compileSdk 37`.
-- If AS shows "Kotlin plugin already applied by AGP" warning, remove the explicit
-  `org.jetbrains.kotlin.android` apply and note the finding in this document.
+- Add `androidApp/` module; apply AGP 9.5.1 and `org.jetbrains.kotlin.plugin.compose` (version 2.4.21).
+  Do NOT apply `org.jetbrains.kotlin.android` — it fails the build with AGP 9 (see §2).
+  Set `compileSdk 37`, `minSdk 26`.
 - Add `:shared` as a dependency.
 - Create `network_security_config.xml` (bundled CA only) and reference in manifest.
 - Wire `local.properties` → `BuildConfig.BASE_URL`.
@@ -265,7 +264,8 @@ No instrumented tests in Stage 5. All tests run on the JVM (`./gradlew :androidA
 
 ### 5c — Login / Register + onboarding
 - Login and Register screens + ViewModels.
-- Onboarding (language → region → initial interests selection, POST /api/v1/me).
+- Onboarding: language → region → interests (show 15 categories from `GET /api/v1/categories`,
+  no subtopics; submit selection via `POST /api/v1/me`).
 - Navigate to Feed on success; show inline error on failure.
 - Deliverable: manual smoke test via `adb reverse tcp:8443 tcp:8443`; register + login work end-to-end.
 
@@ -289,14 +289,10 @@ No instrumented tests in Stage 5. All tests run on the JVM (`./gradlew :androidA
 
 ---
 
-## Open Questions
+## Decisions (resolved 2026-11-09)
 
-1. **Minimum SDK (`minSdk`):** API 26 (Android 8.0) is the typical floor for unrestricted AES-GCM Keystore
-   keys without StrongBox caveats. Confirm this matches your target device.
-2. **Tablet / adaptive layout:** phone-only (portrait) for the diploma demo, or responsive layout too?
-3. **Offline behavior:** hard-fail with an error screen (simpler, consistent with no-Room plan), or
-   show a stale-feed banner?
-4. **Interests onboarding granularity:** full tag taxonomy from `/api/v1/tags`, or a manually curated
-   short list?
-5. **`androidApp` module root:** alongside `core/server/shared` at the monorepo root (default), or in
-   a subdirectory (e.g. `apps/androidApp`)?
+1. **`minSdk`:** 26 (Android 8.0).
+2. **Layout:** Phone portrait only. No adaptive layout for the diploma demo.
+3. **Offline:** Error screen + Retry button. No stale feed, no Room.
+4. **Onboarding interests:** Show the 15 categories from `GET /api/v1/categories` without subtopics.
+5. **Module location:** `androidApp/` at the monorepo root (alongside `core/server/shared`).
