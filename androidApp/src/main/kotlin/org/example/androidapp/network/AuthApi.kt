@@ -17,6 +17,7 @@ class AuthApi(
     private val baseUrl: String,
     private val anonClient: HttpClient,
     private val authClient: HttpClient,
+    private val clearCache: suspend () -> Unit = {},
 ) {
     suspend fun register(req: RegisterRequest): TokenPairDto =
         anonClient.post("$baseUrl/api/v1/auth/register") {
@@ -24,16 +25,23 @@ class AuthApi(
             setBody(req)
         }.body()
 
-    suspend fun login(req: LoginRequest): TokenPairDto =
-        anonClient.post("$baseUrl/api/v1/auth/login") {
+    suspend fun login(req: LoginRequest): TokenPairDto {
+        val dto: TokenPairDto = anonClient.post("$baseUrl/api/v1/auth/login") {
             contentType(ContentType.Application.Json)
             setBody(req)
         }.body()
+        clearCache()
+        return dto
+    }
 
     suspend fun logout(refreshToken: String) {
-        anonClient.post("$baseUrl/api/v1/auth/logout") {
-            contentType(ContentType.Application.Json)
-            setBody(RefreshRequest(refreshToken))
+        try {
+            anonClient.post("$baseUrl/api/v1/auth/logout") {
+                contentType(ContentType.Application.Json)
+                setBody(RefreshRequest(refreshToken))
+            }
+        } finally {
+            clearCache()
         }
     }
 

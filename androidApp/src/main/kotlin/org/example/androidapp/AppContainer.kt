@@ -19,7 +19,8 @@ class AppContainer(context: Context) {
         AndroidKeystoreTokenCipher(),
     )
     val apiClient = ApiClient(tokenRepository, BuildConfig.BASE_URL)
-    val authApi = AuthApi(BuildConfig.BASE_URL, apiClient.anonClient, apiClient.authClient)
+    val authApi = AuthApi(BuildConfig.BASE_URL, apiClient.anonClient, apiClient.authClient,
+        clearCache = { apiClient.clearBearerCache() })
     val metaApi = MetaApi(BuildConfig.BASE_URL, apiClient.authClient)
     val meApi = MeApi(BuildConfig.BASE_URL, apiClient.authClient)
     val feedApi = FeedApi(BuildConfig.BASE_URL, apiClient.authClient)

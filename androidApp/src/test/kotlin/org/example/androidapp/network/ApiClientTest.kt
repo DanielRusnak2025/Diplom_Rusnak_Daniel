@@ -133,6 +133,89 @@ class ApiClientTest {
     }
 
     @Test
+    fun `Accept-Language header is ru for both clients`() = runTest {
+        val fakeRepo = FakeTokenRepository()
+        fakeRepo.save(TokenPair("tok", "ref"))
+        val capturedLang = java.util.Collections.synchronizedList(mutableListOf<String?>())
+
+        val engine = MockEngine { req ->
+            capturedLang.add(req.headers[HttpHeaders.AcceptLanguage])
+            respond("{}", HttpStatusCode.OK, jsonHeaders())
+        }
+
+        val client = ApiClient(fakeRepo, "https://test.example.com", engine, engine)
+        client.anonClient.get("https://test.example.com/api/v1/meta/categories")
+        client.authClient.get("https://test.example.com/api/v1/feed")
+
+        assertEquals(2, capturedLang.size)
+        assertTrue(capturedLang.all { it == "ru" },
+            "Both clients must send Accept-Language: ru, got: $capturedLang")
+    }
+
+    @Test
+    fun `re-login clears bearer cache and uses new tokens without refresh`() = runTest {
+        val fakeRepo = FakeTokenRepository()
+        val loginCount = AtomicInteger(0)
+        val refreshCount = AtomicInteger(0)
+        val authHeadersSeen = java.util.Collections.synchronizedList(mutableListOf<String?>())
+
+        val engine = MockEngine { req ->
+            when {
+                req.url.encodedPath.endsWith("/auth/login") -> {
+                    val n = loginCount.incrementAndGet()
+                    val tok = if (n == 1) "token-a" else "token-b"
+                    respond(
+                        testJson.encodeToString(TokenPairDto("$tok-access", "$tok-refresh", 900L)),
+                        HttpStatusCode.OK, jsonHeaders(),
+                    )
+                }
+                req.url.encodedPath.endsWith("/auth/logout") ->
+                    respond("", HttpStatusCode.OK, jsonHeaders())
+                req.url.encodedPath.contains("/auth/refresh") -> {
+                    refreshCount.incrementAndGet()
+                    respond(
+                        testJson.encodeToString(TokenPairDto("refreshed-access", "refreshed-refresh", 900L)),
+                        HttpStatusCode.OK, jsonHeaders(),
+                    )
+                }
+                else -> {
+                    authHeadersSeen.add(req.headers[HttpHeaders.Authorization])
+                    respond("{}", HttpStatusCode.OK, jsonHeaders())
+                }
+            }
+        }
+
+        val client = ApiClient(fakeRepo, "https://test.example.com", engine, engine)
+        val authApi = AuthApi(
+            "https://test.example.com",
+            client.anonClient,
+            client.authClient,
+            clearCache = { client.clearBearerCache() },
+        )
+
+        // Login user A and cache token-a
+        val dtoA = authApi.login(LoginRequest("userA", "passA"))
+        fakeRepo.save(TokenPair(dtoA.accessToken, dtoA.refreshToken))
+        client.authClient.get("https://test.example.com/api/v1/feed")
+
+        // Logout: clearBearerCache is called, stale cache discarded
+        authApi.logout(dtoA.refreshToken)
+        fakeRepo.clear()
+
+        // Login user B: clearBearerCache called again, token-b stored
+        val dtoB = authApi.login(LoginRequest("userB", "passB"))
+        fakeRepo.save(TokenPair(dtoB.accessToken, dtoB.refreshToken))
+
+        // First authed request must carry token-b, no refresh
+        client.authClient.get("https://test.example.com/api/v1/feed")
+
+        assertEquals(0, refreshCount.get(), "No refresh should occur after clearBearerCache on re-login")
+        assertEquals(2, authHeadersSeen.size, "Expected exactly 2 feed requests")
+        assertEquals("Bearer token-a-access", authHeadersSeen[0])
+        assertEquals("Bearer token-b-access", authHeadersSeen[1])
+    }
+
+    @Test
     fun `error body becomes ApiException with code`() = runTest {
         val fakeRepo = FakeTokenRepository()
 

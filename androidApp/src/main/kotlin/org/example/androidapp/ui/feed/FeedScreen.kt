@@ -352,7 +352,7 @@ private fun ArticleCard(
                 )
             }
 
-            article.matchPercent?.takeIf { it > 0 }?.let { matchPct ->
+            article.matchPercent?.let { matchPct ->
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = stringResource(R.string.feed_match_percent, matchPct),

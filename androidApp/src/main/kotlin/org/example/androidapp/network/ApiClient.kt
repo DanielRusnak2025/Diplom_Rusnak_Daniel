@@ -7,6 +7,7 @@ import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.DefaultRequest
 import io.ktor.client.plugins.HttpResponseValidator
 import io.ktor.client.plugins.auth.Auth
+import io.ktor.client.plugins.auth.clearAuthTokens
 import io.ktor.client.plugins.auth.providers.BearerTokens
 import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -38,10 +39,11 @@ class ApiClient(
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    // App UI is Russian-only; always request Russian localizations from the server.
     val anonClient: HttpClient = HttpClient(anonEngine) {
         install(ContentNegotiation) { json(json) }
         install(DefaultRequest) {
-            header(HttpHeaders.AcceptLanguage, java.util.Locale.getDefault().toLanguageTag())
+            header(HttpHeaders.AcceptLanguage, "ru")
         }
         expectSuccess = false
         HttpResponseValidator {
@@ -58,7 +60,7 @@ class ApiClient(
     val authClient: HttpClient = HttpClient(authEngine) {
         install(ContentNegotiation) { json(json) }
         install(DefaultRequest) {
-            header(HttpHeaders.AcceptLanguage, java.util.Locale.getDefault().toLanguageTag())
+            header(HttpHeaders.AcceptLanguage, "ru")
         }
         expectSuccess = false
         install(Auth) {
@@ -96,4 +98,6 @@ class ApiClient(
             }
         }
     }
+
+    suspend fun clearBearerCache() = authClient.clearAuthTokens()
 }

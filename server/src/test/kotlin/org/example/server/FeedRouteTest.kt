@@ -652,6 +652,80 @@ class FeedRouteTest {
     }
 
     @Test
+    fun `GET feed with Accept-Language ru returns Russian category name`() = testApplication {
+        application { module() }
+        val token = registerAndLogin("feedtest_lang_ru")
+        val userId = JWT.decode(token).subject.toInt()
+
+        var langCatId = 0
+        withContext(Dispatchers.IO) {
+            HibernateUtil.getSessionFactory().openSession().use { session ->
+                val tx = session.beginTransaction()
+                val langCat = Tag("FeedTestLangCategoryEn").also {
+                    it.kind = TagKind.CATEGORY
+                    it.tagKey = "cat_lang_feedtest"
+                    it.nameRu = "ТестКатегорияРус"
+                }
+                session.persist(langCat)
+                session.flush()
+                langCatId = langCat.id
+                val art = insertArticle(session, "feedtest_lang_ru_art")
+                attachTag(session, art, langCatId, 90)
+                val user = session.find(User::class.java, userId)
+                session.persist(UserTagPercent(user, langCat, 80))
+                tx.commit()
+            }
+        }
+
+        val resp = client.get("/api/v1/feed") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            header(HttpHeaders.AcceptLanguage, "ru")
+        }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        val art = items.first { it.jsonObject["title"]?.jsonPrimitive?.content == "feedtest_lang_ru_art" }
+        val catName = art.jsonObject["mainCategory"]!!.jsonObject["name"]!!.jsonPrimitive.content
+        assertEquals("ТестКатегорияРус", catName, "Accept-Language: ru must return nameRu")
+    }
+
+    @Test
+    fun `GET feed without Accept-Language returns English category name`() = testApplication {
+        application { module() }
+        val token = registerAndLogin("feedtest_lang_en")
+        val userId = JWT.decode(token).subject.toInt()
+
+        var langCatId2 = 0
+        withContext(Dispatchers.IO) {
+            HibernateUtil.getSessionFactory().openSession().use { session ->
+                val tx = session.beginTransaction()
+                val langCat2 = Tag("FeedTestLangCategoryEn2").also {
+                    it.kind = TagKind.CATEGORY
+                    it.tagKey = "cat2_lang_feedtest"
+                    it.nameRu = "ТестКатегорияРус2"
+                }
+                session.persist(langCat2)
+                session.flush()
+                langCatId2 = langCat2.id
+                val art = insertArticle(session, "feedtest_lang_en_art")
+                attachTag(session, art, langCatId2, 90)
+                val user = session.find(User::class.java, userId)
+                session.persist(UserTagPercent(user, langCat2, 80))
+                tx.commit()
+            }
+        }
+
+        val resp = client.get("/api/v1/feed") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            // no Accept-Language header
+        }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        val art = items.first { it.jsonObject["title"]?.jsonPrimitive?.content == "feedtest_lang_en_art" }
+        val catName = art.jsonObject["mainCategory"]!!.jsonObject["name"]!!.jsonPrimitive.content
+        assertEquals("FeedTestLangCategoryEn2", catName, "Without Accept-Language must return English name")
+    }
+
+    @Test
     fun `GET articles by id returns article for classified`() = testApplication {
         application { module() }
         val token = registerAndLogin("feedtest_artbyid")
