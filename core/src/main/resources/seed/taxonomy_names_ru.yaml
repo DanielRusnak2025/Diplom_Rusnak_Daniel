@@ -79,7 +79,7 @@ names:
   sub:energy/energy_prices_supply_routes: "Цены на энергоносители и маршруты поставок"
 
   # ---- Technology subtopics ----
-  sub:technology/big_tech_platforms:    "Технологические гиганты и платформы"
+  sub:technology/big_tech_platforms:    "Бигтех и платформы"
   sub:technology/consumer_tech_telecom: "Потребительская электроника и телеком"
   sub:technology/data_privacy_cybercrime: "Конфиденциальность данных и киберпреступность"
   sub:technology/semiconductors_hardware: "Чипы и оборудование"

@@ -193,7 +193,8 @@ public class QueueWorker {
             RejectReason rr = switch (skipReason) {
                 case "root-url"        -> RejectReason.ROOT_URL;
                 case "not-found"       -> RejectReason.NOT_FOUND;
-                case "newsletter-host" -> RejectReason.NEWSLETTER_HOST;
+                case "newsletter-host"  -> RejectReason.NEWSLETTER_HOST;
+                case "dw-section-page" -> RejectReason.DW_SECTION_PAGE;
                 case "og-type"         -> RejectReason.NOT_ARTICLE;
                 default                -> RejectReason.TEXT_TOO_SHORT;
             };

@@ -108,6 +108,11 @@ class FeedService {
                 a.article_language,
                 a.article_region,
                 COALESCE(SUM(atp.percent * utp.percent), 0) AS score,
+                (SELECT COALESCE(SUM(atp_cs.percent * utp_cs.percent), 0)
+                 FROM article_tag_percent atp_cs
+                 INNER JOIN tag t_cs ON t_cs.id = atp_cs.tag_id AND t_cs.kind = 'CATEGORY'
+                 LEFT JOIN user_tag_percent utp_cs ON utp_cs.tag_id = atp_cs.tag_id AND utp_cs.user_id = :uid
+                 WHERE atp_cs.article_id = a.id) AS category_score,
                 (SELECT COALESCE(MAX(utp_max.percent), 0)
                  FROM user_tag_percent utp_max
                  INNER JOIN tag t_max ON t_max.id = utp_max.tag_id AND t_max.kind = 'CATEGORY'
@@ -217,9 +222,12 @@ class FeedService {
             val subPercent = (t.get("sub_percent") as Number?)?.toInt()
 
             val score = (t.get("score") as Number).toLong()
+            // rating feedback writes SUBTOPIC weights into user_tag_percent too;
+            // use CATEGORY-only score for matchPercent so subtopic weights don't inflate it
+            val categoryScore = (t.get("category_score") as Number).toLong()
             val userMaxWeight = (t.get("user_max_weight") as Number).toLong()
             val matchPercent: Int? = if (userMaxWeight > 0)
-                (score / userMaxWeight).coerceIn(0L, 100L).toInt()
+                (categoryScore / userMaxWeight).coerceIn(0L, 100L).toInt()
             else null
 
             val mainCategory = if (catTagId != null && catPercent != null) {

@@ -620,6 +620,38 @@ class FeedRouteTest {
     }
 
     @Test
+    fun `matchPercent subtopic weight does not inflate matchPercent`() = testApplication {
+        application { module() }
+        val token = registerAndLogin("feedtest_mpsub")
+        val userId = JWT.decode(token).subject.toInt()
+
+        withContext(Dispatchers.IO) {
+            HibernateUtil.getSessionFactory().openSession().use { session ->
+                val tx = session.beginTransaction()
+                val art = insertArticle(session, "feedtest_mpsub_art")
+                attachTag(session, art, catTagId, 60)   // article 60% in CATEGORY tag
+                attachTag(session, art, subTagId, 80)   // article 80% in SUBTOPIC tag
+
+                val user = session.find(User::class.java, userId)
+                val cat = session.find(Tag::class.java, catTagId)
+                val sub = session.find(Tag::class.java, subTagId)
+                session.persist(UserTagPercent(user, cat, 80))  // CATEGORY weight 80 (is max)
+                session.persist(UserTagPercent(user, sub, 40))  // SUBTOPIC weight from rating feedback
+                tx.commit()
+            }
+        }
+
+        val resp = feedGet(this, token)
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        val art = items.first { it.jsonObject["title"]?.jsonPrimitive?.content == "feedtest_mpsub_art" }
+        // category_score = 60*80 = 4800; user_max_weight (CATEGORY only) = 80; matchPercent = 4800/80 = 60
+        // All-tag score = 60*80 + 80*40 = 8000; 8000/80 = 100 (would be wrong without fix)
+        assertEquals(60, art.jsonObject["matchPercent"]?.jsonPrimitive?.intOrNull,
+            "SUBTOPIC weight must not inflate matchPercent: expected 60, not 100")
+    }
+
+    @Test
     fun `GET articles by id returns article for classified`() = testApplication {
         application { module() }
         val token = registerAndLogin("feedtest_artbyid")
