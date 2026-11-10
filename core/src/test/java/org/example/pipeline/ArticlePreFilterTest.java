@@ -172,6 +172,22 @@ class ArticlePreFilterTest {
     }
 
     @Test
+    void dw_section_final_url_rejected() {
+        // DW links in emails go through newsletter-tracking.dw.com and redirect to t-NNN paths
+        assertEquals("dw-section-page",
+                ArticlePreFilter.check(
+                        pr("DW Topics", LONG_TEXT, LONG_TEXT.length(), null),
+                        "https://www.dw.com/en/t-12345678/society", 200));
+    }
+
+    @Test
+    void dw_article_final_url_allowed() {
+        assertNull(ArticlePreFilter.check(
+                pr("DW Article", LONG_TEXT, LONG_TEXT.length(), null),
+                "https://www.dw.com/en/germany-election-results/a-67890", 200));
+    }
+
+    @Test
     void newsletterHost_nonMatchingHost_allowsThrough() {
         assertNull(ArticlePreFilter.check(
                 pr("Real Article", LONG_TEXT, LONG_TEXT.length(), null),

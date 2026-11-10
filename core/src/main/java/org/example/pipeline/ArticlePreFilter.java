@@ -32,6 +32,10 @@ public final class ArticlePreFilter {
             return "newsletter-host";
         }
 
+        if (isDwSectionPage(finalUrl)) {
+            return "dw-section-page";
+        }
+
         String path = extractPath(finalUrl);
         if (path.isEmpty() || path.equals("/")) {
             // Allow URLs like "/?id=123" — non-tracking query params indicate a real article page.
@@ -61,6 +65,21 @@ public final class ArticlePreFilter {
         }
 
         return null;
+    }
+
+    private static boolean isDwSectionPage(String url) {
+        try {
+            URI uri = new URI(url);
+            String host = uri.getHost();
+            String path = uri.getPath();
+            if (host == null || path == null) return false;
+            host = host.toLowerCase();
+            if (!host.equals("dw.com") && !host.endsWith(".dw.com")) return false;
+            for (String segment : path.split("/")) {
+                if (segment.matches("t-\\d+") || segment.matches("s-\\d+")) return true;
+            }
+        } catch (URISyntaxException ignored) {}
+        return false;
     }
 
     private static boolean matchesNewsletterHost(String finalUrl, Set<String> newsletterHosts) {

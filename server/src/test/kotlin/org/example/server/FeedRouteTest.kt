@@ -532,6 +532,94 @@ class FeedRouteTest {
     }
 
     @Test
+    fun `matchPercent partial article 60pct weight 50 max 100 gives 30`() = testApplication {
+        application { module() }
+        val token = registerAndLogin("feedtest_mp30")
+        val userId = JWT.decode(token).subject.toInt()
+
+        withContext(Dispatchers.IO) {
+            HibernateUtil.getSessionFactory().openSession().use { session ->
+                val tx = session.beginTransaction()
+                // Second category with higher user weight → makes max weight = 100
+                val catTag2 = Tag("FeedTestCategory2").also {
+                    it.kind = TagKind.CATEGORY; it.tagKey = "cat2_feedtest"
+                }
+                session.persist(catTag2)
+                session.flush()
+
+                val art = insertArticle(session, "feedtest_mp30_art")
+                attachTag(session, art, catTagId, 60)      // article 60% in catTag
+
+                val user = session.find(User::class.java, userId)
+                val cat = session.find(Tag::class.java, catTagId)
+                session.persist(UserTagPercent(user, cat, 50))       // weight 50
+                session.persist(UserTagPercent(user, catTag2, 100))  // weight 100 → max
+                tx.commit()
+            }
+        }
+
+        val resp = feedGet(this, token)
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        val art = items.first { it.jsonObject["title"]?.jsonPrimitive?.content == "feedtest_mp30_art" }
+        // score = 60*50 = 3000; userMaxWeight = 100; matchPercent = 3000/100 = 30
+        assertEquals(30, art.jsonObject["matchPercent"]?.jsonPrimitive?.intOrNull,
+            "matchPercent should be 30 for 60% article, weight 50, max weight 100")
+    }
+
+    @Test
+    fun `matchPercent full match in max weight category gives 100`() = testApplication {
+        application { module() }
+        val token = registerAndLogin("feedtest_mp100")
+        val userId = JWT.decode(token).subject.toInt()
+
+        withContext(Dispatchers.IO) {
+            HibernateUtil.getSessionFactory().openSession().use { session ->
+                val tx = session.beginTransaction()
+                val art = insertArticle(session, "feedtest_mp100_art")
+                attachTag(session, art, catTagId, 100)    // 100% in catTag
+
+                val user = session.find(User::class.java, userId)
+                val cat = session.find(Tag::class.java, catTagId)
+                session.persist(UserTagPercent(user, cat, 75))  // weight 75 (this is max)
+                tx.commit()
+            }
+        }
+
+        val resp = feedGet(this, token)
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        val art = items.first { it.jsonObject["title"]?.jsonPrimitive?.content == "feedtest_mp100_art" }
+        // score = 100*75 = 7500; userMaxWeight = 75; matchPercent = 7500/75 = 100
+        assertEquals(100, art.jsonObject["matchPercent"]?.jsonPrimitive?.intOrNull,
+            "matchPercent should be 100 for 100% article in max-weight category")
+    }
+
+    @Test
+    fun `matchPercent no user weights gives null`() = testApplication {
+        application { module() }
+        val token = registerAndLogin("feedtest_mpnull")
+
+        withContext(Dispatchers.IO) {
+            HibernateUtil.getSessionFactory().openSession().use { session ->
+                val tx = session.beginTransaction()
+                val art = insertArticle(session, "feedtest_mpnull_art")
+                attachTag(session, art, catTagId, 60)  // article has tags, user has no interests
+                tx.commit()
+            }
+        }
+
+        val resp = feedGet(this, token)
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        val art = items.first { it.jsonObject["title"]?.jsonPrimitive?.content == "feedtest_mpnull_art" }
+        // No UserTagPercent → userMaxWeight = 0 → matchPercent = null
+        val mp = art.jsonObject["matchPercent"]
+        assertTrue(mp == null || mp is kotlinx.serialization.json.JsonNull,
+            "matchPercent should be null when user has no interests")
+    }
+
+    @Test
     fun `GET articles by id returns article for classified`() = testApplication {
         application { module() }
         val token = registerAndLogin("feedtest_artbyid")

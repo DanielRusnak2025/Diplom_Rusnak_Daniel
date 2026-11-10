@@ -108,7 +108,10 @@ class FeedService {
                 a.article_language,
                 a.article_region,
                 COALESCE(SUM(atp.percent * utp.percent), 0) AS score,
-                (SELECT COALESCE(SUM(utp_all.percent), 0) FROM user_tag_percent utp_all WHERE utp_all.user_id = :uid) AS user_total_weight,
+                (SELECT COALESCE(MAX(utp_max.percent), 0)
+                 FROM user_tag_percent utp_max
+                 INNER JOIN tag t_max ON t_max.id = utp_max.tag_id AND t_max.kind = 'CATEGORY'
+                 WHERE utp_max.user_id = :uid) AS user_max_weight,
                 (SELECT atp_c.tag_id FROM article_tag_percent atp_c
                  INNER JOIN tag t_c ON t_c.id = atp_c.tag_id AND t_c.kind = 'CATEGORY'
                  WHERE atp_c.article_id = a.id ORDER BY atp_c.percent DESC LIMIT 1) AS cat_tag_id,
@@ -214,10 +217,10 @@ class FeedService {
             val subPercent = (t.get("sub_percent") as Number?)?.toInt()
 
             val score = (t.get("score") as Number).toLong()
-            val userTotalWeight = (t.get("user_total_weight") as Number).toLong()
-            val matchPercent = if (userTotalWeight > 0)
-                (score * 100L / userTotalWeight).coerceIn(0L, 100L).toInt()
-            else 0
+            val userMaxWeight = (t.get("user_max_weight") as Number).toLong()
+            val matchPercent: Int? = if (userMaxWeight > 0)
+                (score / userMaxWeight).coerceIn(0L, 100L).toInt()
+            else null
 
             val mainCategory = if (catTagId != null && catPercent != null) {
                 tagMap[catTagId]?.let { tag ->
