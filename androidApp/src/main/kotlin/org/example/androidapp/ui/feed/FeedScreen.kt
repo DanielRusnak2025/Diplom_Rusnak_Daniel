@@ -23,9 +23,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -40,6 +43,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -93,6 +97,11 @@ fun FeedScreen(viewModel: FeedViewModel) {
                         Text(stringResource(R.string.action_logout))
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor      = MaterialTheme.colorScheme.background,
+                    titleContentColor   = MaterialTheme.colorScheme.onBackground,
+                    actionIconContentColor = MaterialTheme.colorScheme.onBackground,
+                ),
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -211,6 +220,10 @@ private fun ArticleCard(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(onClick = onTap, onLongClick = onLongPress),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor   = MaterialTheme.colorScheme.onPrimaryContainer,
+        ),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
@@ -237,21 +250,34 @@ private fun ArticleCard(
                     Text(
                         text = pub,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                     )
                 }
                 article.publicationDate?.let { date ->
                     Text(
                         text = " · ${date.take(10)}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                     )
                 }
             }
 
             article.mainCategory?.let { cat ->
                 Spacer(Modifier.height(6.dp))
-                AssistChip(onClick = {}, label = { Text(cat.name, style = MaterialTheme.typography.labelSmall) })
+                AssistChip(
+                    onClick = {},
+                    label = {
+                        Text(
+                            cat.name,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                    },
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.12f),
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.4f)),
+                )
             }
 
             Spacer(Modifier.height(8.dp))

@@ -229,6 +229,42 @@ Buttons use `shape = CircleShape` (fully-rounded pill) via `Button(shape = Circl
 | Admin – Search by Username | Step 5e admin screen | Same as above |
 | Admin – Search by Reports | Step 5e admin screen | Same as above |
 
+### 5.6 WCAG Contrast Ratios
+
+Relative luminances (sRGB → linearize → `L = 0.2126R + 0.7152G + 0.0722B`):
+
+| Color | Hex | L |
+|-------|-----|---|
+| White | `#FFFFFF` | 1.000 |
+| Cream (surface) | `#EDE8D8` | 0.807 |
+| Tan (background) | `#C4B49A` | 0.467 |
+| DarkOlive (primaryContainer) | `#4E4B35` | 0.069 |
+| DarkGreen (primary) | `#1B3C2D` | 0.036 |
+| DarkBrown (onBackground) | `#2C2B1E` | 0.024 |
+| OliveText (onSurfaceVariant) | `#3D3B28` | 0.043 |
+| DeepRed (error) | `#901010` | 0.063 |
+| Original crimson (error) | `#CC2222` | 0.141 |
+
+| Token pair | Ratio | WCAG AA body (≥4.5) |
+|------------|-------|---------------------|
+| `onBackground` on `background` | **7.03 : 1** | ✓ PASS |
+| `onPrimary` on `primary` | **12.15 : 1** | ✓ PASS |
+| `onPrimaryContainer` on `primaryContainer` | **8.82 : 1** | ✓ PASS |
+| `onSurface` on `surface` | **11.64 : 1** | ✓ PASS |
+| `onSurfaceVariant` on `background` | **5.58 : 1** | ✓ PASS |
+| `onSurfaceVariant` on `surface` | **9.24 : 1** | ✓ PASS |
+| `onError` on `error` | **9.26 : 1** | ✓ PASS |
+| ~~`#CC2222` on `background`~~ (original) | ~~**2.71 : 1**~~ | ✗ FAIL |
+| `#901010` on `background` (adjusted) | **4.56 : 1** | ✓ PASS |
+| `onPrimaryContainer×0.8` on `primaryContainer` (card subtitles) | **~5.8 : 1** | ✓ PASS |
+
+**Adjustments made vs. design doc approximations:**
+
+1. **`onSurfaceVariant`**: original plan used `#4E4B35` (dark olive) = 4.35 : 1 on tan — FAIL. Adjusted to `#3D3B28` (OliveText, slightly darker olive) = 5.58 : 1. ✓
+2. **`error`**: original `#CC2222` = 2.71 : 1 on tan — FAIL. Adjusted to `#901010` (DeepRed, same red hue, darker) = 4.56 : 1. ✓
+
+---
+
 ### 5.5 Things That Cannot Be Reproduced on Mobile
 
 | Desktop feature | Why not on phone | Mitigation |
