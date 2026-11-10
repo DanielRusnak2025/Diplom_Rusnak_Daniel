@@ -27,6 +27,7 @@
 
     <!-- Feed screen -->
     <string name="action_logout">Выйти</string>
+    <string name="dialog_logout_message">Вы уверены, что хотите выйти из аккаунта?</string>
     <string name="feed_empty">Пока нет новостей по вашим интересам</string>
     <string name="feed_end">Больше нет</string>
     <string name="feed_untitled">Без названия</string>

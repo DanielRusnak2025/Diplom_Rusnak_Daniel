@@ -2,7 +2,9 @@ package org.example.androidapp.ui.feed
 
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,16 +16,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
@@ -36,10 +39,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -54,10 +59,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.example.androidapp.R
 import org.example.dto.FeedArticleDto
@@ -70,6 +78,7 @@ fun FeedScreen(viewModel: FeedViewModel) {
     val snackbarHostState = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
     val context = LocalContext.current
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.snackbar) {
         val msg = state.snackbar ?: return@LaunchedEffect
@@ -89,17 +98,18 @@ fun FeedScreen(viewModel: FeedViewModel) {
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
                 actions = {
-                    TextButton(onClick = viewModel::logout) {
+                    TextButton(onClick = { showLogoutDialog = true }) {
                         Text(stringResource(R.string.action_logout))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor      = MaterialTheme.colorScheme.background,
-                    titleContentColor   = MaterialTheme.colorScheme.onBackground,
+                    containerColor         = MaterialTheme.colorScheme.background,
+                    titleContentColor      = MaterialTheme.colorScheme.onBackground,
                     actionIconContentColor = MaterialTheme.colorScheme.onBackground,
                 ),
             )
@@ -151,12 +161,52 @@ fun FeedScreen(viewModel: FeedViewModel) {
         }
     }
 
+    if (showLogoutDialog) {
+        LogoutConfirmDialog(
+            onConfirm = { showLogoutDialog = false; viewModel.logout() },
+            onDismiss = { showLogoutDialog = false },
+        )
+    }
+
     state.complaintTarget?.let { article ->
         ComplaintBottomSheet(
             article = article,
             onDismiss = viewModel::dismissComplaintSheet,
             onSubmit = { reason -> viewModel.submitComplaint(article, reason) },
         )
+    }
+}
+
+@Composable
+private fun LogoutConfirmDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.background,
+            border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    text = stringResource(R.string.dialog_logout_message),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Spacer(Modifier.height(24.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.btn_cancel)) }
+                    Button(
+                        onClick = onConfirm,
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.action_logout)) }
+                }
+            }
+        }
     }
 }
 
@@ -221,9 +271,11 @@ private fun ArticleCard(
             .fillMaxWidth()
             .combinedClickable(onClick = onTap, onLongClick = onLongPress),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor   = MaterialTheme.colorScheme.onPrimaryContainer,
+            containerColor = MaterialTheme.colorScheme.background,
+            contentColor   = MaterialTheme.colorScheme.onBackground,
         ),
+        border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
+        shape = MaterialTheme.shapes.large,
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
@@ -234,10 +286,28 @@ private fun ArticleCard(
                 Text(
                     text = article.title ?: stringResource(R.string.feed_untitled),
                     style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
+                article.language?.let { lang ->
+                    Spacer(Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(MaterialTheme.colorScheme.primary, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = lang.take(2).uppercase(),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                        )
+                    }
+                }
                 IconButton(onClick = onComplainMenu, modifier = Modifier.padding(start = 4.dp)) {
                     Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.cd_more))
                 }
@@ -250,14 +320,14 @@ private fun ArticleCard(
                     Text(
                         text = pub,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 article.publicationDate?.let { date ->
                     Text(
                         text = " · ${date.take(10)}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -266,24 +336,18 @@ private fun ArticleCard(
                 Spacer(Modifier.height(6.dp))
                 AssistChip(
                     onClick = {},
-                    label = {
-                        Text(
-                            cat.name,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                    },
+                    label = { Text(cat.name, style = MaterialTheme.typography.labelSmall) },
                     colors = AssistChipDefaults.assistChipColors(
-                        containerColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.12f),
+                        containerColor = MaterialTheme.colorScheme.background,
+                        labelColor     = MaterialTheme.colorScheme.onBackground,
                     ),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.4f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                 )
             }
 
             Spacer(Modifier.height(8.dp))
 
             Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                Spacer(Modifier.width(4.dp))
                 IconToggleButton(checked = article.myRating == 1, onCheckedChange = { onLike() }) {
                     Icon(Icons.Default.ThumbUp, contentDescription = stringResource(R.string.cd_like))
                 }
@@ -305,11 +369,15 @@ private fun ComplaintBottomSheet(
 ) {
     var selectedReason by remember { mutableStateOf<ReportReasonDto?>(null) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.primaryContainer,
+    ) {
         Column(modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
             Text(
                 stringResource(R.string.complaint_title),
                 style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
             Spacer(Modifier.height(16.dp))
 
@@ -327,6 +395,7 @@ private fun ComplaintBottomSheet(
                     Text(
                         text = stringResource(reason.labelRes()),
                         style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 }
             }
