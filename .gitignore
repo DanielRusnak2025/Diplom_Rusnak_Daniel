@@ -86,6 +86,9 @@ run.bat
 # Android local properties (sdk.dir, base URL — machine-specific, never committed)
 local.properties
 
+# JVM heap dumps (may contain secrets; never commit)
+*.hprof
+
 # Temporary files
 *.tmp
 *.swp
