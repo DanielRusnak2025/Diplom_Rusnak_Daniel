@@ -1,6 +1,7 @@
 package org.example.androidapp.ui.auth
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -24,10 +25,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.example.androidapp.R
@@ -74,13 +77,26 @@ fun RegisterScreen(
                 OutlinedTextField(
                     value = state.login,
                     onValueChange = viewModel::onLoginChange,
-                    label = { Text(stringResource(R.string.field_login)) },
-                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = {
+                        Text(
+                            text = stringResource(R.string.field_login),
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center,
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(2.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.extraSmall),
                     singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.Center),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor   = MaterialTheme.colorScheme.surface,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedBorderColor      = Color.Transparent,
+                        unfocusedBorderColor    = Color.Transparent,
+                        disabledBorderColor     = Color.Transparent,
+                        errorBorderColor        = Color.Transparent,
                     ),
                 )
 
@@ -89,9 +105,18 @@ fun RegisterScreen(
                 OutlinedTextField(
                     value = state.password,
                     onValueChange = viewModel::onPasswordChange,
-                    label = { Text(stringResource(R.string.field_password)) },
-                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = {
+                        Text(
+                            text = stringResource(R.string.field_password),
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center,
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(2.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.extraSmall),
                     singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.Center),
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
@@ -101,6 +126,10 @@ fun RegisterScreen(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor   = MaterialTheme.colorScheme.surface,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedBorderColor      = Color.Transparent,
+                        unfocusedBorderColor    = Color.Transparent,
+                        disabledBorderColor     = Color.Transparent,
+                        errorBorderColor        = Color.Transparent,
                     ),
                 )
 

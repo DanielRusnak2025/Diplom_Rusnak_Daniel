@@ -8,6 +8,7 @@
     <string name="field_password">Пароль</string>
     <string name="btn_login">Войти</string>
     <string name="action_go_to_register">Нет аккаунта? Зарегистрируйтесь</string>
+    <string name="btn_go_to_register">Регистрация</string>
 
     <!-- Register screen -->
     <string name="screen_register_title">Регистрация</string>

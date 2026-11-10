@@ -63,14 +63,14 @@ fun NewsDoveTheme(content: @Composable () -> Unit) {
     ) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Box(modifier = Modifier.fillMaxSize()) {
-                // Decorative diagonal band: fills lower-right area, upper-left stays cream
+                // Decorative diagonal band: triangle in lower-right corner only.
+                // Vertices: top-right (w,0) → bottom-right (w,h) → bottom edge at 55% width (0.55w,h).
+                // Cream dominates; band covers ~lower-right third of screen.
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val path = Path()
-                    path.moveTo(size.width * 0.4f, 0f)
-                    path.lineTo(size.width, 0f)
+                    path.moveTo(size.width, 0f)
                     path.lineTo(size.width, size.height)
-                    path.lineTo(0f, size.height)
-                    path.lineTo(0f, size.height * 0.4f)
+                    path.lineTo(size.width * 0.55f, size.height)
                     path.close()
                     drawPath(path, DiagBand)
                 }
