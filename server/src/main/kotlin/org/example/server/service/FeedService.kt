@@ -24,7 +24,8 @@ class FeedService {
         cursor: String?,
         limit: Int,
         regionFilter: String?,
-        categoryFilter: Int?
+        categoryFilter: Int?,
+        lang: String = "en"
     ): FeedPageDto {
         val parsedCursor = cursor?.let {
             try { decodeCursor(it) } catch (e: Exception) {
@@ -56,7 +57,7 @@ class FeedService {
         }
 
         val rows = query.resultList
-        val items = buildDtos(session, rows)
+        val items = buildDtos(session, rows, lang)
 
         val nextCursor = if (rows.size < limit) null else {
             val last = rows.last()
@@ -71,7 +72,7 @@ class FeedService {
         return FeedPageDto(items = items, nextCursor = nextCursor)
     }
 
-    fun getArticleById(session: Session, userId: Int, articleId: Int): FeedArticleDto? {
+    fun getArticleById(session: Session, userId: Int, articleId: Int, lang: String = "en"): FeedArticleDto? {
         val sql = buildSelectSql(
             conditions = listOf("a.id = :article_id", "a.prompt_version IS NOT NULL", "a.hidden = FALSE"),
             havingSql = "",
@@ -83,7 +84,7 @@ class FeedService {
         query.setParameter("uid", userId)
         query.setParameter("article_id", articleId)
         val rows = query.resultList
-        return if (rows.isEmpty()) null else buildDtos(session, rows).first()
+        return if (rows.isEmpty()) null else buildDtos(session, rows, lang).first()
     }
 
     private fun buildSelectSql(
@@ -107,6 +108,7 @@ class FeedService {
                 a.article_language,
                 a.article_region,
                 COALESCE(SUM(atp.percent * utp.percent), 0) AS score,
+                (SELECT COALESCE(SUM(utp_all.percent), 0) FROM user_tag_percent utp_all WHERE utp_all.user_id = :uid) AS user_total_weight,
                 (SELECT atp_c.tag_id FROM article_tag_percent atp_c
                  INNER JOIN tag t_c ON t_c.id = atp_c.tag_id AND t_c.kind = 'CATEGORY'
                  WHERE atp_c.article_id = a.id ORDER BY atp_c.percent DESC LIMIT 1) AS cat_tag_id,
@@ -177,7 +179,7 @@ class FeedService {
         return WhereResult(conditions, params)
     }
 
-    private fun buildDtos(session: Session, rows: List<Tuple>): List<FeedArticleDto> {
+    private fun buildDtos(session: Session, rows: List<Tuple>, lang: String = "en"): List<FeedArticleDto> {
         if (rows.isEmpty()) return emptyList()
 
         val tagIds = rows.flatMap { t ->
@@ -194,6 +196,9 @@ class FeedService {
                 .associateBy { it.id }
         } else emptyMap()
 
+        fun tagName(tag: Tag): String =
+            if (lang == "ru") tag.nameRu ?: tag.name ?: "" else tag.name ?: ""
+
         return rows.map { t ->
             val pubDate = t.get("publication_date") as LocalDate?
             val createdAt = t.get("created_at") as LocalDateTime?
@@ -208,15 +213,21 @@ class FeedService {
             val subTagId = (t.get("sub_tag_id") as Number?)?.toInt()
             val subPercent = (t.get("sub_percent") as Number?)?.toInt()
 
+            val score = (t.get("score") as Number).toLong()
+            val userTotalWeight = (t.get("user_total_weight") as Number).toLong()
+            val matchPercent = if (userTotalWeight > 0)
+                (score * 100L / userTotalWeight).coerceIn(0L, 100L).toInt()
+            else 0
+
             val mainCategory = if (catTagId != null && catPercent != null) {
                 tagMap[catTagId]?.let { tag ->
-                    TagRefDto(id = catTagId, key = tag.tagKey ?: "", name = tag.name ?: "", percent = catPercent)
+                    TagRefDto(id = catTagId, key = tag.tagKey ?: "", name = tagName(tag), percent = catPercent)
                 }
             } else null
 
             val subtopic = if (subTagId != null && subPercent != null) {
                 tagMap[subTagId]?.let { tag ->
-                    TagRefDto(id = subTagId, key = tag.tagKey ?: "", name = tag.name ?: "", percent = subPercent)
+                    TagRefDto(id = subTagId, key = tag.tagKey ?: "", name = tagName(tag), percent = subPercent)
                 }
             } else null
 
@@ -230,7 +241,8 @@ class FeedService {
                 region = t.get("article_region") as String?,
                 mainCategory = mainCategory,
                 subtopic = subtopic,
-                myRating = (t.get("my_rating") as Number?)?.toInt()
+                myRating = (t.get("my_rating") as Number?)?.toInt(),
+                matchPercent = matchPercent
             )
         }
     }

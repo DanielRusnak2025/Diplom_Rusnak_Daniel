@@ -86,6 +86,8 @@ public class LinkFilter {
                 if (lowerHost.contains(blocked)) return false;
             }
 
+            if (isDwSectionPage(lowerHost, path)) return false;
+
             if (path != null) {
                 String lowerPath = path.toLowerCase();
 
@@ -105,6 +107,15 @@ public class LinkFilter {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    private boolean isDwSectionPage(String host, String path) {
+        if (host == null || path == null) return false;
+        if (!host.equals("dw.com") && !host.endsWith(".dw.com")) return false;
+        for (String segment : path.split("/")) {
+            if (segment.matches("t-\\d+") || segment.matches("s-\\d+")) return true;
+        }
+        return false;
     }
 
 }

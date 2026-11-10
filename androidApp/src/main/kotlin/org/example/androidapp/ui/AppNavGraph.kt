@@ -29,6 +29,8 @@ import org.example.androidapp.ui.onboarding.OnboardingInterestsScreen
 import org.example.androidapp.ui.onboarding.OnboardingLanguagesScreen
 import org.example.androidapp.ui.onboarding.OnboardingRegionsScreen
 import org.example.androidapp.ui.onboarding.OnboardingViewModel
+import org.example.androidapp.ui.settings.SettingsViewModel
+import org.example.androidapp.ui.settings.SettingsScreen
 
 @Composable
 fun AppNavGraph(appViewModel: AppViewModel) {
@@ -144,7 +146,28 @@ fun AppNavGraph(appViewModel: AppViewModel) {
                     FeedViewModel(app.container.feedApi, app.container.authApi, app.container.tokenRepository)
                 }
             })
-            FeedScreen(viewModel = feedVm)
+            FeedScreen(
+                viewModel = feedVm,
+                onNavigateToSettings = { navController.navigate("settings") },
+            )
+        }
+
+        composable("settings") {
+            val settingsVm: SettingsViewModel = viewModel(factory = viewModelFactory {
+                initializer {
+                    val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as NewsDoveApp
+                    SettingsViewModel(
+                        metaApi = app.container.metaApi,
+                        meApi = app.container.meApi,
+                        authApi = app.container.authApi,
+                        tokenRepository = app.container.tokenRepository,
+                    )
+                }
+            })
+            SettingsScreen(
+                viewModel = settingsVm,
+                onNavigateBack = { navController.popBackStack() },
+            )
         }
     }
 }

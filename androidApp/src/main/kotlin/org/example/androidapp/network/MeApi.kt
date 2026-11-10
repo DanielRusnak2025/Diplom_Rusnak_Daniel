@@ -7,6 +7,7 @@ import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import org.example.dto.ChangePasswordRequest
 import org.example.dto.InterestDto
 import org.example.dto.SetInterestsRequest
 import org.example.dto.UpdateSettingsRequest
@@ -33,6 +34,13 @@ class MeApi(
         authClient.put("$baseUrl/api/v1/me/settings") {
             contentType(ContentType.Application.Json)
             setBody(UpdateSettingsRequest(languages = languages, regions = regions))
+        }
+    }
+
+    suspend fun changePassword(currentPassword: String, newPassword: String) {
+        authClient.put("$baseUrl/api/v1/me/password") {
+            contentType(ContentType.Application.Json)
+            setBody(ChangePasswordRequest(currentPassword = currentPassword, newPassword = newPassword))
         }
     }
 }

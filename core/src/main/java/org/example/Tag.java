@@ -35,6 +35,9 @@ public class Tag {
     @Column(length = 500)
     private String description;
 
+    @Column(name = "name_ru", length = 255)
+    private String nameRu;
+
     @OneToMany(mappedBy = "tag", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<UserTagPercent> userTagPercents = new HashSet<>();
 
@@ -66,6 +69,9 @@ public class Tag {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    public String getNameRu() { return nameRu; }
+    public void setNameRu(String nameRu) { this.nameRu = nameRu; }
 
     // ───────────────────────────────────────────────
     // Геттеры и сеттеры

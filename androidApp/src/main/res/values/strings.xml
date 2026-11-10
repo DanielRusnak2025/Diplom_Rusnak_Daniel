@@ -50,4 +50,28 @@
 
     <!-- Home screen (legacy placeholder) -->
     <string name="placeholder_feed">Ваши новости появятся здесь</string>
+
+    <!-- Feed: match percent -->
+    <string name="feed_match_percent">Совпадение: %d%%</string>
+
+    <!-- Feed: settings icon -->
+    <string name="cd_settings">Настройки</string>
+
+    <!-- Settings screen -->
+    <string name="screen_settings_title">Настройки</string>
+    <string name="settings_section_languages_regions">Языки и регионы</string>
+    <string name="settings_section_interests">Интересы</string>
+    <string name="settings_section_password">Смена пароля</string>
+    <string name="btn_save">Сохранить</string>
+    <string name="settings_field_current_password">Текущий пароль</string>
+    <string name="settings_field_new_password">Новый пароль</string>
+    <string name="btn_change_password">Изменить пароль</string>
+    <string name="settings_password_success">Пароль успешно изменён. Пожалуйста, войдите снова.</string>
+    <string name="settings_saved">Настройки сохранены</string>
+    <string name="settings_interests_saved">Интересы сохранены</string>
+    <string name="error_invalid_password">Неверный текущий пароль</string>
+    <string name="error_weak_password">Слишком простой пароль</string>
+    <string name="error_reused_password">Нельзя повторять один из последних 3 паролей</string>
+    <string name="error_too_many_attempts">Слишком много попыток. Попробуйте позже.</string>
+    <string name="error_generic_settings">Ошибка сохранения. Попробуйте снова.</string>
 </resources>

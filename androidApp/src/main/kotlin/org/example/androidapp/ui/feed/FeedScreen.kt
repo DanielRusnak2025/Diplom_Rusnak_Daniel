@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.AssistChip
@@ -73,7 +74,10 @@ import org.example.dto.ReportReasonDto
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FeedScreen(viewModel: FeedViewModel) {
+fun FeedScreen(
+    viewModel: FeedViewModel,
+    onNavigateToSettings: () -> Unit = {},
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
@@ -103,6 +107,9 @@ fun FeedScreen(viewModel: FeedViewModel) {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
                 actions = {
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.cd_settings))
+                    }
                     TextButton(onClick = { showLogoutDialog = true }) {
                         Text(stringResource(R.string.action_logout))
                     }
@@ -342,6 +349,15 @@ private fun ArticleCard(
                         labelColor     = MaterialTheme.colorScheme.onBackground,
                     ),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                )
+            }
+
+            article.matchPercent?.takeIf { it > 0 }?.let { matchPct ->
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = stringResource(R.string.feed_match_percent, matchPct),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 

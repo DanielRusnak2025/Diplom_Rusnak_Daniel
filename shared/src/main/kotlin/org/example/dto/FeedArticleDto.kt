@@ -13,5 +13,6 @@ data class FeedArticleDto(
     val region: String?,
     val mainCategory: TagRefDto?,
     val subtopic: TagRefDto?,
-    val myRating: Int?
+    val myRating: Int?,
+    val matchPercent: Int?
 )

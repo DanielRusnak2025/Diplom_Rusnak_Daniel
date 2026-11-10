@@ -20,12 +20,14 @@ fun Route.feedRoutes(feedService: FeedService) {
             val cursor = call.request.queryParameters["cursor"]
             val regionFilter = call.request.queryParameters["region"]
             val categoryFilter = call.request.queryParameters["category"]?.toIntOrNull()
+            val lang = call.request.headers["Accept-Language"]
+                ?.let { if (it.startsWith("ru", ignoreCase = true)) "ru" else "en" } ?: "en"
 
             val result = try {
                 withNewTransaction { session ->
                     val user = session.find(User::class.java, userId)
                     val languages = user?.languages ?: emptySet()
-                    feedService.getFeed(session, userId, languages, cursor, limit, regionFilter, categoryFilter)
+                    feedService.getFeed(session, userId, languages, cursor, limit, regionFilter, categoryFilter, lang)
                 }
             } catch (e: IllegalArgumentException) {
                 call.respond(
@@ -44,9 +46,11 @@ fun Route.feedRoutes(feedService: FeedService) {
                     call.respond(HttpStatusCode.NotFound, ErrorResponse("NOT_FOUND", "Article not found"))
                     return@get
                 }
+            val lang = call.request.headers["Accept-Language"]
+                ?.let { if (it.startsWith("ru", ignoreCase = true)) "ru" else "en" } ?: "en"
 
             val article = withNewTransaction { session ->
-                feedService.getArticleById(session, userId, articleId)
+                feedService.getArticleById(session, userId, articleId, lang)
             }
 
             if (article == null) {

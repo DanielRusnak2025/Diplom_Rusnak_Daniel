@@ -12,6 +12,9 @@ import org.example.server.util.withNewTransaction
 fun Route.categoryRoutes() {
     authenticate("jwt-access") {
         get("/api/v1/categories") {
+            val lang = call.request.headers["Accept-Language"]
+                ?.let { if (it.startsWith("ru", ignoreCase = true)) "ru" else "en" } ?: "en"
+
             val categories = withNewTransaction { session ->
                 val cats = session.createSelectionQuery(
                     "from Tag t where t.kind = :kind order by t.name",
@@ -25,13 +28,16 @@ fun Route.categoryRoutes() {
 
                 val subtopicsByParent = subtopics.groupBy { it.parent?.id }
 
+                fun localize(tag: Tag): String =
+                    if (lang == "ru") tag.nameRu ?: tag.name else tag.name
+
                 cats.map { cat ->
                     CategoryDto(
                         id = cat.id,
                         key = cat.tagKey ?: "",
-                        name = cat.name,
+                        name = localize(cat),
                         subtopics = subtopicsByParent[cat.id]?.map { sub ->
-                            SubtopicDto(id = sub.id, key = sub.tagKey ?: "", name = sub.name)
+                            SubtopicDto(id = sub.id, key = sub.tagKey ?: "", name = localize(sub))
                         } ?: emptyList()
                     )
                 }

@@ -46,6 +46,7 @@ class FeedViewModelTest {
         mainCategory = null,
         subtopic = null,
         myRating = rating,
+        matchPercent = null,
     )
 
     @BeforeEach fun setUp() { Dispatchers.setMain(testDispatcher) }

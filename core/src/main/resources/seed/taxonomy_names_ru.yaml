@@ -1,0 +1,136 @@
+# Russian names for NewsDove taxonomy.
+# Keyed by tag_key; loaded by V13_2__seed_taxonomy_name_ru.java.
+# Covers all 15 categories + their subtopics + 15 "general" subtopics.
+
+names:
+  # ---- Categories ----
+  cat:politics:              "Политика"
+  cat:international:         "Международные отношения"
+  cat:conflicts:             "Конфликты и безопасность"
+  cat:economy:               "Экономика"
+  cat:business:              "Бизнес"
+  cat:energy:                "Энергетика"
+  cat:technology:            "Технологии"
+  cat:ai:                    "Искусственный интеллект"
+  cat:science:               "Наука и космос"
+  cat:health:                "Здоровье"
+  cat:environment:           "Экология"
+  cat:society:               "Общество"
+  cat:law_crime:             "Право и преступность"
+  cat:culture:               "Культура"
+  cat:sports:                "Спорт"
+
+  # ---- General subtopics (auto-created for each category) ----
+  sub:politics/general:              "Общее"
+  sub:international/general:         "Общее"
+  sub:conflicts/general:             "Общее"
+  sub:economy/general:               "Общее"
+  sub:business/general:              "Общее"
+  sub:energy/general:                "Общее"
+  sub:technology/general:            "Общее"
+  sub:ai/general:                    "Общее"
+  sub:science/general:               "Общее"
+  sub:health/general:                "Общее"
+  sub:environment/general:           "Общее"
+  sub:society/general:               "Общее"
+  sub:law_crime/general:             "Общее"
+  sub:culture/general:               "Общее"
+  sub:sports/general:                "Общее"
+
+  # ---- Politics subtopics ----
+  sub:politics/elections:                   "Выборы"
+  sub:politics/government_legislation:      "Правительство и законодательство"
+  sub:politics/parties_leaders:             "Партии и лидеры"
+  sub:politics/protests_civil_society:      "Протесты и гражданское общество"
+
+  # ---- International Relations subtopics ----
+  sub:international/diplomacy_summits:      "Дипломатия и саммиты"
+  sub:international/sanctions:              "Санкции"
+  sub:international/peace_talks_ceasefires: "Мирные переговоры и перемирие"
+  sub:international/alliances_intl_orgs:    "Альянсы и международные организации"
+
+  # ---- Conflicts & Security subtopics ----
+  sub:conflicts/interstate_wars:        "Межгосударственные войны"
+  sub:conflicts/civil_wars_insurgencies: "Гражданские войны и повстанцы"
+  sub:conflicts/terrorism:              "Терроризм"
+  sub:conflicts/military_defense:       "Вооружённые силы и оборона"
+  sub:conflicts/nuclear_arms_control:   "Ядерное оружие и контроль вооружений"
+  sub:conflicts/cyber_hybrid_threats:   "Кибератаки и гибридные угрозы"
+
+  # ---- Economy & Finance subtopics ----
+  sub:economy/macroeconomy_inflation:   "Макроэкономика и инфляция"
+  sub:economy/central_banks_markets:    "Центробанки и рынки"
+  sub:economy/trade_tariffs:            "Торговля и тарифы"
+  sub:economy/labour_market:            "Рынок труда"
+  sub:economy/public_finance_taxes:     "Государственные финансы и налоги"
+  sub:economy/housing_personal_finance: "Жильё и личные финансы"
+
+  # ---- Business & Industry subtopics ----
+  sub:business/companies_earnings:      "Компании и финансовые результаты"
+  sub:business/banking_financial_sector: "Банки и финансовый сектор"
+  sub:business/automotive_transport:    "Автомобили и транспорт"
+  sub:business/manufacturing_retail:    "Производство и розничная торговля"
+  sub:business/startups_investment:     "Стартапы и инвестиции"
+
+  # ---- Energy subtopics ----
+  sub:energy/oil_gas:                   "Нефть и газ"
+  sub:energy/renewables:                "Возобновляемая энергетика"
+  sub:energy/nuclear_power:             "Атомная энергетика"
+  sub:energy/energy_prices_supply_routes: "Цены на энергоносители и маршруты поставок"
+
+  # ---- Technology subtopics ----
+  sub:technology/big_tech_platforms:    "Технологические гиганты и платформы"
+  sub:technology/consumer_tech_telecom: "Потребительская электроника и телеком"
+  sub:technology/data_privacy_cybercrime: "Конфиденциальность данных и киберпреступность"
+  sub:technology/semiconductors_hardware: "Чипы и оборудование"
+
+  # ---- Artificial Intelligence subtopics ----
+  sub:ai/ai_models_research:    "Модели и исследования ИИ"
+  sub:ai/ai_business_work:      "ИИ в бизнесе и на работе"
+  sub:ai/ai_regulation_ethics:  "Регулирование и этика ИИ"
+  sub:ai/robotics_automation:   "Роботы и автоматизация"
+
+  # ---- Science & Space subtopics ----
+  sub:science/space:             "Космос"
+  sub:science/physics_astronomy: "Физика и астрономия"
+  sub:science/biology_genetics:  "Биология и генетика"
+  sub:science/archaeology_history: "Археология и история"
+
+  # ---- Health & Medicine subtopics ----
+  sub:health/diseases_outbreaks:   "Болезни и вспышки"
+  sub:health/healthcare_systems:   "Системы здравоохранения"
+  sub:health/drugs_medical_research: "Лекарства и медицинские исследования"
+  sub:health/mental_health_lifestyle: "Психическое здоровье и образ жизни"
+
+  # ---- Environment & Climate subtopics ----
+  sub:environment/climate_change_policy:    "Изменение климата и политика"
+  sub:environment/extreme_weather_disasters: "Экстремальные погодные явления и катастрофы"
+  sub:environment/nature_biodiversity:      "Природа и биоразнообразие"
+  sub:environment/pollution_sustainability: "Загрязнение и устойчивое развитие"
+
+  # ---- Society subtopics ----
+  sub:society/migration_refugees:         "Миграция и беженцы"
+  sub:society/human_rights_equality:      "Права человека и равенство"
+  sub:society/social_policy_demographics: "Социальная политика и демография"
+  sub:society/education:                  "Образование"
+  sub:society/religion:                   "Религия"
+  sub:society/accidents_emergencies:      "Аварии и чрезвычайные ситуации"
+
+  # ---- Law & Crime subtopics ----
+  sub:law_crime/courts_trials:          "Суды и судебные процессы"
+  sub:law_crime/crime_policing:         "Преступность и полиция"
+  sub:law_crime/corruption_investigations: "Коррупция и расследования"
+
+  # ---- Culture & Lifestyle subtopics ----
+  sub:culture/film_tv_music:   "Кино, ТВ и музыка"
+  sub:culture/books_art:       "Книги и искусство"
+  sub:culture/media_journalism: "СМИ и журналистика"
+  sub:culture/travel_food:     "Путешествия и еда"
+  sub:culture/celebrities:     "Знаменитости"
+
+  # ---- Sports subtopics ----
+  sub:sports/football:            "Футбол"
+  sub:sports/tennis:              "Теннис"
+  sub:sports/motorsport:          "Автоспорт"
+  sub:sports/olympic_winter_sports: "Олимпийские и зимние виды спорта"
+  sub:sports/other_sports:        "Другие виды спорта"

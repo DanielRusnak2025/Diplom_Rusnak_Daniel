@@ -113,6 +113,8 @@ fun Route.meRoutes(
 
             get("/interests") {
                 val userId = call.principal<JWTPrincipal>()!!.payload.subject.toInt()
+                val lang = call.request.headers["Accept-Language"]
+                    ?.let { if (it.startsWith("ru", ignoreCase = true)) "ru" else "en" } ?: "en"
                 val dtos = withNewTransaction { session ->
                     session.createSelectionQuery(
                         "from UserTagPercent utp where utp.user.id = :uid and utp.tag.kind = :kind" +
@@ -122,10 +124,11 @@ fun Route.meRoutes(
                      .setParameter("kind", TagKind.CATEGORY)
                      .resultList
                      .map { utp ->
+                         val name = if (lang == "ru") utp.tag.nameRu ?: utp.tag.name else utp.tag.name
                          InterestDto(
                              tagId = utp.tag.id,
                              key = utp.tag.tagKey ?: "",
-                             name = utp.tag.name,
+                             name = name,
                              percent = utp.percent
                          )
                      }

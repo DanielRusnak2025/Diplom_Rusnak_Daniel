@@ -1,0 +1,1 @@
+ALTER TABLE `tag` ADD COLUMN `name_ru` VARCHAR(255) NULL AFTER `name`;
