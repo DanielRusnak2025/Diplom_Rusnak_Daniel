@@ -200,22 +200,27 @@ Each sub-step: `./gradlew clean :core:test :server:test :androidApp:testDebugUni
 
 ## 8. Open Questions
 
-1. **Статьи tab visibility for MODERATOR**: Should MODERATOR see the Статьи tab (search + hide/unhide)?  
-   They already have `PUT /admin/articles/{id}/hidden` access. Recommendation: yes — the server already grants them access, and hiding from the article detail screen is more efficient than navigating back through the complaints screen. Waiting for confirmation before coding.
+### Answered (Q1–Q4)
 
-2. **Delete user**: The old JavaFX app had a delete action. Not included here — confirm if needed.
+1. **Статьи tab visibility for MODERATOR**: **CONFIRMED: yes.** MODERATOR sees Статьи tab with hide/unhide. Пользователи, Журнал, Статистика = ADMIN only.
 
-3. **Edit article fields (title, link, publisher)**: Old app allowed edits. Not included — confirm if needed.
+2. **Delete user / Edit article**: Not needed for now. Read-only panel + hide/unhide + role change only.
 
-4. **Interest weights: all categories or non-zero only?** Showing all 15 categories with a 0% bar is cleaner for auditing (reveals what was never trained). Showing only non-zero is less noisy. Recommendation: show only non-zero (non-zero = `percent != 0` in `user_tag_percent`). Confirm.
+3. **"Лента" for staff with empty languages**: **CONFIRMED: option (b)** — staff with no languages go to onboarding first, then feed. Back from feed returns to the panel.
 
-5. **"Лента" button for staff with no languages set**: If a staff account has `languages = []`, tapping "Лента" would route to onboarding under the current logic. Options:  
-   a. For staff, "Лента" always navigates directly to Home (skip onboarding).  
-   b. For staff with no languages, "Лента" navigates to onboarding, then back to panel.  
-   Recommendation: option (a) — a staff account with no language prefs gets the unfiltered feed, which is fine for admin use. Confirm.
+4. **Unify ComplaintsViewModel**: **CONFIRMED.** Rename `ModeratorViewModel` → `ComplaintsViewModel`. Remove "Жалобы" button from feed top bar; staff get "Панель" button there instead.
 
-6. **Complainants list in article detail**: show nick + reasonCode, or just nick? Showing reasonCode gives more context. Confirm format.
+   Also confirmed in this round:
+   - **Interest weights**: show only non-zero (percent != 0) CATEGORY tags.
+   - **Complainants list**: nick + reasonCode (confirmed by inclusion of `AdminUserRefDto(userId, nick, reasonCode)`).
+   - **Article detail tags**: add `nameRu: String? = null` to `TagRefDto` (backward compatible, done in 5g-1).
 
-7. **ModeratorViewModel reuse vs. ComplaintsViewModel**: The existing `ModeratorViewModel` (Жалобы in the standalone mod screen) can be reused or extended. If we keep the old standalone ModeratorScreen for MODERATOR and add a new Жалобы tab for ADMIN, we need two variants. Alternatively, unify them. Recommendation: unify — rename `ModeratorViewModel` to `ComplaintsViewModel`, add search/date params, use it in both the old `"mod"` route and the new panel tab. Confirm direction before 5g-6.
+### Open (Q5–Q8)
 
-8. **Article detail tags — language**: `TagRefDto.name` is single-language (en). Admin panel likely wants both en and ru. Options: (a) add `nameRu: String?` to `TagRefDto` (non-breaking with default null), or (b) create a separate `AdminTagDto`. Recommendation: add `nameRu` to `TagRefDto`. Confirm.
+5. **"Лента" button for staff with no languages set** (from Q3 above, confirmed: option b — go to onboarding; back returns to panel). Implemented in 5g-7.
+
+6. **Complainants list format**: show nick + reasonCode (confirmed — see `AdminUserRefDto`). Already reflected in `AdminArticleDetailDto`.
+
+7. **ModeratorViewModel → ComplaintsViewModel rename**: confirmed in Q4. The rename happens in 5g-6; no code exists yet that needs changing.
+
+8. **Article detail tags `nameRu`**: `TagRefDto.nameRu: String? = null` added in 5g-1. UI should display `nameRu ?: name`. Implement in 5g-4.
