@@ -32,6 +32,9 @@ class AppViewModelTest {
     private fun profile(languages: List<String> = emptyList()) =
         UserProfileDto(1, "user", null, RoleDto.USER, languages, emptyList(), "DAILY")
 
+    private fun staffProfile(role: RoleDto, languages: List<String> = listOf("ru")) =
+        UserProfileDto(1, "staff", null, role, languages, emptyList(), "DAILY")
+
     @Test
     fun `tokens null at start navigates to Auth`() = runTest(testDispatcher) {
         val fakeRepo = FakeTokenRepository()  // starts with null
@@ -108,6 +111,42 @@ class AppViewModelTest {
 
         coVerify(exactly = 1) { meApi.me() }
         assertEquals(AppViewModel.NavTarget.Home, vm.navTarget.value)
+    }
+
+    @Test
+    fun `ADMIN with languages goes to AdminPanel`() = runTest(testDispatcher) {
+        val fakeRepo = FakeTokenRepository()
+        fakeRepo.save(TokenPair("acc", "ref"))
+        coEvery { meApi.me() } returns staffProfile(RoleDto.ADMIN, listOf("ru"))
+
+        val vm = AppViewModel(fakeRepo, meApi)
+        advanceUntilIdle()
+
+        assertEquals(AppViewModel.NavTarget.AdminPanel, vm.navTarget.value)
+    }
+
+    @Test
+    fun `ADMIN with no languages goes to AdminPanel not Onboarding`() = runTest(testDispatcher) {
+        val fakeRepo = FakeTokenRepository()
+        fakeRepo.save(TokenPair("acc", "ref"))
+        coEvery { meApi.me() } returns staffProfile(RoleDto.ADMIN, emptyList())
+
+        val vm = AppViewModel(fakeRepo, meApi)
+        advanceUntilIdle()
+
+        assertEquals(AppViewModel.NavTarget.AdminPanel, vm.navTarget.value)
+    }
+
+    @Test
+    fun `MODERATOR with languages goes to AdminPanel`() = runTest(testDispatcher) {
+        val fakeRepo = FakeTokenRepository()
+        fakeRepo.save(TokenPair("acc", "ref"))
+        coEvery { meApi.me() } returns staffProfile(RoleDto.MODERATOR, listOf("en"))
+
+        val vm = AppViewModel(fakeRepo, meApi)
+        advanceUntilIdle()
+
+        assertEquals(AppViewModel.NavTarget.AdminPanel, vm.navTarget.value)
     }
 
     @Test

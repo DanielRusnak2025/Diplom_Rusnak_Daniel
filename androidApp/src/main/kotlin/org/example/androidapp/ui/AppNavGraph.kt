@@ -23,6 +23,7 @@ import org.example.androidapp.ui.auth.LoginScreen
 import org.example.androidapp.ui.auth.LoginViewModel
 import org.example.androidapp.ui.auth.RegisterScreen
 import org.example.androidapp.ui.auth.RegisterViewModel
+import org.example.androidapp.ui.admin.AdminPanelScreen
 import org.example.androidapp.ui.feed.FeedScreen
 import org.example.androidapp.ui.feed.FeedViewModel
 import org.example.androidapp.ui.mod.ModeratorScreen
@@ -50,6 +51,9 @@ fun AppNavGraph(appViewModel: AppViewModel) {
                 popUpTo(0) { inclusive = true }
             }
             AppViewModel.NavTarget.Home -> navController.navigate("home") {
+                popUpTo(0) { inclusive = true }
+            }
+            AppViewModel.NavTarget.AdminPanel -> navController.navigate("admin") {
                 popUpTo(0) { inclusive = true }
             }
             AppViewModel.NavTarget.Loading -> Unit
@@ -163,7 +167,9 @@ fun AppNavGraph(appViewModel: AppViewModel) {
             FeedScreen(
                 viewModel = feedVm,
                 onNavigateToSettings = { navController.navigate("settings") },
-                onNavigateToMod = if (isMod) { { navController.navigate("mod") } } else null,
+                onNavigateToPanel = if (isMod) {
+                    { navController.navigate("admin") { popUpTo(0) { inclusive = true } } }
+                } else null,
             )
         }
 
@@ -205,6 +211,21 @@ fun AppNavGraph(appViewModel: AppViewModel) {
             SettingsScreen(
                 viewModel = settingsVm,
                 onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        composable("admin") {
+            val role = profile?.role ?: return@composable
+            AdminPanelScreen(
+                role = role,
+                onNavigateToFeed = {
+                    if (profile?.languages.isNullOrEmpty()) {
+                        navController.navigate("onboarding")
+                    } else {
+                        navController.navigate("home")
+                    }
+                },
+                onNavigateToSettings = { navController.navigate("settings") },
             )
         }
     }

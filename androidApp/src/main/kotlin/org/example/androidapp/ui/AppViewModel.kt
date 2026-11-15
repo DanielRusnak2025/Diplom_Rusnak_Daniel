@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.example.androidapp.data.TokenRepository
 import org.example.androidapp.network.MeApi
+import org.example.dto.RoleDto
 import org.example.dto.UserProfileDto
 
 class AppViewModel(
@@ -20,6 +21,7 @@ class AppViewModel(
         object Auth : NavTarget
         object Onboarding : NavTarget
         object Home : NavTarget
+        object AdminPanel : NavTarget
     }
 
     private val _navTarget = MutableStateFlow<NavTarget>(NavTarget.Loading)
@@ -50,7 +52,11 @@ class AppViewModel(
         try {
             val me = meApi.me()
             _profile.value = me
-            _navTarget.value = if (me.languages.isNotEmpty()) NavTarget.Home else NavTarget.Onboarding
+            _navTarget.value = when {
+                me.role == RoleDto.ADMIN || me.role == RoleDto.MODERATOR -> NavTarget.AdminPanel
+                me.languages.isNotEmpty() -> NavTarget.Home
+                else -> NavTarget.Onboarding
+            }
         } catch (_: Exception) {
             _navTarget.value = NavTarget.Home
         }

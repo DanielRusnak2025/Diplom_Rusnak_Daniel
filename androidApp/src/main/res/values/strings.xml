@@ -78,6 +78,15 @@
     <!-- Navigation / common -->
     <string name="cd_back">Назад</string>
     <string name="btn_moderator">Жалобы</string>
+    <string name="btn_panel">Панель</string>
+    <string name="btn_feed">Лента</string>
+    <string name="screen_panel_title">Панель</string>
+    <string name="tab_articles">Статьи</string>
+    <string name="tab_users">Пользователи</string>
+    <string name="tab_complaints">Жалобы</string>
+    <string name="tab_audit">Журнал</string>
+    <string name="tab_stats">Статистика</string>
+    <string name="panel_placeholder">Раздел в разработке</string>
 
     <!-- Moderator screen -->
     <string name="screen_mod_title">Жалобы</string>
