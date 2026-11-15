@@ -18,6 +18,7 @@ data class ModUiState(
     val isEndOfList: Boolean = false,
     val error: String? = null,
     val confirmHide: ComplaintItemDto? = null,
+    val dismissTarget: ComplaintItemDto? = null,
     val snackbar: String? = null,
     val hidCount: Int = 0,
 )
@@ -104,6 +105,35 @@ class ModeratorViewModel(private val adminApi: AdminApi) : ViewModel() {
                 _state.update { it.copy(snackbar = msg) }
             } catch (_: Exception) {
                 _state.update { it.copy(snackbar = "Не удалось скрыть статью") }
+            }
+        }
+    }
+
+    fun requestDismiss(item: ComplaintItemDto) {
+        _state.update { it.copy(dismissTarget = item) }
+    }
+
+    fun cancelDismiss() {
+        _state.update { it.copy(dismissTarget = null) }
+    }
+
+    fun executeDismiss() {
+        val item = _state.value.dismissTarget ?: return
+        _state.update { it.copy(dismissTarget = null) }
+        viewModelScope.launch {
+            try {
+                adminApi.dismissComplaints(item.articleId)
+                _state.update { s ->
+                    s.copy(
+                        items = s.items.filter { it.articleId != item.articleId },
+                        snackbar = "Жалобы отклонены",
+                    )
+                }
+            } catch (e: ApiException) {
+                val msg = if (e.httpStatus == 403) "Недостаточно прав" else "Не удалось отклонить жалобы"
+                _state.update { it.copy(snackbar = msg) }
+            } catch (_: Exception) {
+                _state.update { it.copy(snackbar = "Не удалось отклонить жалобы") }
             }
         }
     }

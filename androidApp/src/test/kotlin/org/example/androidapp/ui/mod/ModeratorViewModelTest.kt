@@ -112,6 +112,29 @@ class ModeratorViewModelTest {
     }
 
     @Test
+    fun `dismiss complaints removes all items for that article`() = runTest(testDispatcher) {
+        val item1 = complaint(1, articleId = 10)
+        val item2 = complaint(2, articleId = 10)
+        val item3 = complaint(3, articleId = 20)
+        val page = ComplaintPageDto(items = listOf(item1, item2, item3), nextCursor = null)
+        coEvery { adminApi.complaints(cursor = null, limit = any()) } returns page
+        coEvery { adminApi.dismissComplaints(10) } just Runs
+
+        val vm = ModeratorViewModel(adminApi)
+        advanceUntilIdle()
+
+        vm.requestDismiss(item1)
+        vm.executeDismiss()
+        advanceUntilIdle()
+
+        val s = vm.state.value
+        assertEquals(1, s.items.size)
+        assertEquals(item3, s.items.first())
+        assertEquals("Жалобы отклонены", s.snackbar)
+        coVerify(exactly = 1) { adminApi.dismissComplaints(10) }
+    }
+
+    @Test
     fun `403 on hide shows Russian snackbar and keeps item in list`() = runTest(testDispatcher) {
         val item = complaint(1, articleId = 10)
         coEvery { adminApi.complaints(cursor = null, limit = any()) } returns

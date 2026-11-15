@@ -2,6 +2,7 @@ package org.example.androidapp.network
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.put
@@ -26,5 +27,9 @@ class AdminApi(
             contentType(ContentType.Application.Json)
             setBody(HiddenRequest(hidden))
         }
+    }
+
+    suspend fun dismissComplaints(articleId: Int) {
+        authClient.delete("$baseUrl/api/v1/admin/articles/$articleId/complaints")
     }
 }

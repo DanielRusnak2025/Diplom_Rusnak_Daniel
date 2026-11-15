@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import org.example.*
+import org.example.ReportReason
 import org.example.dto.TokenPairDto
 import org.example.util.HibernateUtil
 import org.junit.jupiter.api.AfterEach
@@ -59,6 +60,17 @@ class AdminRouteTest {
             session.persist(a)
             tx.commit()
             return a.id
+        }
+    }
+
+    private fun insertComplaintFor(articleId: Int, nick: String) {
+        HibernateUtil.getSessionFactory().openSession().use { session ->
+            val tx = session.beginTransaction()
+            val article = session.find(Article::class.java, articleId)
+            val user = session.createSelectionQuery("FROM User u WHERE u.nick = :nick", User::class.java)
+                .setParameter("nick", nick).uniqueResult()
+            session.persist(Report(article, user, -1, ReportReason.OTHER))
+            tx.commit()
         }
     }
 
@@ -249,6 +261,72 @@ class AdminRouteTest {
             session.find(User::class.java, targetId).role
         }
         assertEquals(Role.MODERATOR, updatedRole)
+    }
+
+    // ─── Dismiss complaints ───────────────────────────────────────────────────
+
+    @Test
+    fun `moderator can dismiss complaints - returns 204`() = testApplication {
+        application { module() }
+        val modToken = registerUser("adm_dis1")
+        setRole("adm_dis1", Role.MODERATOR)
+        val userToken = registerUser("adm_dis1_reporter")
+        val articleId = insertClassifiedArticle("adm_dismiss_article1")
+        insertComplaintFor(articleId, "adm_dis1_reporter")
+
+        val resp = client.delete("/api/v1/admin/articles/$articleId/complaints") {
+            header(HttpHeaders.Authorization, "Bearer $modToken")
+        }
+        assertEquals(HttpStatusCode.NoContent, resp.status)
+    }
+
+    @Test
+    fun `user gets 403 on dismiss complaints`() = testApplication {
+        application { module() }
+        val token = registerUser("adm_dis2")
+        val articleId = insertClassifiedArticle("adm_dismiss_article2")
+
+        val resp = client.delete("/api/v1/admin/articles/$articleId/complaints") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.Forbidden, resp.status)
+    }
+
+    @Test
+    fun `dismiss complaints for unknown article returns 404`() = testApplication {
+        application { module() }
+        val token = registerUser("adm_dis3")
+        setRole("adm_dis3", Role.MODERATOR)
+
+        val resp = client.delete("/api/v1/admin/articles/999999/complaints") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.NotFound, resp.status)
+    }
+
+    @Test
+    fun `dismissed article stays visible in feed`() = testApplication {
+        application { module() }
+        val modToken = registerUser("adm_dis4_mod")
+        setRole("adm_dis4_mod", Role.MODERATOR)
+        val userToken = registerUser("adm_dis4_user")
+        val articleId = insertClassifiedArticle("adm_dismiss_article4")
+        insertComplaintFor(articleId, "adm_dis4_user")
+
+        val dismissResp = client.delete("/api/v1/admin/articles/$articleId/complaints") {
+            header(HttpHeaders.Authorization, "Bearer $modToken")
+        }
+        assertEquals(HttpStatusCode.NoContent, dismissResp.status)
+
+        val feedResp = client.get("/api/v1/feed") {
+            header(HttpHeaders.Authorization, "Bearer $userToken")
+        }
+        assertEquals(HttpStatusCode.OK, feedResp.status)
+        val items = Json.parseToJsonElement(feedResp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertTrue(
+            items.any { it.jsonObject["id"]?.jsonPrimitive?.int == articleId },
+            "Article should still be visible in feed after complaints dismissed"
+        )
     }
 
     // ─── Stats returns counts ─────────────────────────────────────────────────

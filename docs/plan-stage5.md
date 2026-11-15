@@ -227,6 +227,7 @@ All endpoints verified against `server/src/main/kotlin/org/example/server/routes
 | POST | `/api/v1/articles/{id}/complain` | `RateRoutes.kt` | JWT (`{reasonCode}`) |
 | GET | `/api/v1/admin/complaints` | `AdminRoutes.kt` | JWT MODERATOR+ |
 | PUT | `/api/v1/admin/articles/{id}/hidden` | `AdminRoutes.kt` | JWT MODERATOR+ (`{hidden:bool}`) |
+| DELETE | `/api/v1/admin/articles/{id}/complaints` | `AdminRoutes.kt` | JWT MODERATOR+ |
 | GET | `/api/v1/admin/users` | `AdminRoutes.kt` | JWT ADMIN |
 | PUT | `/api/v1/admin/users/{id}/role` | `AdminRoutes.kt` | JWT ADMIN (`{role}`) |
 | GET | `/api/v1/admin/audit` | `AdminRoutes.kt` | JWT ADMIN |

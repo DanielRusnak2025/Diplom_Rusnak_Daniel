@@ -85,4 +85,7 @@
     <string name="mod_hide_article">Скрыть статью</string>
     <string name="mod_hide_confirm">Скрыть статью «%s»?</string>
     <string name="mod_btn_hide">Скрыть</string>
+    <string name="mod_dismiss_complaints">Отклонить</string>
+    <string name="mod_dismiss_confirm">Отклонить жалобы на «%s»?</string>
+    <string name="mod_btn_dismiss">Отклонить</string>
 </resources>

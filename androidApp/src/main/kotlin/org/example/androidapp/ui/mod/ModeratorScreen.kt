@@ -134,6 +134,7 @@ fun ModeratorScreen(
                             ComplaintCard(
                                 item = item,
                                 onHide = { viewModel.requestHide(item) },
+                                onDismiss = { viewModel.requestDismiss(item) },
                             )
                         }
                         if (state.isLoadingMore) {
@@ -168,12 +169,21 @@ fun ModeratorScreen(
             onDismiss = { viewModel.dismissHideConfirm() },
         )
     }
+
+    state.dismissTarget?.let { item ->
+        DismissConfirmDialog(
+            articleTitle = item.articleTitle ?: stringResource(R.string.feed_untitled),
+            onConfirm = { viewModel.executeDismiss() },
+            onDismiss = { viewModel.cancelDismiss() },
+        )
+    }
 }
 
 @Composable
 private fun ComplaintCard(
     item: ComplaintItemDto,
     onHide: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
     Card(
         border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
@@ -200,16 +210,26 @@ private fun ComplaintCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = onHide,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor   = MaterialTheme.colorScheme.onErrorContainer,
-                ),
-                shape = MaterialTheme.shapes.extraSmall,
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(stringResource(R.string.mod_hide_article))
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(R.string.mod_dismiss_complaints))
+                }
+                Button(
+                    onClick = onHide,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor   = MaterialTheme.colorScheme.onErrorContainer,
+                    ),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(R.string.mod_hide_article))
+                }
             }
         }
     }
@@ -248,6 +268,40 @@ private fun HideConfirmDialog(
                         ),
                     ) {
                         Text(stringResource(R.string.mod_btn_hide))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DismissConfirmDialog(
+    articleTitle: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.background,
+            border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    text = stringResource(R.string.mod_dismiss_confirm, articleTitle),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Spacer(Modifier.height(24.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    OutlinedButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.btn_cancel))
+                    }
+                    Button(onClick = onConfirm) {
+                        Text(stringResource(R.string.mod_btn_dismiss))
                     }
                 }
             }
