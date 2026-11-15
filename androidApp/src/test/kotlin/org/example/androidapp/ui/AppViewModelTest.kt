@@ -3,6 +3,7 @@
 package org.example.androidapp.ui
 
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -62,6 +63,23 @@ class AppViewModelTest {
         val vm = AppViewModel(fakeRepo, meApi)
         advanceUntilIdle()
 
+        assertEquals(AppViewModel.NavTarget.Home, vm.navTarget.value)
+    }
+
+    @Test
+    fun `silent token rotation does not re-run onboarding check`() = runTest(testDispatcher) {
+        val fakeRepo = FakeTokenRepository()
+        fakeRepo.save(TokenPair("acc1", "ref1"))
+        coEvery { meApi.me() } returns profile(listOf("en"))
+
+        val vm = AppViewModel(fakeRepo, meApi)
+        advanceUntilIdle()
+        assertEquals(AppViewModel.NavTarget.Home, vm.navTarget.value)
+
+        fakeRepo.save(TokenPair("acc2", "ref2"))
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { meApi.me() }
         assertEquals(AppViewModel.NavTarget.Home, vm.navTarget.value)
     }
 

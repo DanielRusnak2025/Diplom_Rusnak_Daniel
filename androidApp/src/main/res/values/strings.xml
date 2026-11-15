@@ -77,7 +77,7 @@
 
     <!-- Navigation / common -->
     <string name="cd_back">Назад</string>
-    <string name="btn_moderator">Мод.</string>
+    <string name="btn_moderator">Жалобы</string>
 
     <!-- Moderator screen -->
     <string name="screen_mod_title">Жалобы</string>

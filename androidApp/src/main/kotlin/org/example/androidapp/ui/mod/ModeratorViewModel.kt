@@ -19,6 +19,7 @@ data class ModUiState(
     val error: String? = null,
     val confirmHide: ComplaintItemDto? = null,
     val snackbar: String? = null,
+    val hidCount: Int = 0,
 )
 
 class ModeratorViewModel(private val adminApi: AdminApi) : ViewModel() {
@@ -95,6 +96,7 @@ class ModeratorViewModel(private val adminApi: AdminApi) : ViewModel() {
                     s.copy(
                         items = s.items.filter { it.articleId != item.articleId },
                         snackbar = "Статья скрыта",
+                        hidCount = s.hidCount + 1,
                     )
                 }
             } catch (e: ApiException) {

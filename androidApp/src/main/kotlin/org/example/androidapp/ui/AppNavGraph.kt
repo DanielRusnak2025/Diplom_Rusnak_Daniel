@@ -151,6 +151,15 @@ fun AppNavGraph(appViewModel: AppViewModel) {
                     FeedViewModel(app.container.feedApi, app.container.authApi, app.container.tokenRepository)
                 }
             })
+            val feedNeedsRefresh by it.savedStateHandle
+                .getStateFlow("feedNeedsRefresh", false)
+                .collectAsStateWithLifecycle()
+            LaunchedEffect(feedNeedsRefresh) {
+                if (feedNeedsRefresh) {
+                    feedVm.refresh()
+                    it.savedStateHandle["feedNeedsRefresh"] = false
+                }
+            }
             FeedScreen(
                 viewModel = feedVm,
                 onNavigateToSettings = { navController.navigate("settings") },
@@ -165,9 +174,17 @@ fun AppNavGraph(appViewModel: AppViewModel) {
                     ModeratorViewModel(app.container.adminApi)
                 }
             })
+            val modState by modVm.state.collectAsStateWithLifecycle()
             ModeratorScreen(
                 viewModel = modVm,
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = {
+                    if (modState.hidCount > 0) {
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.set("feedNeedsRefresh", true)
+                    }
+                    navController.popBackStack()
+                },
             )
         }
 

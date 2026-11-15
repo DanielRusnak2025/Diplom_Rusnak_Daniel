@@ -30,12 +30,17 @@ class AppViewModel(
 
     init {
         viewModelScope.launch {
+            var prevWasNull = true
             tokenRepository.tokensFlow().collect { tokens ->
                 if (tokens == null) {
+                    prevWasNull = true
+                    _profile.value = null
                     _navTarget.value = NavTarget.Auth
-                } else {
+                } else if (prevWasNull) {
+                    prevWasNull = false
                     checkOnboarding()
                 }
+                // silent token rotation (non-null → non-null): ignore, do not re-navigate
             }
         }
     }

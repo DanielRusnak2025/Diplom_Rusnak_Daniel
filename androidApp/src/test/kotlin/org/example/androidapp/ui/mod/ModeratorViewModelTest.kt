@@ -107,6 +107,7 @@ class ModeratorViewModelTest {
         assertEquals(1, s.items.size)
         assertEquals(item3, s.items.first())
         assertEquals("Статья скрыта", s.snackbar)
+        assertEquals(1, s.hidCount)
         coVerify(exactly = 1) { adminApi.hideArticle(10, true) }
     }
 
