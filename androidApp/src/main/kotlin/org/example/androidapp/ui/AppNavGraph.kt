@@ -175,16 +175,18 @@ fun AppNavGraph(appViewModel: AppViewModel) {
                 }
             })
             val modState by modVm.state.collectAsStateWithLifecycle()
+            // Set flag immediately on each successful hide so the feed refreshes regardless
+            // of how the user leaves (back-arrow button, system back, gesture).
+            LaunchedEffect(modState.hidCount) {
+                if (modState.hidCount > 0) {
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("feedNeedsRefresh", true)
+                }
+            }
             ModeratorScreen(
                 viewModel = modVm,
-                onNavigateBack = {
-                    if (modState.hidCount > 0) {
-                        navController.previousBackStackEntry
-                            ?.savedStateHandle
-                            ?.set("feedNeedsRefresh", true)
-                    }
-                    navController.popBackStack()
-                },
+                onNavigateBack = { navController.popBackStack() },
             )
         }
 

@@ -67,6 +67,33 @@ class AppViewModelTest {
     }
 
     @Test
+    fun `old user with no language preferences in me() is sent to Onboarding`() = runTest(testDispatcher) {
+        // Old coursework accounts were created before the onboarding flow existed.
+        // /me returns languages: [] for them. They must be sent to Onboarding so they
+        // can pick a language (required for the feed filter to work).
+        val fakeRepo = FakeTokenRepository()
+        fakeRepo.save(TokenPair("acc", "ref"))
+        coEvery { meApi.me() } returns profile(emptyList())
+
+        val vm = AppViewModel(fakeRepo, meApi)
+        advanceUntilIdle()
+
+        assertEquals(AppViewModel.NavTarget.Onboarding, vm.navTarget.value)
+    }
+
+    @Test
+    fun `me() network error falls back to Home without crash`() = runTest(testDispatcher) {
+        val fakeRepo = FakeTokenRepository()
+        fakeRepo.save(TokenPair("acc", "ref"))
+        coEvery { meApi.me() } throws RuntimeException("network error")
+
+        val vm = AppViewModel(fakeRepo, meApi)
+        advanceUntilIdle()
+
+        assertEquals(AppViewModel.NavTarget.Home, vm.navTarget.value)
+    }
+
+    @Test
     fun `silent token rotation does not re-run onboarding check`() = runTest(testDispatcher) {
         val fakeRepo = FakeTokenRepository()
         fakeRepo.save(TokenPair("acc1", "ref1"))
