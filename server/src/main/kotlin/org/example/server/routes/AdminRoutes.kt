@@ -77,13 +77,13 @@ fun Route.adminRoutes(auditService: AuditService) {
 
                 val found = withNewTransaction { session ->
                     session.find(Article::class.java, articleId) ?: return@withNewTransaction false
-                    val deleted = session.createMutationQuery(
-                        "DELETE FROM Report r WHERE r.article.id = :articleId AND r.reasonCode IS NOT NULL"
+                    val updated = session.createMutationQuery(
+                        "UPDATE Report r SET r.reasonCode = NULL WHERE r.article.id = :articleId AND r.reasonCode IS NOT NULL"
                     ).setParameter("articleId", articleId).executeUpdate()
                     val actor = session.find(User::class.java, actorId)!!
                     auditService.log(
                         session, actor, "COMPLAINTS_DISMISSED",
-                        "article", articleId.toString(), "count=$deleted"
+                        "article", articleId.toString(), "count=$updated"
                     )
                     true
                 }

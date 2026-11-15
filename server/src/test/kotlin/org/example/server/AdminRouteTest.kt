@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import org.example.*
+import org.example.Report
 import org.example.ReportReason
 import org.example.dto.TokenPairDto
 import org.example.util.HibernateUtil
@@ -311,7 +312,8 @@ class AdminRouteTest {
         setRole("adm_dis4_mod", Role.MODERATOR)
         val userToken = registerUser("adm_dis4_user")
         val articleId = insertClassifiedArticle("adm_dismiss_article4")
-        insertComplaintFor(articleId, "adm_dis4_user")
+        // Note: adm_dis4_user has NO report for this article, so it should appear normally
+        insertComplaintFor(articleId, "adm_dis4_mod")
 
         val dismissResp = client.delete("/api/v1/admin/articles/$articleId/complaints") {
             header(HttpHeaders.Authorization, "Bearer $modToken")
@@ -325,7 +327,93 @@ class AdminRouteTest {
         val items = Json.parseToJsonElement(feedResp.bodyAsText()).jsonObject["items"]!!.jsonArray
         assertTrue(
             items.any { it.jsonObject["id"]?.jsonPrimitive?.int == articleId },
-            "Article should still be visible in feed after complaints dismissed"
+            "Article should still be visible in feed to a user who did not file a complaint"
+        )
+    }
+
+    @Test
+    fun `dismiss keeps report row with rating -1 and clears reason_code`() = testApplication {
+        application { module() }
+        val modToken = registerUser("adm_dis5_mod")
+        setRole("adm_dis5_mod", Role.MODERATOR)
+        registerUser("adm_dis5_reporter")
+        val articleId = insertClassifiedArticle("adm_dismiss_article5")
+        insertComplaintFor(articleId, "adm_dis5_reporter")
+
+        val dismissResp = client.delete("/api/v1/admin/articles/$articleId/complaints") {
+            header(HttpHeaders.Authorization, "Bearer $modToken")
+        }
+        assertEquals(HttpStatusCode.NoContent, dismissResp.status)
+
+        // Row must still exist with rating=-1 but reasonCode=null
+        val report = HibernateUtil.getSessionFactory().openSession().use { session ->
+            session.createSelectionQuery(
+                "FROM Report r WHERE r.article.id = :articleId",
+                Report::class.java
+            ).setParameter("articleId", articleId).uniqueResult()
+        }
+        assertNotNull(report, "Report row must still exist after dismiss")
+        assertEquals(-1, report!!.rating, "rating must remain -1")
+        assertNull(report.reasonCode, "reasonCode must be cleared to null")
+    }
+
+    @Test
+    fun `dismissed complaint no longer appears in GET admin complaints`() = testApplication {
+        application { module() }
+        val modToken = registerUser("adm_dis6_mod")
+        setRole("adm_dis6_mod", Role.MODERATOR)
+        registerUser("adm_dis6_reporter")
+        val articleId = insertClassifiedArticle("adm_dismiss_article6")
+        insertComplaintFor(articleId, "adm_dis6_reporter")
+
+        val before = client.get("/api/v1/admin/complaints") {
+            header(HttpHeaders.Authorization, "Bearer $modToken")
+        }
+        val itemsBefore = Json.parseToJsonElement(before.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertTrue(
+            itemsBefore.any { it.jsonObject["articleId"]?.jsonPrimitive?.int == articleId },
+            "Complaint should appear in GET /admin/complaints before dismiss"
+        )
+
+        client.delete("/api/v1/admin/articles/$articleId/complaints") {
+            header(HttpHeaders.Authorization, "Bearer $modToken")
+        }
+
+        val after = client.get("/api/v1/admin/complaints") {
+            header(HttpHeaders.Authorization, "Bearer $modToken")
+        }
+        val itemsAfter = Json.parseToJsonElement(after.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertFalse(
+            itemsAfter.any { it.jsonObject["articleId"]?.jsonPrimitive?.int == articleId },
+            "Complaint should be gone from GET /admin/complaints after dismiss"
+        )
+    }
+
+    @Test
+    fun `dismissed article stays hidden from the reporter's feed`() = testApplication {
+        application { module() }
+        val modToken = registerUser("adm_dis7_mod")
+        setRole("adm_dis7_mod", Role.MODERATOR)
+        val reporterToken = registerUser("adm_dis7_reporter")
+        val articleId = insertClassifiedArticle("adm_dismiss_article7")
+        // Reporter files a complaint (rating=-1, reasonCode set)
+        insertComplaintFor(articleId, "adm_dis7_reporter")
+
+        // Moderator dismisses the complaint (reasonCode cleared, but rating=-1 stays)
+        val dismissResp = client.delete("/api/v1/admin/articles/$articleId/complaints") {
+            header(HttpHeaders.Authorization, "Bearer $modToken")
+        }
+        assertEquals(HttpStatusCode.NoContent, dismissResp.status)
+
+        // The article must still be absent from the reporter's feed because rating=-1 remains
+        val feedResp = client.get("/api/v1/feed") {
+            header(HttpHeaders.Authorization, "Bearer $reporterToken")
+        }
+        assertEquals(HttpStatusCode.OK, feedResp.status)
+        val items = Json.parseToJsonElement(feedResp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertFalse(
+            items.any { it.jsonObject["id"]?.jsonPrimitive?.int == articleId },
+            "Article must stay out of the reporter's feed: rating=-1 row was kept, only reasonCode was cleared"
         )
     }
 
