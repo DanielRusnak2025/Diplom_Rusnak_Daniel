@@ -77,6 +77,7 @@ import org.example.dto.ReportReasonDto
 fun FeedScreen(
     viewModel: FeedViewModel,
     onNavigateToSettings: () -> Unit = {},
+    onNavigateToMod: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -107,6 +108,11 @@ fun FeedScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
                 actions = {
+                    if (onNavigateToMod != null) {
+                        TextButton(onClick = onNavigateToMod) {
+                            Text(stringResource(R.string.btn_moderator))
+                        }
+                    }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.cd_settings))
                     }

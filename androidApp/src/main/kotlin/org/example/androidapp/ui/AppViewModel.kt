@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.example.androidapp.data.TokenRepository
 import org.example.androidapp.network.MeApi
+import org.example.dto.UserProfileDto
 
 class AppViewModel(
     private val tokenRepository: TokenRepository,
@@ -24,6 +25,9 @@ class AppViewModel(
     private val _navTarget = MutableStateFlow<NavTarget>(NavTarget.Loading)
     val navTarget: StateFlow<NavTarget> = _navTarget.asStateFlow()
 
+    private val _profile = MutableStateFlow<UserProfileDto?>(null)
+    val profile: StateFlow<UserProfileDto?> = _profile.asStateFlow()
+
     init {
         viewModelScope.launch {
             tokenRepository.tokensFlow().collect { tokens ->
@@ -39,8 +43,9 @@ class AppViewModel(
     private suspend fun checkOnboarding() {
         _navTarget.value = NavTarget.Loading
         try {
-            val interests = meApi.interests()
-            _navTarget.value = if (interests.any { it.percent > 0 }) NavTarget.Home else NavTarget.Onboarding
+            val me = meApi.me()
+            _profile.value = me
+            _navTarget.value = if (me.languages.isNotEmpty()) NavTarget.Home else NavTarget.Onboarding
         } catch (_: Exception) {
             _navTarget.value = NavTarget.Home
         }

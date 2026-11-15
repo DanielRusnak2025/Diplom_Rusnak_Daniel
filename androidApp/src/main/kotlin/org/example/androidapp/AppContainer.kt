@@ -5,6 +5,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import org.example.androidapp.crypto.AndroidKeystoreTokenCipher
 import org.example.androidapp.data.DataStoreTokenRepository
 import org.example.androidapp.data.TokenRepository
+import org.example.androidapp.network.AdminApi
 import org.example.androidapp.network.ApiClient
 import org.example.androidapp.network.AuthApi
 import org.example.androidapp.network.FeedApi
@@ -24,4 +25,5 @@ class AppContainer(context: Context) {
     val metaApi = MetaApi(BuildConfig.BASE_URL, apiClient.authClient)
     val meApi = MeApi(BuildConfig.BASE_URL, apiClient.authClient)
     val feedApi = FeedApi(BuildConfig.BASE_URL, apiClient.authClient)
+    val adminApi = AdminApi(BuildConfig.BASE_URL, apiClient.authClient)
 }

@@ -74,4 +74,15 @@
     <string name="error_reused_password">Нельзя повторять один из последних 3 паролей</string>
     <string name="error_too_many_attempts">Слишком много попыток. Попробуйте позже.</string>
     <string name="error_generic_settings">Ошибка сохранения. Попробуйте снова.</string>
+
+    <!-- Navigation / common -->
+    <string name="cd_back">Назад</string>
+    <string name="btn_moderator">Мод.</string>
+
+    <!-- Moderator screen -->
+    <string name="screen_mod_title">Жалобы</string>
+    <string name="mod_empty">Жалоб нет</string>
+    <string name="mod_hide_article">Скрыть статью</string>
+    <string name="mod_hide_confirm">Скрыть статью «%s»?</string>
+    <string name="mod_btn_hide">Скрыть</string>
 </resources>

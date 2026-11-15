@@ -13,7 +13,8 @@ import kotlinx.coroutines.test.setMain
 import org.example.androidapp.data.FakeTokenRepository
 import org.example.androidapp.data.TokenPair
 import org.example.androidapp.network.MeApi
-import org.example.dto.InterestDto
+import org.example.dto.RoleDto
+import org.example.dto.UserProfileDto
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
@@ -27,10 +28,12 @@ class AppViewModelTest {
     @BeforeEach fun setUp() { Dispatchers.setMain(testDispatcher) }
     @AfterEach fun tearDown() { Dispatchers.resetMain() }
 
+    private fun profile(languages: List<String> = emptyList()) =
+        UserProfileDto(1, "user", null, RoleDto.USER, languages, emptyList(), "DAILY")
+
     @Test
     fun `tokens null at start navigates to Auth`() = runTest(testDispatcher) {
         val fakeRepo = FakeTokenRepository()  // starts with null
-        coEvery { meApi.interests() } returns emptyList()
 
         val vm = AppViewModel(fakeRepo, meApi)
         advanceUntilIdle()
@@ -39,10 +42,10 @@ class AppViewModelTest {
     }
 
     @Test
-    fun `tokens saved with no interests navigates to Onboarding`() = runTest(testDispatcher) {
+    fun `tokens saved with empty languages navigates to Onboarding`() = runTest(testDispatcher) {
         val fakeRepo = FakeTokenRepository()
         fakeRepo.save(TokenPair("acc", "ref"))
-        coEvery { meApi.interests() } returns emptyList()
+        coEvery { meApi.me() } returns profile(emptyList())
 
         val vm = AppViewModel(fakeRepo, meApi)
         advanceUntilIdle()
@@ -51,10 +54,10 @@ class AppViewModelTest {
     }
 
     @Test
-    fun `tokens saved with interests navigates to Home`() = runTest(testDispatcher) {
+    fun `tokens saved with languages navigates to Home`() = runTest(testDispatcher) {
         val fakeRepo = FakeTokenRepository()
         fakeRepo.save(TokenPair("acc", "ref"))
-        coEvery { meApi.interests() } returns listOf(InterestDto(1, "tech", "Tech", 60))
+        coEvery { meApi.me() } returns profile(listOf("en"))
 
         val vm = AppViewModel(fakeRepo, meApi)
         advanceUntilIdle()
@@ -63,16 +66,15 @@ class AppViewModelTest {
     }
 
     @Test
-    fun `tokens cleared with no logoutEvents collector still navigates to Auth`() = runTest(testDispatcher) {
+    fun `tokens cleared navigates back to Auth`() = runTest(testDispatcher) {
         val fakeRepo = FakeTokenRepository()
         fakeRepo.save(TokenPair("acc", "ref"))
-        coEvery { meApi.interests() } returns emptyList()
+        coEvery { meApi.me() } returns profile(emptyList())
 
         val vm = AppViewModel(fakeRepo, meApi)
         advanceUntilIdle()
         assertEquals(AppViewModel.NavTarget.Onboarding, vm.navTarget.value)
 
-        // No collector subscribed to logoutEvents — navigation must still go to Auth via state
         fakeRepo.clear()
         advanceUntilIdle()
 

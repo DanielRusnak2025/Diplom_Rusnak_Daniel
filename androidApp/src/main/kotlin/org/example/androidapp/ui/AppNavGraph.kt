@@ -25,16 +25,20 @@ import org.example.androidapp.ui.auth.RegisterScreen
 import org.example.androidapp.ui.auth.RegisterViewModel
 import org.example.androidapp.ui.feed.FeedScreen
 import org.example.androidapp.ui.feed.FeedViewModel
+import org.example.androidapp.ui.mod.ModeratorScreen
+import org.example.androidapp.ui.mod.ModeratorViewModel
 import org.example.androidapp.ui.onboarding.OnboardingInterestsScreen
 import org.example.androidapp.ui.onboarding.OnboardingLanguagesScreen
 import org.example.androidapp.ui.onboarding.OnboardingRegionsScreen
 import org.example.androidapp.ui.onboarding.OnboardingViewModel
 import org.example.androidapp.ui.settings.SettingsViewModel
 import org.example.androidapp.ui.settings.SettingsScreen
+import org.example.dto.RoleDto
 
 @Composable
 fun AppNavGraph(appViewModel: AppViewModel) {
     val navTarget by appViewModel.navTarget.collectAsStateWithLifecycle()
+    val profile by appViewModel.profile.collectAsStateWithLifecycle()
     val navController = rememberNavController()
 
     LaunchedEffect(navTarget) {
@@ -140,6 +144,7 @@ fun AppNavGraph(appViewModel: AppViewModel) {
         }
 
         composable("home") {
+            val isMod = profile?.role == RoleDto.MODERATOR || profile?.role == RoleDto.ADMIN
             val feedVm: FeedViewModel = viewModel(factory = viewModelFactory {
                 initializer {
                     val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as NewsDoveApp
@@ -149,6 +154,20 @@ fun AppNavGraph(appViewModel: AppViewModel) {
             FeedScreen(
                 viewModel = feedVm,
                 onNavigateToSettings = { navController.navigate("settings") },
+                onNavigateToMod = if (isMod) { { navController.navigate("mod") } } else null,
+            )
+        }
+
+        composable("mod") {
+            val modVm: ModeratorViewModel = viewModel(factory = viewModelFactory {
+                initializer {
+                    val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as NewsDoveApp
+                    ModeratorViewModel(app.container.adminApi)
+                }
+            })
+            ModeratorScreen(
+                viewModel = modVm,
+                onNavigateBack = { navController.popBackStack() },
             )
         }
 
