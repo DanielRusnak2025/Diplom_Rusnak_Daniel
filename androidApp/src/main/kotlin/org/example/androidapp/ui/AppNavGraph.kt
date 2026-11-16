@@ -14,13 +14,18 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import org.example.androidapp.NewsDoveApp
+import org.example.androidapp.ui.admin.AdminArticleDetailScreen
 import org.example.androidapp.ui.admin.AdminPanelScreen
 import org.example.androidapp.ui.admin.AdminPanelViewModel
+import org.example.androidapp.ui.admin.ArticleDetailViewModel
+import org.example.androidapp.ui.admin.ArticlesViewModel
 import org.example.androidapp.ui.auth.LoginScreen
 import org.example.androidapp.ui.auth.LoginViewModel
 import org.example.androidapp.ui.auth.RegisterScreen
@@ -224,7 +229,7 @@ fun AppNavGraph(appViewModel: AppViewModel) {
             )
         }
 
-        composable("admin") {
+        composable("admin") { backStackEntry ->
             val role = profile?.role ?: return@composable
             val panelVm: AdminPanelViewModel = viewModel(factory = viewModelFactory {
                 initializer {
@@ -241,10 +246,31 @@ fun AppNavGraph(appViewModel: AppViewModel) {
                     }
                 },
             )
+            val articlesVm: ArticlesViewModel = viewModel(factory = viewModelFactory {
+                initializer {
+                    val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as NewsDoveApp
+                    ArticlesViewModel(app.container.adminApi)
+                }
+            })
+
+            val articleHiddenId by backStackEntry.savedStateHandle
+                .getStateFlow("articleHiddenId", -1)
+                .collectAsStateWithLifecycle()
+            val articleHiddenValue by backStackEntry.savedStateHandle
+                .getStateFlow("articleHiddenValue", false)
+                .collectAsStateWithLifecycle()
+            LaunchedEffect(articleHiddenId) {
+                if (articleHiddenId != -1) {
+                    articlesVm.updateArticle(articleHiddenId, articleHiddenValue)
+                    backStackEntry.savedStateHandle["articleHiddenId"] = -1
+                }
+            }
+
             AdminPanelScreen(
                 role = role,
                 panelVm = panelVm,
                 complaintsVm = complaintsVm,
+                articlesVm = articlesVm,
                 onNavigateToFeed = {
                     if (profile?.languages.isNullOrEmpty()) {
                         navController.navigate("onboarding")
@@ -254,6 +280,25 @@ fun AppNavGraph(appViewModel: AppViewModel) {
                 },
                 onLogout = { appViewModel.logout() },
                 onNavigateToSettings = { navController.navigate("settings") },
+                onNavigateToArticle = { id -> navController.navigate("admin/article/$id") },
+            )
+        }
+
+        composable(
+            route = "admin/article/{articleId}",
+            arguments = listOf(navArgument("articleId") { type = NavType.IntType }),
+        ) { backStackEntry ->
+            val articleId = backStackEntry.arguments?.getInt("articleId") ?: return@composable
+            val detailVm: ArticleDetailViewModel = viewModel(factory = viewModelFactory {
+                initializer {
+                    val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as NewsDoveApp
+                    ArticleDetailViewModel(app.container.adminApi, articleId)
+                }
+            })
+            AdminArticleDetailScreen(
+                viewModel = detailVm,
+                navController = navController,
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     }

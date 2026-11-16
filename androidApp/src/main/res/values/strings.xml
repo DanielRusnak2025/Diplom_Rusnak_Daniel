@@ -110,4 +110,8 @@
 
     <!-- Admin panel: logout dialog -->
     <string name="panel_logout_confirm">Выйти из панели управления?</string>
+
+    <!-- Admin panel: articles tab -->
+    <string name="articles_empty">Статей не найдено</string>
+    <string name="articles_search_hint">Поиск по названию</string>
 </resources>
