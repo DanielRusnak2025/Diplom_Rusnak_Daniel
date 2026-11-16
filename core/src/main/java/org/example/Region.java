@@ -13,6 +13,9 @@ public class Region {
     @Column(length = 100, nullable = false)
     private String name;
 
+    @Column(name = "name_ru", length = 100)
+    private String nameRu;
+
     public Region() {}
 
     public String getRegionKey() { return regionKey; }
@@ -20,4 +23,7 @@ public class Region {
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+
+    public String getNameRu() { return nameRu; }
+    public void setNameRu(String nameRu) { this.nameRu = nameRu; }
 }

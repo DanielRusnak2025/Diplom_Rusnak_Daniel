@@ -13,6 +13,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.example.androidapp.network.AdminApi
 import org.example.androidapp.network.ApiException
+import org.example.androidapp.network.MetaApi
 import org.example.dto.AdminArticleDetailDto
 import org.example.dto.AdminUserRefDto
 import org.example.dto.TagRefDto
@@ -28,8 +29,13 @@ class ArticleDetailViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private val adminApi: AdminApi = mockk()
+    private val metaApi: MetaApi = mockk()
 
-    @BeforeEach fun setUp() { Dispatchers.setMain(testDispatcher) }
+    @BeforeEach fun setUp() {
+        Dispatchers.setMain(testDispatcher)
+        coEvery { metaApi.languages() } returns emptyList()
+        coEvery { metaApi.regions() } returns emptyList()
+    }
     @AfterEach fun tearDown() { Dispatchers.resetMain() }
 
     private fun detail(hidden: Boolean = false) = AdminArticleDetailDto(
@@ -53,7 +59,7 @@ class ArticleDetailViewModelTest {
     fun `loadDetail success populates article`() = runTest(testDispatcher) {
         coEvery { adminApi.getArticleDetail(42) } returns detail()
 
-        val vm = ArticleDetailViewModel(adminApi, 42)
+        val vm = ArticleDetailViewModel(adminApi, metaApi, 42)
         advanceUntilIdle()
 
         val s = vm.state.value
@@ -66,7 +72,7 @@ class ArticleDetailViewModelTest {
     fun `loadDetail 403 shows forbidden error`() = runTest(testDispatcher) {
         coEvery { adminApi.getArticleDetail(42) } throws ApiException("FORBIDDEN", "Forbidden", 403)
 
-        val vm = ArticleDetailViewModel(adminApi, 42)
+        val vm = ArticleDetailViewModel(adminApi, metaApi, 42)
         advanceUntilIdle()
 
         val s = vm.state.value
@@ -79,7 +85,7 @@ class ArticleDetailViewModelTest {
     fun `loadDetail network error shows generic error`() = runTest(testDispatcher) {
         coEvery { adminApi.getArticleDetail(42) } throws RuntimeException("timeout")
 
-        val vm = ArticleDetailViewModel(adminApi, 42)
+        val vm = ArticleDetailViewModel(adminApi, metaApi, 42)
         advanceUntilIdle()
 
         assertNotNull(vm.state.value.error)
@@ -90,7 +96,7 @@ class ArticleDetailViewModelTest {
         coEvery { adminApi.getArticleDetail(42) } returns detail(hidden = false)
         coJustRun { adminApi.hideArticle(42, true) }
 
-        val vm = ArticleDetailViewModel(adminApi, 42)
+        val vm = ArticleDetailViewModel(adminApi, metaApi, 42)
         advanceUntilIdle()
 
         vm.toggleHidden()
@@ -107,7 +113,7 @@ class ArticleDetailViewModelTest {
         coEvery { adminApi.getArticleDetail(42) } returns detail(hidden = true)
         coJustRun { adminApi.hideArticle(42, false) }
 
-        val vm = ArticleDetailViewModel(adminApi, 42)
+        val vm = ArticleDetailViewModel(adminApi, metaApi, 42)
         advanceUntilIdle()
 
         vm.toggleHidden()
@@ -123,7 +129,7 @@ class ArticleDetailViewModelTest {
         coEvery { adminApi.getArticleDetail(42) } returns detail(hidden = false)
         coEvery { adminApi.hideArticle(42, true) } throws ApiException("FORBIDDEN", "Forbidden", 403)
 
-        val vm = ArticleDetailViewModel(adminApi, 42)
+        val vm = ArticleDetailViewModel(adminApi, metaApi, 42)
         advanceUntilIdle()
 
         vm.toggleHidden()
@@ -142,7 +148,7 @@ class ArticleDetailViewModelTest {
         coEvery { adminApi.getArticleDetail(42) } returns detail()
         coJustRun { adminApi.hideArticle(42, true) }
 
-        val vm = ArticleDetailViewModel(adminApi, 42)
+        val vm = ArticleDetailViewModel(adminApi, metaApi, 42)
         advanceUntilIdle()
         vm.toggleHidden()
         advanceUntilIdle()

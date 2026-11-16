@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.androidapp.network.AdminApi
 import org.example.androidapp.network.ApiException
+import org.example.androidapp.network.MetaApi
 import org.example.dto.AdminArticleDto
 
 enum class ArticleHiddenFilter { ALL, VISIBLE, HIDDEN }
@@ -32,16 +33,37 @@ data class ArticlesUiState(
     val hiddenFilter: ArticleHiddenFilter = ArticleHiddenFilter.ALL,
     val fromDate: String? = null,
     val toDate: String? = null,
+    val languageByCode: Map<String, String> = emptyMap(),
+    val regionByKey: Map<String, String> = emptyMap(),
 )
 
-class ArticlesViewModel(private val adminApi: AdminApi) : ViewModel() {
+class ArticlesViewModel(
+    private val adminApi: AdminApi,
+    private val metaApi: MetaApi,
+) : ViewModel() {
 
     private val _state = MutableStateFlow(ArticlesUiState())
     val state: StateFlow<ArticlesUiState> = _state.asStateFlow()
 
     private var loadJob: Job? = null
 
-    init { scheduleLoad() }
+    init {
+        loadMeta()
+        scheduleLoad()
+    }
+
+    private fun loadMeta() {
+        viewModelScope.launch {
+            try {
+                val langs = metaApi.languages()
+                val regions = metaApi.regions()
+                _state.update { it.copy(
+                    languageByCode = langs.mapNotNull { l -> l.name?.let { n -> l.code to n } }.toMap(),
+                    regionByKey = regions.mapNotNull { r -> r.nameRu?.let { n -> r.key to n } }.toMap(),
+                ) }
+            } catch (_: Exception) {}
+        }
+    }
 
     fun setQuery(query: String) {
         _state.update { it.copy(query = query) }

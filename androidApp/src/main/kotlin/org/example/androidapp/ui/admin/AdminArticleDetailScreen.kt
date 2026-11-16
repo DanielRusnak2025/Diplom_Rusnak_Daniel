@@ -127,6 +127,8 @@ fun AdminArticleDetailScreen(
                     ArticleDetailContent(
                         article = state.article!!,
                         isHiding = state.isHiding,
+                        languageByCode = state.languageByCode,
+                        regionByKey = state.regionByKey,
                         onToggleHidden = { showToggleDialog = true },
                     )
             }
@@ -167,6 +169,8 @@ fun AdminArticleDetailScreen(
 private fun ArticleDetailContent(
     article: AdminArticleDetailDto,
     isHiding: Boolean,
+    languageByCode: Map<String, String>,
+    regionByKey: Map<String, String>,
     onToggleHidden: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -237,8 +241,8 @@ private fun ArticleDetailContent(
 
         // Meta row
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            article.language?.let { MetaChip(label = "Язык", value = it) }
-            article.region?.let { MetaChip(label = "Регион", value = it) }
+            article.language?.let { MetaChip(label = "Язык", value = languageByCode[it] ?: it) }
+            article.region?.let { MetaChip(label = "Регион", value = regionByKey[it] ?: it) }
             article.publicationDate?.let { MetaChip(label = "Дата", value = it) }
         }
 

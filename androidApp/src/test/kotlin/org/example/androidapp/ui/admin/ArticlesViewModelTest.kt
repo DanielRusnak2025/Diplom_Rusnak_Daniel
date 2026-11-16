@@ -12,8 +12,11 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.example.androidapp.network.AdminApi
 import org.example.androidapp.network.ApiException
+import org.example.androidapp.network.MetaApi
 import org.example.dto.AdminArticleDto
 import org.example.dto.AdminArticlePageDto
+import org.example.dto.LanguageDto
+import org.example.dto.RegionDto
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -26,8 +29,13 @@ class ArticlesViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private val adminApi: AdminApi = mockk()
+    private val metaApi: MetaApi = mockk()
 
-    @BeforeEach fun setUp() { Dispatchers.setMain(testDispatcher) }
+    @BeforeEach fun setUp() {
+        Dispatchers.setMain(testDispatcher)
+        coEvery { metaApi.languages() } returns emptyList()
+        coEvery { metaApi.regions() } returns emptyList()
+    }
     @AfterEach fun tearDown() { Dispatchers.resetMain() }
 
     private fun article(id: Int, hidden: Boolean = false) = AdminArticleDto(
@@ -59,7 +67,7 @@ class ArticlesViewModelTest {
     fun `initial load populates items`() = runTest(testDispatcher) {
         mockSearch(result = AdminArticlePageDto(listOf(article(1), article(2)), null))
 
-        val vm = ArticlesViewModel(adminApi)
+        val vm = ArticlesViewModel(adminApi, metaApi)
         advanceUntilIdle()
 
         val s = vm.state.value
@@ -72,7 +80,7 @@ class ArticlesViewModelTest {
     fun `initial load with empty result shows empty state`() = runTest(testDispatcher) {
         mockSearch(result = AdminArticlePageDto(emptyList(), null))
 
-        val vm = ArticlesViewModel(adminApi)
+        val vm = ArticlesViewModel(adminApi, metaApi)
         advanceUntilIdle()
 
         val s = vm.state.value
@@ -87,7 +95,7 @@ class ArticlesViewModelTest {
             adminApi.searchArticles(q = any(), fromDate = any(), toDate = any(), hidden = any(), cursor = any(), limit = any())
         } throws ApiException("FORBIDDEN", "Forbidden", 403)
 
-        val vm = ArticlesViewModel(adminApi)
+        val vm = ArticlesViewModel(adminApi, metaApi)
         advanceUntilIdle()
 
         val s = vm.state.value
@@ -102,7 +110,7 @@ class ArticlesViewModelTest {
             adminApi.searchArticles(q = any(), fromDate = any(), toDate = any(), hidden = any(), cursor = any(), limit = any())
         } throws RuntimeException("timeout")
 
-        val vm = ArticlesViewModel(adminApi)
+        val vm = ArticlesViewModel(adminApi, metaApi)
         advanceUntilIdle()
 
         assertTrue(vm.state.value.error != null)
@@ -113,7 +121,7 @@ class ArticlesViewModelTest {
         mockSearch(cursor = null, result = AdminArticlePageDto(listOf(article(10), article(9)), "9"))
         mockSearch(cursor = 9, result = AdminArticlePageDto(listOf(article(8)), null))
 
-        val vm = ArticlesViewModel(adminApi)
+        val vm = ArticlesViewModel(adminApi, metaApi)
         advanceUntilIdle()
         assertEquals(2, vm.state.value.items.size)
 
@@ -129,7 +137,7 @@ class ArticlesViewModelTest {
         mockSearch(hidden = null, result = AdminArticlePageDto(listOf(article(1)), null))
         mockSearch(hidden = true, result = AdminArticlePageDto(listOf(article(2, hidden = true)), null))
 
-        val vm = ArticlesViewModel(adminApi)
+        val vm = ArticlesViewModel(adminApi, metaApi)
         advanceUntilIdle()
         assertEquals(1, vm.state.value.items[0].id)
 
@@ -147,7 +155,7 @@ class ArticlesViewModelTest {
         mockSearch(q = null, result = AdminArticlePageDto(listOf(article(1)), null))
         mockSearch(q = "news", result = AdminArticlePageDto(listOf(article(5)), null))
 
-        val vm = ArticlesViewModel(adminApi)
+        val vm = ArticlesViewModel(adminApi, metaApi)
         advanceUntilIdle()
 
         vm.setQuery("news")
@@ -161,7 +169,7 @@ class ArticlesViewModelTest {
     fun `updateArticle changes hidden state in list`() = runTest(testDispatcher) {
         mockSearch(result = AdminArticlePageDto(listOf(article(1, hidden = false), article(2)), null))
 
-        val vm = ArticlesViewModel(adminApi)
+        val vm = ArticlesViewModel(adminApi, metaApi)
         advanceUntilIdle()
 
         vm.updateArticle(1, true)

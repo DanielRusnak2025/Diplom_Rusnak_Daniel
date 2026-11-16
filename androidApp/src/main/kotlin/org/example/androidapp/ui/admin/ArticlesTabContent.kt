@@ -2,6 +2,7 @@ package org.example.androidapp.ui.admin
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,17 +17,25 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -40,6 +49,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import java.time.Instant
+import java.time.ZoneOffset
 import org.example.androidapp.R
 import org.example.dto.AdminArticleDto
 
@@ -63,9 +74,6 @@ fun ArticlesTabContent(
         if (shouldLoadMore) viewModel.loadMore()
     }
 
-    var fromDate by remember { mutableStateOf("") }
-    var toDate by remember { mutableStateOf("") }
-
     Column(modifier = modifier.fillMaxSize()) {
         // Search field
         OutlinedTextField(
@@ -86,27 +94,17 @@ fun ArticlesTabContent(
                 .padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            OutlinedTextField(
-                value = fromDate,
-                onValueChange = {
-                    fromDate = it
-                    viewModel.setDateRange(it.takeIf { d -> d.isNotBlank() }, toDate.takeIf { d -> d.isNotBlank() })
-                },
+            DatePickerField(
+                label = "От",
+                value = state.fromDate,
+                onValueChange = { viewModel.setDateRange(it, state.toDate) },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("От (гггг-мм-дд)") },
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodySmall,
             )
-            OutlinedTextField(
-                value = toDate,
-                onValueChange = {
-                    toDate = it
-                    viewModel.setDateRange(fromDate.takeIf { d -> d.isNotBlank() }, it.takeIf { d -> d.isNotBlank() })
-                },
+            DatePickerField(
+                label = "До",
+                value = state.toDate,
+                onValueChange = { viewModel.setDateRange(state.fromDate, it) },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("До (гггг-мм-дд)") },
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodySmall,
             )
         }
 
@@ -170,6 +168,8 @@ fun ArticlesTabContent(
                         items(state.items, key = { it.id }) { article ->
                             ArticleListItem(
                                 article = article,
+                                languageName = article.language?.let { state.languageByCode[it] ?: it },
+                                regionName = article.region?.let { state.regionByKey[it] ?: it },
                                 onClick = { onNavigateToArticle(article.id) },
                             )
                         }
@@ -200,6 +200,8 @@ fun ArticlesTabContent(
 @Composable
 private fun ArticleListItem(
     article: AdminArticleDto,
+    languageName: String?,
+    regionName: String?,
     onClick: () -> Unit,
 ) {
     Card(
@@ -244,7 +246,7 @@ private fun ArticleListItem(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            val langRegion = listOfNotNull(article.language, article.region).joinToString(" / ")
+            val langRegion = listOfNotNull(languageName, regionName).joinToString(" / ")
             if (langRegion.isNotBlank()) {
                 Text(
                     text = langRegion,
@@ -252,6 +254,71 @@ private fun ArticleListItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun DatePickerField(
+    label: String,
+    value: String?,
+    onValueChange: (String?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var showDialog by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState()
+
+    Box(modifier = modifier) {
+        OutlinedTextField(
+            value = value ?: "",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            modifier = Modifier.fillMaxWidth(),
+            textStyle = MaterialTheme.typography.bodySmall,
+            trailingIcon = {
+                if (value != null) {
+                    IconButton(onClick = { onValueChange(null) }) {
+                        Icon(Icons.Default.Close, contentDescription = "Очистить")
+                    }
+                } else {
+                    IconButton(onClick = { showDialog = true }) {
+                        Icon(Icons.Default.DateRange, contentDescription = null)
+                    }
+                }
+            },
+        )
+        if (value == null) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .padding(end = 48.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { showDialog = true },
+            )
+        }
+    }
+
+    if (showDialog) {
+        DatePickerDialog(
+            onDismissRequest = { showDialog = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDialog = false
+                    datePickerState.selectedDateMillis?.let { ms ->
+                        val d = Instant.ofEpochMilli(ms).atOffset(ZoneOffset.UTC).toLocalDate()
+                        onValueChange(d.toString())
+                    }
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) { Text("Отмена") }
+            },
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 }

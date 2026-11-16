@@ -3,4 +3,4 @@ package org.example.dto
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class RegionDto(val key: String, val name: String)
+data class RegionDto(val key: String, val name: String, val nameRu: String? = null)

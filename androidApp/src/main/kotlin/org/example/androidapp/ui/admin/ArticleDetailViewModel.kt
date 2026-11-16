@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.androidapp.network.AdminApi
 import org.example.androidapp.network.ApiException
+import org.example.androidapp.network.MetaApi
 import org.example.dto.AdminArticleDetailDto
 
 data class ArticleDetailUiState(
@@ -18,17 +19,36 @@ data class ArticleDetailUiState(
     val isHiding: Boolean = false,
     val snackbar: String? = null,
     val hiddenChanged: Boolean? = null,
+    val languageByCode: Map<String, String> = emptyMap(),
+    val regionByKey: Map<String, String> = emptyMap(),
 )
 
 class ArticleDetailViewModel(
     private val adminApi: AdminApi,
+    private val metaApi: MetaApi,
     val articleId: Int,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ArticleDetailUiState())
     val state: StateFlow<ArticleDetailUiState> = _state.asStateFlow()
 
-    init { loadDetail() }
+    init {
+        loadMeta()
+        loadDetail()
+    }
+
+    private fun loadMeta() {
+        viewModelScope.launch {
+            try {
+                val langs = metaApi.languages()
+                val regions = metaApi.regions()
+                _state.update { it.copy(
+                    languageByCode = langs.mapNotNull { l -> l.name?.let { n -> l.code to n } }.toMap(),
+                    regionByKey = regions.mapNotNull { r -> r.nameRu?.let { n -> r.key to n } }.toMap(),
+                ) }
+            } catch (_: Exception) {}
+        }
+    }
 
     fun loadDetail() {
         viewModelScope.launch {
