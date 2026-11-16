@@ -70,9 +70,9 @@ class AdminArticleRouteTest {
                 session.createMutationQuery("delete from Report").executeUpdate()
                 session.createNativeQuery(
                     "DELETE atp FROM article_tag_percent atp " +
-                    "INNER JOIN article a ON a.id = atp.article_id WHERE a.title LIKE 'art_%'"
+                    "INNER JOIN article a ON a.id = atp.article_id WHERE a.title LIKE 'zzart-%'"
                 ).executeUpdate()
-                session.createMutationQuery("delete from Article a where a.title like 'art_%'").executeUpdate()
+                session.createMutationQuery("delete from Article a where a.title like 'zzart-%'").executeUpdate()
                 session.createMutationQuery("delete from AuditLog").executeUpdate()
                 session.createMutationQuery("delete from RefreshToken").executeUpdate()
                 session.createMutationQuery("delete from User").executeUpdate()
@@ -112,7 +112,7 @@ class AdminArticleRouteTest {
     fun `user gets 403 on GET admin article detail`() = testApplication {
         application { module() }
         val token = registerUser("art_user2")
-        val articleId = insertArticle("art_detail_rbac1")
+        val articleId = insertArticle("zzart-detail-rbac1")
         val resp = client.get("/api/v1/admin/articles/$articleId") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
@@ -124,14 +124,14 @@ class AdminArticleRouteTest {
         application { module() }
         val token = registerUser("art_mod2")
         setRole("art_mod2", Role.MODERATOR)
-        val articleId = insertArticle("art_detail_ok1")
+        val articleId = insertArticle("zzart-detail-ok1")
         val resp = client.get("/api/v1/admin/articles/$articleId") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
         assertEquals(HttpStatusCode.OK, resp.status)
         val body = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
         assertEquals(articleId, body["id"]?.jsonPrimitive?.int)
-        assertEquals("art_detail_ok1", body["title"]?.jsonPrimitive?.content)
+        assertEquals("zzart-detail-ok1", body["title"]?.jsonPrimitive?.content)
     }
 
     @Test
@@ -152,8 +152,8 @@ class AdminArticleRouteTest {
         application { module() }
         val token = registerUser("art_mod4")
         setRole("art_mod4", Role.MODERATOR)
-        val hiddenId = insertArticle("art_hidden_one1", hidden = true)
-        val visibleId = insertArticle("art_visible_one1", hidden = false)
+        val hiddenId = insertArticle("zzart-hidden-one1", hidden = true)
+        val visibleId = insertArticle("zzart-visible-one1", hidden = false)
 
         val resp = client.get("/api/v1/admin/articles") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -171,8 +171,8 @@ class AdminArticleRouteTest {
         application { module() }
         val token = registerUser("art_mod5")
         setRole("art_mod5", Role.MODERATOR)
-        val hiddenId = insertArticle("art_hf_hidden1", hidden = true)
-        insertArticle("art_hf_visible1", hidden = false)
+        val hiddenId = insertArticle("zzart-hf-hidden1", hidden = true)
+        insertArticle("zzart-hf-visible1", hidden = false)
 
         val resp = client.get("/api/v1/admin/articles?hidden=true") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -192,8 +192,8 @@ class AdminArticleRouteTest {
         application { module() }
         val token = registerUser("art_mod6")
         setRole("art_mod6", Role.MODERATOR)
-        val matchId = insertArticle("art_kw_alpha_match1")
-        insertArticle("art_kw_beta_nomatch1")
+        val matchId = insertArticle("zzart-kw-alpha_match1")
+        insertArticle("zzart-kw-beta_nomatch1")
 
         val resp = client.get("/api/v1/admin/articles?q=alpha_match") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -213,8 +213,8 @@ class AdminArticleRouteTest {
         application { module() }
         val token = registerUser("art_mod7")
         setRole("art_mod7", Role.MODERATOR)
-        val inRangeId = insertArticle("art_date_in1", pubDate = LocalDate.of(2024, 6, 15))
-        val outRangeId = insertArticle("art_date_out1", pubDate = LocalDate.of(2023, 1, 1))
+        val inRangeId = insertArticle("zzart-date-in1", pubDate = LocalDate.of(2024, 6, 15))
+        val outRangeId = insertArticle("zzart-date-out1", pubDate = LocalDate.of(2023, 1, 1))
 
         val resp = client.get("/api/v1/admin/articles?fromDate=2024-01-01&toDate=2024-12-31") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -258,9 +258,9 @@ class AdminArticleRouteTest {
         application { module() }
         val token = registerUser("art_mod10")
         setRole("art_mod10", Role.MODERATOR)
-        val id1 = insertArticle("art_page_a1")
-        val id2 = insertArticle("art_page_b1")
-        val id3 = insertArticle("art_page_c1")
+        val id1 = insertArticle("zzart-page-a1")
+        val id2 = insertArticle("zzart-page-b1")
+        val id3 = insertArticle("zzart-page-c1")
 
         // First page of size 2
         val page1Resp = client.get("/api/v1/admin/articles?limit=2") {

@@ -50,7 +50,7 @@ private val DATE_FMT = SimpleDateFormat("yyyy-MM-dd")
 private val DATETIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
 
 private fun escapeLike(s: String): String =
-    s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    s.replace("!", "!!").replace("%", "!%").replace("_", "!_")
 
 fun Route.adminRoutes(auditService: AuditService) {
     authenticate("jwt-access") {
@@ -85,7 +85,7 @@ fun Route.adminRoutes(auditService: AuditService) {
                 val page = withNewTransaction { session ->
                     val hql = buildString {
                         append("FROM Report r WHERE r.reasonCode IS NOT NULL")
-                        if (q != null) append(" AND LOWER(r.article.title) LIKE LOWER(:q) ESCAPE '\\\\'")
+                        if (q != null) append(" AND LOWER(r.article.title) LIKE LOWER(:q) ESCAPE '!'")
                         if (fromDate != null) append(" AND r.date >= :fromDate")
                         if (toDate != null) append(" AND r.date <= :toDate")
                         if (cursor != null) append(" AND r.id < :cursor")
@@ -158,7 +158,7 @@ fun Route.adminRoutes(auditService: AuditService) {
                     val params = mutableMapOf<String, Any>()
 
                     if (q != null) {
-                        conditions.add("LOWER(a.title) LIKE LOWER(:q) ESCAPE '\\\\'")
+                        conditions.add("LOWER(a.title) LIKE LOWER(:q) ESCAPE '!'")
                         params["q"] = "%${escapeLike(q)}%"
                     }
                     if (fromDate != null) {
