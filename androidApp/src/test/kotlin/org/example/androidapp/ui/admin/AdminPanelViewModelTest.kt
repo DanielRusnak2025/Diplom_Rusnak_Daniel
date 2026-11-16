@@ -44,10 +44,11 @@ class AdminPanelViewModelTest {
         actorId = 1,
         actorNick = "admin",
         action = "ARTICLE_HIDDEN",
-        targetType = "ARTICLE",
+        targetType = "article",
         targetId = id.toString(),
         details = null,
         createdAt = "2026-01-01T12:00:00",
+        targetNick = null,
     )
 
     // ─── Stats ────────────────────────────────────────────────────────────────
@@ -114,7 +115,7 @@ class AdminPanelViewModelTest {
     @Test
     fun `loadAudit success populates items`() = runTest(testDispatcher) {
         val page = AuditPageDto(items = listOf(auditItem(1), auditItem(2)), nextCursor = null)
-        coEvery { adminApi.audit(cursor = null, limit = any()) } returns page
+        coEvery { adminApi.audit(cursor = null, limit = any(), actions = any()) } returns page
 
         val vm = AdminPanelViewModel(adminApi)
         vm.loadAudit()
@@ -129,7 +130,7 @@ class AdminPanelViewModelTest {
 
     @Test
     fun `loadAudit empty list shows empty state`() = runTest(testDispatcher) {
-        coEvery { adminApi.audit(cursor = null, limit = any()) } returns AuditPageDto(emptyList(), null)
+        coEvery { adminApi.audit(cursor = null, limit = any(), actions = any()) } returns AuditPageDto(emptyList(), null)
 
         val vm = AdminPanelViewModel(adminApi)
         vm.loadAudit()
@@ -144,7 +145,7 @@ class AdminPanelViewModelTest {
 
     @Test
     fun `loadAudit 403 shows forbidden error`() = runTest(testDispatcher) {
-        coEvery { adminApi.audit(cursor = null, limit = any()) } throws ApiException("FORBIDDEN", "Forbidden", 403)
+        coEvery { adminApi.audit(cursor = null, limit = any(), actions = any()) } throws ApiException("FORBIDDEN", "Forbidden", 403)
 
         val vm = AdminPanelViewModel(adminApi)
         vm.loadAudit()
@@ -158,7 +159,7 @@ class AdminPanelViewModelTest {
 
     @Test
     fun `loadAudit network error shows error message`() = runTest(testDispatcher) {
-        coEvery { adminApi.audit(cursor = null, limit = any()) } throws RuntimeException("timeout")
+        coEvery { adminApi.audit(cursor = null, limit = any(), actions = any()) } throws RuntimeException("timeout")
 
         val vm = AdminPanelViewModel(adminApi)
         vm.loadAudit()
@@ -173,8 +174,8 @@ class AdminPanelViewModelTest {
     fun `loadMoreAudit appends items`() = runTest(testDispatcher) {
         val page1 = AuditPageDto(items = listOf(auditItem(10), auditItem(9)), nextCursor = "9")
         val page2 = AuditPageDto(items = listOf(auditItem(8)), nextCursor = null)
-        coEvery { adminApi.audit(cursor = null, limit = any()) } returns page1
-        coEvery { adminApi.audit(cursor = "9", limit = any()) } returns page2
+        coEvery { adminApi.audit(cursor = null, limit = any(), actions = any()) } returns page1
+        coEvery { adminApi.audit(cursor = "9", limit = any(), actions = any()) } returns page2
 
         val vm = AdminPanelViewModel(adminApi)
         vm.loadAudit()
@@ -193,7 +194,7 @@ class AdminPanelViewModelTest {
     @Test
     fun `loadAudit does not reload when items already present`() = runTest(testDispatcher) {
         val page = AuditPageDto(items = listOf(auditItem(1)), nextCursor = null)
-        coEvery { adminApi.audit(cursor = null, limit = any()) } returns page
+        coEvery { adminApi.audit(cursor = null, limit = any(), actions = any()) } returns page
 
         val vm = AdminPanelViewModel(adminApi)
         vm.loadAudit()
@@ -202,14 +203,14 @@ class AdminPanelViewModelTest {
         vm.loadAudit()
         advanceUntilIdle()
 
-        io.mockk.coVerify(exactly = 1) { adminApi.audit(cursor = null, limit = any()) }
+        io.mockk.coVerify(exactly = 1) { adminApi.audit(cursor = null, limit = any(), actions = any()) }
     }
 
     @Test
     fun `refreshAudit reloads from scratch`() = runTest(testDispatcher) {
         val page1 = AuditPageDto(items = listOf(auditItem(10)), nextCursor = null)
         val page2 = AuditPageDto(items = listOf(auditItem(99)), nextCursor = null)
-        coEvery { adminApi.audit(cursor = null, limit = any()) } returnsMany listOf(page1, page2)
+        coEvery { adminApi.audit(cursor = null, limit = any(), actions = any()) } returnsMany listOf(page1, page2)
 
         val vm = AdminPanelViewModel(adminApi)
         vm.loadAudit()

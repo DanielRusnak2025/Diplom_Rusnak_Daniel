@@ -9,6 +9,8 @@ import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import org.example.dto.AdminArticleDetailDto
+import org.example.dto.AdminArticlePageDto
 import org.example.dto.AuditPageDto
 import org.example.dto.ComplaintPageDto
 import org.example.dto.HiddenRequest
@@ -38,9 +40,30 @@ class AdminApi(
     suspend fun stats(): StatsDto =
         authClient.get("$baseUrl/api/v1/admin/stats").body()
 
-    suspend fun audit(cursor: String? = null, limit: Int = 30): AuditPageDto =
+    suspend fun audit(cursor: String? = null, limit: Int = 30, actions: List<String>? = null): AuditPageDto =
         authClient.get("$baseUrl/api/v1/admin/audit") {
             if (cursor != null) parameter("cursor", cursor)
             parameter("limit", limit)
+            if (!actions.isNullOrEmpty()) parameter("actions", actions.joinToString(","))
         }.body()
+
+    suspend fun searchArticles(
+        q: String? = null,
+        fromDate: String? = null,
+        toDate: String? = null,
+        hidden: Boolean? = null,
+        cursor: Int? = null,
+        limit: Int = 20,
+    ): AdminArticlePageDto =
+        authClient.get("$baseUrl/api/v1/admin/articles") {
+            if (!q.isNullOrBlank()) parameter("q", q)
+            if (fromDate != null) parameter("fromDate", fromDate)
+            if (toDate != null) parameter("toDate", toDate)
+            if (hidden != null) parameter("hidden", hidden)
+            if (cursor != null) parameter("cursor", cursor)
+            parameter("limit", limit)
+        }.body()
+
+    suspend fun getArticleDetail(id: Int): AdminArticleDetailDto =
+        authClient.get("$baseUrl/api/v1/admin/articles/$id").body()
 }

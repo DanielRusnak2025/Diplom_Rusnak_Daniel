@@ -468,22 +468,47 @@ fun Route.adminRoutes(auditService: AuditService) {
             }
 
             get("/audit") {
-                val actorId = call.requireRoleFromDb(Role.ADMIN)?.id ?: return@get
+                call.requireRoleFromDb(Role.ADMIN) ?: return@get
                 val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 20).coerceIn(1, 100)
                 val cursor = call.request.queryParameters["cursor"]?.toLongOrNull()
+                val actions = call.request.queryParameters["actions"]
+                    ?.split(",")
+                    ?.map { it.trim() }
+                    ?.filter { it.isNotBlank() }
+                    ?.takeIf { it.isNotEmpty() }
 
                 val page = withNewTransaction { session ->
+                    val conditions = mutableListOf<String>()
+                    if (cursor != null) conditions.add("al.id < :cursor")
+                    if (actions != null) conditions.add("al.action IN :actions")
                     val hql = buildString {
                         append("FROM AuditLog al")
-                        if (cursor != null) append(" WHERE al.id < :cursor")
+                        if (conditions.isNotEmpty()) append(" WHERE ${conditions.joinToString(" AND ")}")
                         append(" ORDER BY al.id DESC")
                     }
                     val q = session.createSelectionQuery(hql, AuditLog::class.java)
                     if (cursor != null) q.setParameter("cursor", cursor)
+                    if (actions != null) q.setParameter("actions", actions)
                     q.setMaxResults(limit + 1)
                     val rows = q.resultList
                     val hasMore = rows.size > limit
-                    val items = rows.take(limit).map { al ->
+                    val limited = rows.take(limit)
+
+                    val userTargetIds = limited
+                        .filter { it.targetType == "user" }
+                        .mapNotNull { it.targetId?.toIntOrNull() }
+                        .toSet()
+                    val nickByUserId: Map<Int, String?> = if (userTargetIds.isEmpty()) emptyMap() else {
+                        session.createSelectionQuery("FROM User u WHERE u.id IN :ids", User::class.java)
+                            .setParameter("ids", userTargetIds.toList())
+                            .resultList
+                            .associate { u -> u.id to u.nick }
+                    }
+
+                    val items = limited.map { al ->
+                        val targetNick = if (al.targetType == "user") {
+                            al.targetId?.toIntOrNull()?.let { nickByUserId[it] }
+                        } else null
                         AuditLogItemDto(
                             id = al.id,
                             actorId = al.actor?.id,
@@ -492,7 +517,8 @@ fun Route.adminRoutes(auditService: AuditService) {
                             targetType = al.targetType,
                             targetId = al.targetId,
                             details = al.details,
-                            createdAt = al.createdAt?.format(DATETIME_FMT)
+                            createdAt = al.createdAt?.format(DATETIME_FMT),
+                            targetNick = targetNick,
                         )
                     }
                     val nextCursor = if (hasMore) items.last().id.toString() else null

@@ -12,6 +12,21 @@ import org.example.androidapp.network.ApiException
 import org.example.dto.AuditLogItemDto
 import org.example.dto.StatsDto
 
+enum class AuditFilter { MODERATION, AUTH, ALL }
+
+val MODERATION_ACTIONS = listOf(
+    "ARTICLE_HIDDEN", "ARTICLE_UNHIDDEN", "COMPLAINTS_DISMISSED", "USER_ROLE_CHANGED",
+)
+val AUTH_ACTIONS = listOf(
+    "LOGIN", "LOGOUT", "LOGIN_FAILED", "REGISTER", "TOKEN_REUSE", "TOKEN_REFRESH", "PASSWORD_CHANGED",
+)
+
+fun AuditFilter.toActions(): List<String>? = when (this) {
+    AuditFilter.MODERATION -> MODERATION_ACTIONS
+    AuditFilter.AUTH       -> AUTH_ACTIONS
+    AuditFilter.ALL        -> null
+}
+
 data class StatsUiState(
     val isLoading: Boolean = false,
     val stats: StatsDto? = null,
@@ -25,6 +40,7 @@ data class AuditUiState(
     val isEndOfList: Boolean = false,
     val error: String? = null,
     val nextCursor: String? = null,
+    val filter: AuditFilter = AuditFilter.MODERATION,
 )
 
 class AdminPanelViewModel(private val adminApi: AdminApi) : ViewModel() {
@@ -53,10 +69,20 @@ class AdminPanelViewModel(private val adminApi: AdminApi) : ViewModel() {
 
     fun loadAudit() {
         if (_audit.value.items.isNotEmpty() || _audit.value.isLoading) return
+        loadAuditInternal()
+    }
+
+    fun setAuditFilter(filter: AuditFilter) {
+        _audit.value = AuditUiState(filter = filter)
+        loadAuditInternal()
+    }
+
+    private fun loadAuditInternal() {
+        val filter = _audit.value.filter
         viewModelScope.launch {
             _audit.update { it.copy(isLoading = true, error = null) }
             try {
-                val page = adminApi.audit(cursor = null)
+                val page = adminApi.audit(cursor = null, actions = filter.toActions())
                 _audit.update {
                     it.copy(
                         isLoading = false,
@@ -80,7 +106,7 @@ class AdminPanelViewModel(private val adminApi: AdminApi) : ViewModel() {
         viewModelScope.launch {
             _audit.update { it.copy(isLoadingMore = true) }
             try {
-                val page = adminApi.audit(cursor = s.nextCursor)
+                val page = adminApi.audit(cursor = s.nextCursor, actions = s.filter.toActions())
                 _audit.update {
                     it.copy(
                         isLoadingMore = false,
@@ -96,7 +122,8 @@ class AdminPanelViewModel(private val adminApi: AdminApi) : ViewModel() {
     }
 
     fun refreshAudit() {
-        _audit.value = AuditUiState()
-        loadAudit()
+        val filter = _audit.value.filter
+        _audit.value = AuditUiState(filter = filter)
+        loadAuditInternal()
     }
 }

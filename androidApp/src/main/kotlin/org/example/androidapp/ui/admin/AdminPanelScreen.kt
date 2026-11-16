@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +22,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -62,9 +64,11 @@ fun AdminPanelScreen(
     role: RoleDto,
     panelVm: AdminPanelViewModel,
     complaintsVm: ModeratorViewModel,
+    articlesVm: ArticlesViewModel? = null,
     onNavigateToFeed: () -> Unit,
     onLogout: () -> Unit,
     onNavigateToSettings: () -> Unit = {},
+    onNavigateToArticle: (Int) -> Unit = {},
 ) {
     val tabs = if (role == RoleDto.ADMIN) {
         listOf(AdminTab.ARTICLES, AdminTab.USERS, AdminTab.COMPLAINTS, AdminTab.AUDIT, AdminTab.STATS)
@@ -153,17 +157,18 @@ fun AdminPanelScreen(
             }
 
             when (tabs[selectedTab]) {
-                AdminTab.ARTICLES, AdminTab.USERS ->
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            stringResource(R.string.panel_placeholder),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                AdminTab.ARTICLES ->
+                    if (articlesVm != null) {
+                        ArticlesTabContent(
+                            viewModel = articlesVm,
+                            onNavigateToArticle = onNavigateToArticle,
                         )
+                    } else {
+                        PlaceholderContent()
                     }
+
+                AdminTab.USERS ->
+                    PlaceholderContent()
 
                 AdminTab.COMPLAINTS ->
                     ComplaintsContent(viewModel = complaintsVm)
@@ -173,6 +178,7 @@ fun AdminPanelScreen(
                         state = auditState,
                         listState = auditListState,
                         onRetry = panelVm::refreshAudit,
+                        onFilterChange = panelVm::setAuditFilter,
                     )
 
                 AdminTab.STATS ->
@@ -202,6 +208,20 @@ fun AdminPanelScreen(
                     Text(stringResource(R.string.btn_cancel))
                 }
             },
+        )
+    }
+}
+
+@Composable
+private fun PlaceholderContent() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            stringResource(R.string.panel_placeholder),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -271,61 +291,87 @@ private fun AuditTabContent(
     state: AuditUiState,
     listState: androidx.compose.foundation.lazy.LazyListState,
     onRetry: () -> Unit,
+    onFilterChange: (AuditFilter) -> Unit,
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        when {
-            state.isLoading ->
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FilterChip(
+                selected = state.filter == AuditFilter.MODERATION,
+                onClick = { onFilterChange(AuditFilter.MODERATION) },
+                label = { Text("Модерация") },
+            )
+            FilterChip(
+                selected = state.filter == AuditFilter.AUTH,
+                onClick = { onFilterChange(AuditFilter.AUTH) },
+                label = { Text("Вход и выход") },
+            )
+            FilterChip(
+                selected = state.filter == AuditFilter.ALL,
+                onClick = { onFilterChange(AuditFilter.ALL) },
+                label = { Text("Все") },
+            )
+        }
 
-            state.error != null ->
-                Column(
-                    modifier = Modifier.align(Alignment.Center).padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(state.error, style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(16.dp))
-                    Button(onClick = onRetry) { Text(stringResource(R.string.btn_retry)) }
-                }
+        Box(modifier = Modifier.weight(1f)) {
+            when {
+                state.isLoading ->
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
 
-            state.items.isEmpty() ->
-                Text(
-                    stringResource(R.string.audit_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.align(Alignment.Center),
-                )
-
-            else ->
-                LazyColumn(
-                    state = listState,
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    items(state.items, key = { it.id }) { item ->
-                        AuditCard(item = item)
+                state.error != null ->
+                    Column(
+                        modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(state.error, style = MaterialTheme.typography.bodyMedium)
+                        Spacer(Modifier.height(16.dp))
+                        Button(onClick = onRetry) { Text(stringResource(R.string.btn_retry)) }
                     }
-                    if (state.isLoadingMore) {
-                        item {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().padding(8.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                CircularProgressIndicator()
+
+                state.items.isEmpty() ->
+                    Text(
+                        stringResource(R.string.audit_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.align(Alignment.Center),
+                    )
+
+                else ->
+                    LazyColumn(
+                        state = listState,
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        items(state.items, key = { it.id }) { item ->
+                            AuditCard(item = item)
+                        }
+                        if (state.isLoadingMore) {
+                            item {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            }
+                        }
+                        if (state.isEndOfList && state.items.isNotEmpty()) {
+                            item {
+                                Text(
+                                    stringResource(R.string.feed_end),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                )
                             }
                         }
                     }
-                    if (state.isEndOfList && state.items.isNotEmpty()) {
-                        item {
-                            Text(
-                                stringResource(R.string.feed_end),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.fillMaxWidth().padding(8.dp),
-                            )
-                        }
-                    }
-                }
+            }
         }
     }
 }
@@ -345,15 +391,15 @@ private fun AuditCard(item: AuditLogItemDto) {
             )
             Spacer(Modifier.height(4.dp))
             val actor = item.actorNick ?: "—"
-            val time = item.createdAt?.take(16) ?: ""
+            val time = formatAuditDate(item.createdAt)
             Text(
                 text = "$actor · $time",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (item.targetType != null && item.targetId != null) {
+            formatAuditTarget(item.targetType, item.targetId, item.targetNick)?.let { target ->
                 Text(
-                    text = "${item.targetType} #${item.targetId}",
+                    text = target,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -371,10 +417,22 @@ private fun AuditCard(item: AuditLogItemDto) {
     }
 }
 
-private fun auditActionLabel(action: String): String = when (action) {
-    "ARTICLE_HIDDEN"       -> "Статья скрыта"
-    "ARTICLE_UNHIDDEN"     -> "Статья показана"
-    "COMPLAINTS_DISMISSED" -> "Жалобы отклонены"
-    "USER_ROLE_CHANGED"    -> "Роль изменена"
-    else                   -> action
+private fun formatAuditDate(iso: String?): String {
+    if (iso.isNullOrBlank()) return ""
+    return try {
+        val t = iso.split("T")
+        if (t.size != 2) return iso
+        val d = t[0].split("-")
+        if (d.size != 3) return iso
+        "${d[2]}.${d[1]}.${d[0]} ${t[1].take(5)}"
+    } catch (_: Exception) { iso }
+}
+
+private fun formatAuditTarget(targetType: String?, targetId: String?, targetNick: String?): String? {
+    if (targetType == null || targetId == null) return null
+    return when (targetType.lowercase()) {
+        "user"    -> if (targetNick != null) "Пользователь $targetNick" else "Пользователь #$targetId"
+        "article" -> "Статья #$targetId"
+        else      -> "${targetType.replaceFirstChar { it.uppercase() }} #$targetId"
+    }
 }

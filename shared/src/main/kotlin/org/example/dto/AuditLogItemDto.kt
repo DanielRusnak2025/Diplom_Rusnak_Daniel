@@ -11,5 +11,6 @@ data class AuditLogItemDto(
     val targetType: String?,
     val targetId: String?,
     val details: String?,
-    val createdAt: String?
+    val createdAt: String?,
+    val targetNick: String? = null,
 )
