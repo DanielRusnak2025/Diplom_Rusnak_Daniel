@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.example.androidapp.data.TokenRepository
+import org.example.androidapp.network.AuthApi
 import org.example.androidapp.network.MeApi
 import org.example.dto.RoleDto
 import org.example.dto.UserProfileDto
@@ -14,6 +15,7 @@ import org.example.dto.UserProfileDto
 class AppViewModel(
     private val tokenRepository: TokenRepository,
     private val meApi: MeApi,
+    private val authApi: AuthApi,
 ) : ViewModel() {
 
     sealed interface NavTarget {
@@ -59,6 +61,26 @@ class AppViewModel(
             }
         } catch (_: Exception) {
             _navTarget.value = NavTarget.Home
+        }
+    }
+
+    fun refreshProfile() {
+        viewModelScope.launch {
+            try {
+                _profile.value = meApi.me()
+            } catch (_: Exception) {
+                // best-effort: keep old profile if refresh fails
+            }
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            val tokens = tokenRepository.loadOnce()
+            if (tokens != null) {
+                try { authApi.logout(tokens.refresh) } catch (_: Exception) { }
+            }
+            tokenRepository.clear()
         }
     }
 }

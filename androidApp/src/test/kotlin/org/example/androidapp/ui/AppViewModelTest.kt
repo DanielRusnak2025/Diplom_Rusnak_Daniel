@@ -2,8 +2,10 @@
 
 package org.example.androidapp.ui
 
+import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.just
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -13,11 +15,13 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.example.androidapp.data.FakeTokenRepository
 import org.example.androidapp.data.TokenPair
+import org.example.androidapp.network.AuthApi
 import org.example.androidapp.network.MeApi
 import org.example.dto.RoleDto
 import org.example.dto.UserProfileDto
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -25,6 +29,7 @@ class AppViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private val meApi: MeApi = mockk()
+    private val authApi: AuthApi = mockk()
 
     @BeforeEach fun setUp() { Dispatchers.setMain(testDispatcher) }
     @AfterEach fun tearDown() { Dispatchers.resetMain() }
@@ -35,11 +40,13 @@ class AppViewModelTest {
     private fun staffProfile(role: RoleDto, languages: List<String> = listOf("ru")) =
         UserProfileDto(1, "staff", null, role, languages, emptyList(), "DAILY")
 
+    private fun makeVm(repo: FakeTokenRepository) = AppViewModel(repo, meApi, authApi)
+
     @Test
     fun `tokens null at start navigates to Auth`() = runTest(testDispatcher) {
-        val fakeRepo = FakeTokenRepository()  // starts with null
+        val fakeRepo = FakeTokenRepository()
 
-        val vm = AppViewModel(fakeRepo, meApi)
+        val vm = makeVm(fakeRepo)
         advanceUntilIdle()
 
         assertEquals(AppViewModel.NavTarget.Auth, vm.navTarget.value)
@@ -51,7 +58,7 @@ class AppViewModelTest {
         fakeRepo.save(TokenPair("acc", "ref"))
         coEvery { meApi.me() } returns profile(emptyList())
 
-        val vm = AppViewModel(fakeRepo, meApi)
+        val vm = makeVm(fakeRepo)
         advanceUntilIdle()
 
         assertEquals(AppViewModel.NavTarget.Onboarding, vm.navTarget.value)
@@ -63,7 +70,7 @@ class AppViewModelTest {
         fakeRepo.save(TokenPair("acc", "ref"))
         coEvery { meApi.me() } returns profile(listOf("en"))
 
-        val vm = AppViewModel(fakeRepo, meApi)
+        val vm = makeVm(fakeRepo)
         advanceUntilIdle()
 
         assertEquals(AppViewModel.NavTarget.Home, vm.navTarget.value)
@@ -71,14 +78,11 @@ class AppViewModelTest {
 
     @Test
     fun `old user with no language preferences in me() is sent to Onboarding`() = runTest(testDispatcher) {
-        // Old coursework accounts were created before the onboarding flow existed.
-        // /me returns languages: [] for them. They must be sent to Onboarding so they
-        // can pick a language (required for the feed filter to work).
         val fakeRepo = FakeTokenRepository()
         fakeRepo.save(TokenPair("acc", "ref"))
         coEvery { meApi.me() } returns profile(emptyList())
 
-        val vm = AppViewModel(fakeRepo, meApi)
+        val vm = makeVm(fakeRepo)
         advanceUntilIdle()
 
         assertEquals(AppViewModel.NavTarget.Onboarding, vm.navTarget.value)
@@ -90,7 +94,7 @@ class AppViewModelTest {
         fakeRepo.save(TokenPair("acc", "ref"))
         coEvery { meApi.me() } throws RuntimeException("network error")
 
-        val vm = AppViewModel(fakeRepo, meApi)
+        val vm = makeVm(fakeRepo)
         advanceUntilIdle()
 
         assertEquals(AppViewModel.NavTarget.Home, vm.navTarget.value)
@@ -102,7 +106,7 @@ class AppViewModelTest {
         fakeRepo.save(TokenPair("acc1", "ref1"))
         coEvery { meApi.me() } returns profile(listOf("en"))
 
-        val vm = AppViewModel(fakeRepo, meApi)
+        val vm = makeVm(fakeRepo)
         advanceUntilIdle()
         assertEquals(AppViewModel.NavTarget.Home, vm.navTarget.value)
 
@@ -119,7 +123,7 @@ class AppViewModelTest {
         fakeRepo.save(TokenPair("acc", "ref"))
         coEvery { meApi.me() } returns staffProfile(RoleDto.ADMIN, listOf("ru"))
 
-        val vm = AppViewModel(fakeRepo, meApi)
+        val vm = makeVm(fakeRepo)
         advanceUntilIdle()
 
         assertEquals(AppViewModel.NavTarget.AdminPanel, vm.navTarget.value)
@@ -131,7 +135,7 @@ class AppViewModelTest {
         fakeRepo.save(TokenPair("acc", "ref"))
         coEvery { meApi.me() } returns staffProfile(RoleDto.ADMIN, emptyList())
 
-        val vm = AppViewModel(fakeRepo, meApi)
+        val vm = makeVm(fakeRepo)
         advanceUntilIdle()
 
         assertEquals(AppViewModel.NavTarget.AdminPanel, vm.navTarget.value)
@@ -143,7 +147,7 @@ class AppViewModelTest {
         fakeRepo.save(TokenPair("acc", "ref"))
         coEvery { meApi.me() } returns staffProfile(RoleDto.MODERATOR, listOf("en"))
 
-        val vm = AppViewModel(fakeRepo, meApi)
+        val vm = makeVm(fakeRepo)
         advanceUntilIdle()
 
         assertEquals(AppViewModel.NavTarget.AdminPanel, vm.navTarget.value)
@@ -155,7 +159,7 @@ class AppViewModelTest {
         fakeRepo.save(TokenPair("acc", "ref"))
         coEvery { meApi.me() } returns profile(emptyList())
 
-        val vm = AppViewModel(fakeRepo, meApi)
+        val vm = makeVm(fakeRepo)
         advanceUntilIdle()
         assertEquals(AppViewModel.NavTarget.Onboarding, vm.navTarget.value)
 
@@ -163,5 +167,59 @@ class AppViewModelTest {
         advanceUntilIdle()
 
         assertEquals(AppViewModel.NavTarget.Auth, vm.navTarget.value)
+    }
+
+    @Test
+    fun `logout clears tokens and navigates to Auth`() = runTest(testDispatcher) {
+        val fakeRepo = FakeTokenRepository()
+        fakeRepo.save(TokenPair("acc", "ref"))
+        coEvery { meApi.me() } returns profile(listOf("en"))
+        coEvery { authApi.logout(any()) } just Runs
+
+        val vm = makeVm(fakeRepo)
+        advanceUntilIdle()
+        assertEquals(AppViewModel.NavTarget.Home, vm.navTarget.value)
+
+        vm.logout()
+        advanceUntilIdle()
+
+        assertEquals(AppViewModel.NavTarget.Auth, vm.navTarget.value)
+        assertNull(fakeRepo.loadOnce())
+    }
+
+    @Test
+    fun `logout still clears tokens when authApi throws`() = runTest(testDispatcher) {
+        val fakeRepo = FakeTokenRepository()
+        fakeRepo.save(TokenPair("acc", "ref"))
+        coEvery { meApi.me() } returns profile(listOf("en"))
+        coEvery { authApi.logout(any()) } throws RuntimeException("network")
+
+        val vm = makeVm(fakeRepo)
+        advanceUntilIdle()
+
+        vm.logout()
+        advanceUntilIdle()
+
+        assertEquals(AppViewModel.NavTarget.Auth, vm.navTarget.value)
+        assertNull(fakeRepo.loadOnce())
+    }
+
+    @Test
+    fun `refreshProfile updates profile flow`() = runTest(testDispatcher) {
+        val fakeRepo = FakeTokenRepository()
+        fakeRepo.save(TokenPair("acc", "ref"))
+        coEvery { meApi.me() } returnsMany listOf(
+            profile(emptyList()),
+            profile(listOf("en", "ru")),
+        )
+
+        val vm = makeVm(fakeRepo)
+        advanceUntilIdle()
+        assertEquals(emptyList<String>(), vm.profile.value?.languages)
+
+        vm.refreshProfile()
+        advanceUntilIdle()
+
+        assertEquals(listOf("en", "ru"), vm.profile.value?.languages)
     }
 }

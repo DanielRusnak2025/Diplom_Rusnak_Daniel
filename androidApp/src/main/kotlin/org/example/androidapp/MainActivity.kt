@@ -18,7 +18,7 @@ class MainActivity : ComponentActivity() {
         val factory = viewModelFactory {
             initializer {
                 this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]
-                AppViewModel(app.container.tokenRepository, app.container.meApi)
+                AppViewModel(app.container.tokenRepository, app.container.meApi, app.container.authApi)
             }
         }
         val appViewModel = ViewModelProvider(this, factory)[AppViewModel::class.java]

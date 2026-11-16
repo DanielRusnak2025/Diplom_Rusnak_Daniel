@@ -19,11 +19,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import org.example.androidapp.NewsDoveApp
+import org.example.androidapp.ui.admin.AdminPanelScreen
+import org.example.androidapp.ui.admin.AdminPanelViewModel
 import org.example.androidapp.ui.auth.LoginScreen
 import org.example.androidapp.ui.auth.LoginViewModel
 import org.example.androidapp.ui.auth.RegisterScreen
 import org.example.androidapp.ui.auth.RegisterViewModel
-import org.example.androidapp.ui.admin.AdminPanelScreen
 import org.example.androidapp.ui.feed.FeedScreen
 import org.example.androidapp.ui.feed.FeedViewModel
 import org.example.androidapp.ui.mod.ModeratorScreen
@@ -32,8 +33,8 @@ import org.example.androidapp.ui.onboarding.OnboardingInterestsScreen
 import org.example.androidapp.ui.onboarding.OnboardingLanguagesScreen
 import org.example.androidapp.ui.onboarding.OnboardingRegionsScreen
 import org.example.androidapp.ui.onboarding.OnboardingViewModel
-import org.example.androidapp.ui.settings.SettingsViewModel
 import org.example.androidapp.ui.settings.SettingsScreen
+import org.example.androidapp.ui.settings.SettingsViewModel
 import org.example.dto.RoleDto
 
 @Composable
@@ -141,7 +142,18 @@ fun AppNavGraph(appViewModel: AppViewModel) {
                 OnboardingInterestsScreen(
                     viewModel = vm,
                     onDone = {
-                        navController.navigate("home") { popUpTo(0) { inclusive = true } }
+                        appViewModel.refreshProfile()
+                        val adminInStack = navController.currentBackStack.value.any {
+                            it.destination.route == "admin"
+                        }
+                        if (adminInStack) {
+                            // Admin initiated onboarding: go to home but keep admin in back stack
+                            navController.navigate("home") {
+                                popUpTo("onboarding") { inclusive = true }
+                            }
+                        } else {
+                            navController.navigate("home") { popUpTo(0) { inclusive = true } }
+                        }
                     },
                 )
             }
@@ -181,8 +193,6 @@ fun AppNavGraph(appViewModel: AppViewModel) {
                 }
             })
             val modState by modVm.state.collectAsStateWithLifecycle()
-            // Set flag immediately on each successful hide so the feed refreshes regardless
-            // of how the user leaves (back-arrow button, system back, gesture).
             LaunchedEffect(modState.hidCount) {
                 if (modState.hidCount > 0) {
                     navController.previousBackStackEntry
@@ -216,8 +226,25 @@ fun AppNavGraph(appViewModel: AppViewModel) {
 
         composable("admin") {
             val role = profile?.role ?: return@composable
+            val panelVm: AdminPanelViewModel = viewModel(factory = viewModelFactory {
+                initializer {
+                    val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as NewsDoveApp
+                    AdminPanelViewModel(app.container.adminApi)
+                }
+            })
+            val complaintsVm: ModeratorViewModel = viewModel(
+                key = "admin-complaints",
+                factory = viewModelFactory {
+                    initializer {
+                        val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as NewsDoveApp
+                        ModeratorViewModel(app.container.adminApi)
+                    }
+                },
+            )
             AdminPanelScreen(
                 role = role,
+                panelVm = panelVm,
+                complaintsVm = complaintsVm,
                 onNavigateToFeed = {
                     if (profile?.languages.isNullOrEmpty()) {
                         navController.navigate("onboarding")
@@ -225,6 +252,7 @@ fun AppNavGraph(appViewModel: AppViewModel) {
                         navController.navigate("home")
                     }
                 },
+                onLogout = { appViewModel.logout() },
                 onNavigateToSettings = { navController.navigate("settings") },
             )
         }

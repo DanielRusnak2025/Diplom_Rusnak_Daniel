@@ -97,4 +97,17 @@
     <string name="mod_dismiss_complaints">Отклонить</string>
     <string name="mod_dismiss_confirm">Отклонить жалобы на «%s»?</string>
     <string name="mod_btn_dismiss">Отклонить</string>
+
+    <!-- Admin panel: stats tab -->
+    <string name="stats_total_articles">Всего статей</string>
+    <string name="stats_classified">Классифицировано</string>
+    <string name="stats_pending">В очереди</string>
+    <string name="stats_total_users">Пользователей</string>
+    <string name="stats_open_complaints">Открытых жалоб</string>
+
+    <!-- Admin panel: audit tab -->
+    <string name="audit_empty">Журнал пуст</string>
+
+    <!-- Admin panel: logout dialog -->
+    <string name="panel_logout_confirm">Выйти из панели управления?</string>
 </resources>

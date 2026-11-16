@@ -57,23 +57,11 @@ fun ModeratorScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val listState = rememberLazyListState()
 
     LaunchedEffect(state.snackbar) {
         val msg = state.snackbar ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(msg)
         viewModel.snackbarShown()
-    }
-
-    val shouldLoadMore by remember {
-        derivedStateOf {
-            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
-            val total = listState.layoutInfo.totalItemsCount
-            total > 0 && lastVisible >= total - 3
-        }
-    }
-    LaunchedEffect(shouldLoadMore) {
-        if (shouldLoadMore) viewModel.loadMore()
     }
 
     Scaffold(
@@ -98,67 +86,89 @@ fun ModeratorScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
-            when {
-                state.isLoading ->
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+        ComplaintsContent(viewModel = viewModel, modifier = Modifier.padding(padding))
+    }
+}
 
-                state.error != null ->
-                    Column(
-                        modifier = Modifier.align(Alignment.Center).padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(state.error!!, style = MaterialTheme.typography.bodyMedium)
-                        Spacer(Modifier.height(16.dp))
-                        Button(onClick = viewModel::refresh) {
-                            Text(stringResource(R.string.btn_retry))
+@Composable
+fun ComplaintsContent(
+    viewModel: ModeratorViewModel,
+    modifier: Modifier = Modifier,
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val listState = rememberLazyListState()
+
+    val shouldLoadMore by remember {
+        derivedStateOf {
+            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+            val total = listState.layoutInfo.totalItemsCount
+            total > 0 && lastVisible >= total - 3
+        }
+    }
+    LaunchedEffect(shouldLoadMore) {
+        if (shouldLoadMore) viewModel.loadMore()
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        when {
+            state.isLoading ->
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+
+            state.error != null ->
+                Column(
+                    modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(state.error!!, style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = viewModel::refresh) {
+                        Text(stringResource(R.string.btn_retry))
+                    }
+                }
+
+            state.items.isEmpty() ->
+                Text(
+                    stringResource(R.string.mod_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.Center),
+                )
+
+            else ->
+                LazyColumn(
+                    state = listState,
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    items(state.items, key = { it.reportId }) { item ->
+                        ComplaintCard(
+                            item = item,
+                            onHide = { viewModel.requestHide(item) },
+                            onDismiss = { viewModel.requestDismiss(item) },
+                        )
+                    }
+                    if (state.isLoadingMore) {
+                        item {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator()
+                            }
                         }
                     }
-
-                state.items.isEmpty() ->
-                    Text(
-                        stringResource(R.string.mod_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.align(Alignment.Center),
-                    )
-
-                else ->
-                    LazyColumn(
-                        state = listState,
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxSize(),
-                    ) {
-                        items(state.items, key = { it.reportId }) { item ->
-                            ComplaintCard(
-                                item = item,
-                                onHide = { viewModel.requestHide(item) },
-                                onDismiss = { viewModel.requestDismiss(item) },
+                    if (state.isEndOfList && state.items.isNotEmpty()) {
+                        item {
+                            Text(
+                                stringResource(R.string.feed_end),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.fillMaxWidth().padding(8.dp),
                             )
                         }
-                        if (state.isLoadingMore) {
-                            item {
-                                Box(
-                                    modifier = Modifier.fillMaxWidth().padding(8.dp),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    CircularProgressIndicator()
-                                }
-                            }
-                        }
-                        if (state.isEndOfList && state.items.isNotEmpty()) {
-                            item {
-                                Text(
-                                    stringResource(R.string.feed_end),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.fillMaxWidth().padding(8.dp),
-                                )
-                            }
-                        }
                     }
-            }
+                }
         }
     }
 

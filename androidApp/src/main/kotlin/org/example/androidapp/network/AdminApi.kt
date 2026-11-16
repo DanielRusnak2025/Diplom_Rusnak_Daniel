@@ -9,8 +9,10 @@ import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import org.example.dto.AuditPageDto
 import org.example.dto.ComplaintPageDto
 import org.example.dto.HiddenRequest
+import org.example.dto.StatsDto
 
 class AdminApi(
     private val baseUrl: String,
@@ -32,4 +34,13 @@ class AdminApi(
     suspend fun dismissComplaints(articleId: Int) {
         authClient.delete("$baseUrl/api/v1/admin/articles/$articleId/complaints")
     }
+
+    suspend fun stats(): StatsDto =
+        authClient.get("$baseUrl/api/v1/admin/stats").body()
+
+    suspend fun audit(cursor: String? = null, limit: Int = 30): AuditPageDto =
+        authClient.get("$baseUrl/api/v1/admin/audit") {
+            if (cursor != null) parameter("cursor", cursor)
+            parameter("limit", limit)
+        }.body()
 }
