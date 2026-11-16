@@ -114,4 +114,10 @@
     <!-- Admin panel: articles tab -->
     <string name="articles_empty">Статей не найдено</string>
     <string name="articles_search_hint">Поиск по названию</string>
+
+    <!-- Admin panel: users tab -->
+    <string name="users_empty">Пользователей не найдено</string>
+    <string name="users_search_hint">Поиск по нику</string>
+    <string name="users_date_from">С даты</string>
+    <string name="users_date_to">По дату</string>
 </resources>

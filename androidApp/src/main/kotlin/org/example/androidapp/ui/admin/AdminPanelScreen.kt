@@ -65,10 +65,12 @@ fun AdminPanelScreen(
     panelVm: AdminPanelViewModel,
     complaintsVm: ModeratorViewModel,
     articlesVm: ArticlesViewModel? = null,
+    usersVm: UsersViewModel? = null,
     onNavigateToFeed: () -> Unit,
     onLogout: () -> Unit,
     onNavigateToSettings: () -> Unit = {},
     onNavigateToArticle: (Int) -> Unit = {},
+    onNavigateToUser: (Int) -> Unit = {},
 ) {
     val tabs = if (role == RoleDto.ADMIN) {
         listOf(AdminTab.ARTICLES, AdminTab.USERS, AdminTab.COMPLAINTS, AdminTab.AUDIT, AdminTab.STATS)
@@ -168,7 +170,14 @@ fun AdminPanelScreen(
                     }
 
                 AdminTab.USERS ->
-                    PlaceholderContent()
+                    if (usersVm != null) {
+                        UsersTabContent(
+                            viewModel = usersVm,
+                            onNavigateToUser = onNavigateToUser,
+                        )
+                    } else {
+                        PlaceholderContent()
+                    }
 
                 AdminTab.COMPLAINTS ->
                     ComplaintsContent(viewModel = complaintsVm)

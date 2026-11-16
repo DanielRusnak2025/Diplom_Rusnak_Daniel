@@ -347,17 +347,45 @@ fun Route.adminRoutes(auditService: AuditService) {
                 val actorId = call.requireRoleFromDb(Role.ADMIN)?.id ?: return@get
                 val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 20).coerceIn(1, 100)
                 val cursor = call.request.queryParameters["cursor"]?.toIntOrNull()
+                val q = call.request.queryParameters["q"]?.trim()?.takeIf { it.isNotEmpty() }
+                val fromDateStr = call.request.queryParameters["fromDate"]
+                val toDateStr = call.request.queryParameters["toDate"]
+
+                val fromDate = if (fromDateStr != null) {
+                    try { LocalDate.parse(fromDateStr) }
+                    catch (_: DateTimeParseException) {
+                        call.respond(HttpStatusCode.BadRequest, ErrorResponse("INVALID_DATE", "Invalid fromDate: $fromDateStr"))
+                        return@get
+                    }
+                } else null
+
+                val toDate = if (toDateStr != null) {
+                    try { LocalDate.parse(toDateStr) }
+                    catch (_: DateTimeParseException) {
+                        call.respond(HttpStatusCode.BadRequest, ErrorResponse("INVALID_DATE", "Invalid toDate: $toDateStr"))
+                        return@get
+                    }
+                } else null
 
                 val page = withNewTransaction { session ->
+                    val conditions = mutableListOf<String>()
+                    if (cursor != null) conditions.add("u.id < :cursor")
+                    if (q != null) conditions.add("u.nick LIKE :q ESCAPE '!'")
+                    if (fromDate != null) conditions.add("u.registrationDate >= :fromDate")
+                    if (toDate != null) conditions.add("u.registrationDate <= :toDate")
+
                     val hql = buildString {
                         append("FROM User u")
-                        if (cursor != null) append(" WHERE u.id < :cursor")
+                        if (conditions.isNotEmpty()) append(" WHERE " + conditions.joinToString(" AND "))
                         append(" ORDER BY u.id DESC")
                     }
-                    val q = session.createSelectionQuery(hql, User::class.java)
-                    if (cursor != null) q.setParameter("cursor", cursor)
-                    q.setMaxResults(limit + 1)
-                    val rows = q.resultList
+                    val query = session.createSelectionQuery(hql, User::class.java)
+                    if (cursor != null) query.setParameter("cursor", cursor)
+                    if (q != null) query.setParameter("q", "%${escapeLike(q)}%")
+                    if (fromDate != null) query.setParameter("fromDate", java.sql.Date.valueOf(fromDate))
+                    if (toDate != null) query.setParameter("toDate", java.sql.Date.valueOf(toDate))
+                    query.setMaxResults(limit + 1)
+                    val rows = query.resultList
                     val hasMore = rows.size > limit
                     val items = rows.take(limit).map { u ->
                         AdminUserDto(

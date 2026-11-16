@@ -11,9 +11,13 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import org.example.dto.AdminArticleDetailDto
 import org.example.dto.AdminArticlePageDto
+import org.example.dto.AdminUserDetailDto
+import org.example.dto.AdminUserPageDto
 import org.example.dto.AuditPageDto
 import org.example.dto.ComplaintPageDto
 import org.example.dto.HiddenRequest
+import org.example.dto.RoleDto
+import org.example.dto.SetRoleRequest
 import org.example.dto.StatsDto
 
 class AdminApi(
@@ -66,4 +70,29 @@ class AdminApi(
 
     suspend fun getArticleDetail(id: Int): AdminArticleDetailDto =
         authClient.get("$baseUrl/api/v1/admin/articles/$id").body()
+
+    suspend fun getUsers(
+        q: String? = null,
+        fromDate: String? = null,
+        toDate: String? = null,
+        cursor: Int? = null,
+        limit: Int = 20,
+    ): AdminUserPageDto =
+        authClient.get("$baseUrl/api/v1/admin/users") {
+            if (!q.isNullOrBlank()) parameter("q", q)
+            if (fromDate != null) parameter("fromDate", fromDate)
+            if (toDate != null) parameter("toDate", toDate)
+            if (cursor != null) parameter("cursor", cursor)
+            parameter("limit", limit)
+        }.body()
+
+    suspend fun getUserDetail(id: Int): AdminUserDetailDto =
+        authClient.get("$baseUrl/api/v1/admin/users/$id").body()
+
+    suspend fun setUserRole(id: Int, role: RoleDto) {
+        authClient.put("$baseUrl/api/v1/admin/users/$id/role") {
+            contentType(ContentType.Application.Json)
+            setBody(SetRoleRequest(role))
+        }
+    }
 }

@@ -24,8 +24,11 @@ import org.example.androidapp.NewsDoveApp
 import org.example.androidapp.ui.admin.AdminArticleDetailScreen
 import org.example.androidapp.ui.admin.AdminPanelScreen
 import org.example.androidapp.ui.admin.AdminPanelViewModel
+import org.example.androidapp.ui.admin.AdminUserDetailScreen
 import org.example.androidapp.ui.admin.ArticleDetailViewModel
 import org.example.androidapp.ui.admin.ArticlesViewModel
+import org.example.androidapp.ui.admin.UserDetailViewModel
+import org.example.androidapp.ui.admin.UsersViewModel
 import org.example.androidapp.ui.auth.LoginScreen
 import org.example.androidapp.ui.auth.LoginViewModel
 import org.example.androidapp.ui.auth.RegisterScreen
@@ -249,7 +252,13 @@ fun AppNavGraph(appViewModel: AppViewModel) {
             val articlesVm: ArticlesViewModel = viewModel(factory = viewModelFactory {
                 initializer {
                     val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as NewsDoveApp
-                    ArticlesViewModel(app.container.adminApi)
+                    ArticlesViewModel(app.container.adminApi, app.container.metaApi)
+                }
+            })
+            val usersVm: UsersViewModel = viewModel(factory = viewModelFactory {
+                initializer {
+                    val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as NewsDoveApp
+                    UsersViewModel(app.container.adminApi)
                 }
             })
 
@@ -266,11 +275,21 @@ fun AppNavGraph(appViewModel: AppViewModel) {
                 }
             }
 
+            val userRoleChangedId by backStackEntry.savedStateHandle
+                .getStateFlow("userRoleChangedId", -1)
+                .collectAsStateWithLifecycle()
+            LaunchedEffect(userRoleChangedId) {
+                if (userRoleChangedId != -1) {
+                    backStackEntry.savedStateHandle["userRoleChangedId"] = -1
+                }
+            }
+
             AdminPanelScreen(
                 role = role,
                 panelVm = panelVm,
                 complaintsVm = complaintsVm,
                 articlesVm = articlesVm,
+                usersVm = usersVm,
                 onNavigateToFeed = {
                     if (profile?.languages.isNullOrEmpty()) {
                         navController.navigate("onboarding")
@@ -281,6 +300,7 @@ fun AppNavGraph(appViewModel: AppViewModel) {
                 onLogout = { appViewModel.logout() },
                 onNavigateToSettings = { navController.navigate("settings") },
                 onNavigateToArticle = { id -> navController.navigate("admin/article/$id") },
+                onNavigateToUser = { id -> navController.navigate("admin/user/$id") },
             )
         }
 
@@ -292,11 +312,29 @@ fun AppNavGraph(appViewModel: AppViewModel) {
             val detailVm: ArticleDetailViewModel = viewModel(factory = viewModelFactory {
                 initializer {
                     val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as NewsDoveApp
-                    ArticleDetailViewModel(app.container.adminApi, articleId)
+                    ArticleDetailViewModel(app.container.adminApi, app.container.metaApi, articleId)
                 }
             })
             AdminArticleDetailScreen(
                 viewModel = detailVm,
+                navController = navController,
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = "admin/user/{userId}",
+            arguments = listOf(navArgument("userId") { type = NavType.IntType }),
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getInt("userId") ?: return@composable
+            val userDetailVm: UserDetailViewModel = viewModel(factory = viewModelFactory {
+                initializer {
+                    val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as NewsDoveApp
+                    UserDetailViewModel(app.container.adminApi, app.container.metaApi, userId)
+                }
+            })
+            AdminUserDetailScreen(
+                viewModel = userDetailVm,
                 navController = navController,
                 onNavigateBack = { navController.popBackStack() },
             )
