@@ -186,13 +186,13 @@ Apply in the same sub-step as the first screen change to avoid a separate commit
 
 | Step | Scope | Deliverable |
 |------|-------|-------------|
-| **5g-1** | Server: new endpoints §2a–2c + server-side complaint search filter + new DTOs in `:shared` | `:server:test` green; new endpoints smoke-tested with curl |
-| **5g-2** | AppViewModel routing (staff → AdminPanel) + NavGraph AdminPanel destination (blank screen) + AppViewModelTest updated | build green; ADMIN/MODERATOR account lands on blank panel after login |
-| **5g-3** | AdminPanelScreen shell (tabs, role-gated), Статистика tab, Журнал tab, AdminPanelViewModel, AuditViewModel, StatsViewModel | ADMIN sees stats and audit log; Журнал pagination works |
-| **5g-4** | Статьи tab + AdminArticleDetailScreen + ArticlesViewModel + ArticleDetailViewModel + hide action + tests | search, detail, hide/unhide work |
-| **5g-5** | Пользователи tab + AdminUserDetailScreen + UsersViewModel + UserDetailViewModel + role change + tests | user detail with interest bars + role dropdown |
-| **5g-6** | Жалобы tab (port of ModeratorScreen + search + date filter); extend complaint search on server | complaints tab in panel replaces standalone ModeratorScreen |
-| **5g-7** | Window insets fix (onboarding screens); final polish (panel top-bar "Лента"/"Выйти" buttons, navigation edge cases) | insets fixed; "Лента" navigates to feed |
+| ~~**5g-1**~~ ✅ | Server: new endpoints §2a–2c + server-side complaint search filter + new DTOs in `:shared` | `:server:test` green; new endpoints smoke-tested with curl |
+| ~~**5g-2**~~ ✅ | AppViewModel routing (staff → AdminPanel) + NavGraph AdminPanel destination (blank screen) + AppViewModelTest updated | build green; ADMIN/MODERATOR account lands on blank panel after login |
+| ~~**5g-3**~~ ✅ | AdminPanelScreen shell (tabs, role-gated), Статистика tab, Журнал tab, AdminPanelViewModel, AuditViewModel, StatsViewModel | ADMIN sees stats and audit log; Журнал pagination works |
+| ~~**5g-4**~~ ✅ | Статьи tab + AdminArticleDetailScreen + ArticlesViewModel + ArticleDetailViewModel + hide action + tests | search, detail, hide/unhide work |
+| ~~**5g-5**~~ ✅ | Пользователи tab + AdminUserDetailScreen + UsersViewModel + UserDetailViewModel + role change + tests | user detail with interest bars + role dropdown |
+| ~~**5g-6**~~ ✅ | Жалобы tab (port of ModeratorScreen + search + date filter); extend complaint search on server | complaints tab in panel replaces standalone ModeratorScreen |
+| ~~**5g-7**~~ ✅ | Window insets fix (onboarding screens); language names from full map (`/language-names`); toDate inclusive confirmed (DATE column); audit action codes verified | insets fixed; language names always resolved; all 5g done |
 
 Each sub-step: `./gradlew clean :core:test :server:test :androidApp:testDebugUnitTest` must pass before commit.
 

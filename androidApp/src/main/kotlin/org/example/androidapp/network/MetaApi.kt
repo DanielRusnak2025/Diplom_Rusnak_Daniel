@@ -17,6 +17,9 @@ class MetaApi(
     suspend fun languages(): List<LanguageDto> =
         authClient.get("$baseUrl/api/v1/languages").body()
 
+    suspend fun languageNames(): Map<String, String> =
+        authClient.get("$baseUrl/api/v1/language-names").body()
+
     suspend fun categories(): List<CategoryDto> =
         authClient.get("$baseUrl/api/v1/categories").body()
 }

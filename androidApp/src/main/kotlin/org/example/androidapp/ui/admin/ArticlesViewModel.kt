@@ -55,10 +55,10 @@ class ArticlesViewModel(
     private fun loadMeta() {
         viewModelScope.launch {
             try {
-                val langs = metaApi.languages()
+                val names = metaApi.languageNames()
                 val regions = metaApi.regions()
                 _state.update { it.copy(
-                    languageByCode = langs.mapNotNull { l -> l.name?.let { n -> l.code to n } }.toMap(),
+                    languageByCode = names,
                     regionByKey = regions.mapNotNull { r -> r.nameRu?.let { n -> r.key to n } }.toMap(),
                 ) }
             } catch (_: Exception) {}

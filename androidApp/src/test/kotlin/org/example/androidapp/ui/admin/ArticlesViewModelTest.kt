@@ -15,7 +15,6 @@ import org.example.androidapp.network.ApiException
 import org.example.androidapp.network.MetaApi
 import org.example.dto.AdminArticleDto
 import org.example.dto.AdminArticlePageDto
-import org.example.dto.LanguageDto
 import org.example.dto.RegionDto
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -33,7 +32,7 @@ class ArticlesViewModelTest {
 
     @BeforeEach fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        coEvery { metaApi.languages() } returns emptyList()
+        coEvery { metaApi.languageNames() } returns emptyMap()
         coEvery { metaApi.regions() } returns emptyList()
     }
     @AfterEach fun tearDown() { Dispatchers.resetMain() }

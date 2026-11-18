@@ -38,5 +38,9 @@ fun Route.metaRoutes() {
             val codes = AiConfig.getLanguagesAllowed()
             call.respond(codes.map { code -> LanguageDto(code = code, name = LANGUAGE_NAMES_RU[code]) })
         }
+
+        get("/api/v1/language-names") {
+            call.respond(LANGUAGE_NAMES_RU)
+        }
     }
 }
