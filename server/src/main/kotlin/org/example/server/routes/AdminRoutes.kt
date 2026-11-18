@@ -320,6 +320,23 @@ fun Route.adminRoutes(auditService: AuditService) {
                 else call.respond(HttpStatusCode.NoContent)
             }
 
+            delete("/complaints/{reportId}") {
+                val actorId = call.requireRoleFromDb(Role.MODERATOR, Role.ADMIN)?.id ?: return@delete
+                val reportId = call.parameters["reportId"]?.toIntOrNull()
+                    ?: run { call.respond(HttpStatusCode.NotFound, ErrorResponse("NOT_FOUND", "Complaint not found")); return@delete }
+
+                val found = withNewTransaction { session ->
+                    val report = session.find(Report::class.java, reportId) ?: return@withNewTransaction false
+                    if (report.reasonCode == null) return@withNewTransaction false
+                    report.reasonCode = null
+                    val actor = session.find(User::class.java, actorId)!!
+                    auditService.log(session, actor, "COMPLAINT_DISMISSED", "report", reportId.toString())
+                    true
+                }
+                if (!found) call.respond(HttpStatusCode.NotFound, ErrorResponse("NOT_FOUND", "Complaint not found"))
+                else call.respond(HttpStatusCode.NoContent)
+            }
+
             put("/articles/{id}/hidden") {
                 val actorId = call.requireRoleFromDb(Role.MODERATOR, Role.ADMIN)?.id ?: return@put
                 val articleId = call.parameters["id"]?.toIntOrNull()

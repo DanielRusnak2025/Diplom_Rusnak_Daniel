@@ -50,6 +50,10 @@ class AdminApi(
         authClient.delete("$baseUrl/api/v1/admin/articles/$articleId/complaints")
     }
 
+    suspend fun dismissComplaint(reportId: Int) {
+        authClient.delete("$baseUrl/api/v1/admin/complaints/$reportId")
+    }
+
     suspend fun stats(): StatsDto =
         authClient.get("$baseUrl/api/v1/admin/stats").body()
 

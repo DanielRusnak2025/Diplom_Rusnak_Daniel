@@ -11,6 +11,7 @@ internal fun auditActionLabel(action: String): String = when (action) {
     "ARTICLE_HIDDEN"       -> "Статья скрыта"
     "ARTICLE_UNHIDDEN"     -> "Статья показана"
     "COMPLAINTS_DISMISSED" -> "Жалобы отклонены"
+    "COMPLAINT_DISMISSED"  -> "Жалоба отклонена"
     "USER_ROLE_CHANGED"    -> "Роль изменена"
     else                   -> action
 }

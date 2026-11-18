@@ -112,13 +112,13 @@ class ComplaintsViewModelTest {
     }
 
     @Test
-    fun `dismiss complaints removes all items for that article`() = runTest(testDispatcher) {
+    fun `dismiss complaint removes only that one item`() = runTest(testDispatcher) {
         val item1 = complaint(1, articleId = 10)
         val item2 = complaint(2, articleId = 10)
         val item3 = complaint(3, articleId = 20)
         val page = ComplaintPageDto(items = listOf(item1, item2, item3), nextCursor = null)
         coEvery { adminApi.complaints(cursor = null, limit = any(), q = null, fromDate = null, toDate = null) } returns page
-        coEvery { adminApi.dismissComplaints(10) } just Runs
+        coEvery { adminApi.dismissComplaint(1) } just Runs
 
         val vm = ComplaintsViewModel(adminApi)
         advanceUntilIdle()
@@ -128,10 +128,11 @@ class ComplaintsViewModelTest {
         advanceUntilIdle()
 
         val s = vm.state.value
-        assertEquals(1, s.items.size)
-        assertEquals(item3, s.items.first())
-        assertEquals("Жалобы отклонены", s.snackbar)
-        coVerify(exactly = 1) { adminApi.dismissComplaints(10) }
+        assertEquals(2, s.items.size)
+        assertTrue(s.items.none { it.reportId == 1 })
+        assertTrue(s.items.any { it.reportId == 2 })
+        assertEquals("Жалоба отклонена", s.snackbar)
+        coVerify(exactly = 1) { adminApi.dismissComplaint(1) }
     }
 
     @Test

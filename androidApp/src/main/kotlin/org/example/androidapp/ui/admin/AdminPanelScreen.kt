@@ -23,6 +23,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -103,7 +104,7 @@ fun AdminPanelScreen(
     LaunchedEffect(tabs[selectedTab]) {
         when (tabs[selectedTab]) {
             AdminTab.STATS -> panelVm.loadStats()
-            AdminTab.AUDIT -> panelVm.loadAudit()
+            AdminTab.AUDIT -> panelVm.refreshAudit()
             else -> Unit
         }
     }
@@ -189,6 +190,7 @@ fun AdminPanelScreen(
                         listState = auditListState,
                         onRetry = panelVm::refreshAudit,
                         onFilterChange = panelVm::setAuditFilter,
+                        onRefresh = panelVm::refreshAudit,
                     )
 
                 AdminTab.STATS ->
@@ -296,12 +298,14 @@ private fun StatCard(label: String, value: String) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AuditTabContent(
     state: AuditUiState,
     listState: androidx.compose.foundation.lazy.LazyListState,
     onRetry: () -> Unit,
     onFilterChange: (AuditFilter) -> Unit,
+    onRefresh: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -327,7 +331,11 @@ private fun AuditTabContent(
             )
         }
 
-        Box(modifier = Modifier.weight(1f)) {
+        PullToRefreshBox(
+            isRefreshing = state.isRefreshing,
+            onRefresh = onRefresh,
+            modifier = Modifier.weight(1f),
+        ) {
             when {
                 state.isLoading ->
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))

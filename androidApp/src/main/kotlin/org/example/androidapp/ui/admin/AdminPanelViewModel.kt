@@ -15,7 +15,7 @@ import org.example.dto.StatsDto
 enum class AuditFilter { MODERATION, AUTH, ALL }
 
 val MODERATION_ACTIONS = listOf(
-    "ARTICLE_HIDDEN", "ARTICLE_UNHIDDEN", "COMPLAINTS_DISMISSED", "USER_ROLE_CHANGED",
+    "ARTICLE_HIDDEN", "ARTICLE_UNHIDDEN", "COMPLAINTS_DISMISSED", "COMPLAINT_DISMISSED", "USER_ROLE_CHANGED",
 )
 val AUTH_ACTIONS = listOf(
     "LOGIN", "LOGOUT", "LOGIN_FAILED", "REGISTER", "TOKEN_REUSE", "TOKEN_REFRESH", "PASSWORD_CHANGED",
@@ -35,6 +35,7 @@ data class StatsUiState(
 
 data class AuditUiState(
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val items: List<AuditLogItemDto> = emptyList(),
     val isLoadingMore: Boolean = false,
     val isEndOfList: Boolean = false,
@@ -122,8 +123,32 @@ class AdminPanelViewModel(private val adminApi: AdminApi) : ViewModel() {
     }
 
     fun refreshAudit() {
-        val filter = _audit.value.filter
-        _audit.value = AuditUiState(filter = filter)
-        loadAuditInternal()
+        val current = _audit.value
+        if (current.isLoading || current.isRefreshing) return
+        val filter = current.filter
+        if (current.items.isEmpty()) {
+            _audit.value = AuditUiState(filter = filter)
+            loadAuditInternal()
+        } else {
+            _audit.update { it.copy(isRefreshing = true, error = null) }
+            viewModelScope.launch {
+                try {
+                    val page = adminApi.audit(cursor = null, actions = filter.toActions())
+                    _audit.update {
+                        it.copy(
+                            isRefreshing = false,
+                            items = page.items,
+                            nextCursor = page.nextCursor,
+                            isEndOfList = page.nextCursor == null,
+                        )
+                    }
+                } catch (e: ApiException) {
+                    val msg = if (e.httpStatus == 403) "Недостаточно прав" else "Ошибка загрузки журнала"
+                    _audit.update { it.copy(isRefreshing = false, error = msg) }
+                } catch (_: Exception) {
+                    _audit.update { it.copy(isRefreshing = false, error = "Ошибка загрузки журнала") }
+                }
+            }
+        }
     }
 }
