@@ -94,7 +94,7 @@ class AdminPanelViewModelTest {
         val s = vm.stats.value
         assertNull(s.stats)
         assertEquals(false, s.isLoading)
-        assertTrue(s.error!!.contains("прав"))
+        assertTrue(s.error!!.contains("denied"))
     }
 
     @Test
@@ -154,7 +154,7 @@ class AdminPanelViewModelTest {
         val s = vm.audit.value
         assertTrue(s.items.isEmpty())
         assertEquals(false, s.isLoading)
-        assertTrue(s.error!!.contains("прав"))
+        assertTrue(s.error!!.contains("denied"))
     }
 
     @Test

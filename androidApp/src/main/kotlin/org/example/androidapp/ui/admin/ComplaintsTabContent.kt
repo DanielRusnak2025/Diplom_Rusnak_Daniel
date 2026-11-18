@@ -73,7 +73,7 @@ fun ComplaintsTabContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            placeholder = { Text("Поиск по названию статьи") },
+            placeholder = { Text(stringResource(R.string.admin_complaints_search_hint)) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             singleLine = true,
         )
@@ -85,13 +85,13 @@ fun ComplaintsTabContent(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             DatePickerField(
-                label = "От",
+                label = stringResource(R.string.admin_date_from),
                 value = state.fromDate,
                 onValueChange = { viewModel.setDateRange(it, state.toDate) },
                 modifier = Modifier.weight(1f),
             )
             DatePickerField(
-                label = "До",
+                label = stringResource(R.string.admin_date_to),
                 value = state.toDate,
                 onValueChange = { viewModel.setDateRange(state.fromDate, it) },
                 modifier = Modifier.weight(1f),
@@ -111,13 +111,13 @@ fun ComplaintsTabContent(
                         Text(state.error!!, style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(16.dp))
                         Button(onClick = viewModel::refresh) {
-                            Text(stringResource(R.string.btn_retry))
+                            Text(stringResource(R.string.admin_btn_retry))
                         }
                     }
 
                 state.items.isEmpty() ->
                     Text(
-                        stringResource(R.string.mod_empty),
+                        stringResource(R.string.admin_complaints_empty),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.align(Alignment.Center),
@@ -151,7 +151,7 @@ fun ComplaintsTabContent(
                         if (state.isEndOfList && state.items.isNotEmpty()) {
                             item {
                                 Text(
-                                    stringResource(R.string.feed_end),
+                                    stringResource(R.string.admin_list_end),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.fillMaxWidth().padding(8.dp),
@@ -165,7 +165,7 @@ fun ComplaintsTabContent(
 
     state.confirmHide?.let { item ->
         HideComplaintConfirmDialog(
-            articleTitle = item.articleTitle ?: stringResource(R.string.feed_untitled),
+            articleTitle = item.articleTitle ?: stringResource(R.string.admin_untitled),
             onConfirm = { viewModel.confirmHide() },
             onDismiss = { viewModel.dismissHideConfirm() },
         )
@@ -173,7 +173,7 @@ fun ComplaintsTabContent(
 
     state.dismissTarget?.let { item ->
         DismissComplaintConfirmDialog(
-            articleTitle = item.articleTitle ?: stringResource(R.string.feed_untitled),
+            articleTitle = item.articleTitle ?: stringResource(R.string.admin_untitled),
             onConfirm = { viewModel.executeDismiss() },
             onDismiss = { viewModel.cancelDismiss() },
         )
@@ -197,7 +197,7 @@ private fun ComplaintListCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = item.articleTitle ?: stringResource(R.string.feed_untitled),
+                text = item.articleTitle ?: stringResource(R.string.admin_untitled),
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -222,7 +222,7 @@ private fun ComplaintListCard(
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text(stringResource(R.string.mod_dismiss_complaints))
+                    Text(stringResource(R.string.admin_complaints_dismiss))
                 }
                 Button(
                     onClick = onHide,
@@ -232,7 +232,7 @@ private fun ComplaintListCard(
                     ),
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text(stringResource(R.string.mod_hide_article))
+                    Text(stringResource(R.string.admin_complaints_hide_article))
                 }
             }
         }
@@ -253,7 +253,7 @@ private fun HideComplaintConfirmDialog(
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 Text(
-                    text = stringResource(R.string.mod_hide_confirm, articleTitle),
+                    text = stringResource(R.string.admin_complaints_hide_confirm, articleTitle),
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 Spacer(Modifier.height(24.dp))
@@ -262,7 +262,7 @@ private fun HideComplaintConfirmDialog(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     OutlinedButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.btn_cancel))
+                        Text(stringResource(R.string.admin_btn_cancel))
                     }
                     Button(
                         onClick = onConfirm,
@@ -271,7 +271,7 @@ private fun HideComplaintConfirmDialog(
                             contentColor   = MaterialTheme.colorScheme.onErrorContainer,
                         ),
                     ) {
-                        Text(stringResource(R.string.mod_btn_hide))
+                        Text(stringResource(R.string.admin_complaints_hide_btn))
                     }
                 }
             }
@@ -293,7 +293,7 @@ private fun DismissComplaintConfirmDialog(
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 Text(
-                    text = stringResource(R.string.mod_dismiss_confirm, articleTitle),
+                    text = stringResource(R.string.admin_complaints_dismiss_confirm, articleTitle),
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 Spacer(Modifier.height(24.dp))
@@ -302,10 +302,10 @@ private fun DismissComplaintConfirmDialog(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     OutlinedButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.btn_cancel))
+                        Text(stringResource(R.string.admin_btn_cancel))
                     }
                     Button(onClick = onConfirm) {
-                        Text(stringResource(R.string.mod_btn_dismiss))
+                        Text(stringResource(R.string.admin_complaints_dismiss_btn))
                     }
                 }
             }

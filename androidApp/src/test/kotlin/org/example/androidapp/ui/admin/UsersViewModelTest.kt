@@ -76,7 +76,7 @@ class UsersViewModelTest {
         val s = vm.state.value
         assertTrue(s.items.isEmpty())
         assertNotNull(s.error)
-        assertTrue(s.error!!.contains("прав"))
+        assertTrue(s.error!!.contains("denied"))
     }
 
     @Test

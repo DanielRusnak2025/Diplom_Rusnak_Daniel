@@ -60,10 +60,10 @@ class AdminPanelViewModel(private val adminApi: AdminApi) : ViewModel() {
                 val dto = adminApi.stats()
                 _stats.update { it.copy(isLoading = false, stats = dto) }
             } catch (e: ApiException) {
-                val msg = if (e.httpStatus == 403) "Недостаточно прав" else "Ошибка загрузки"
+                val msg = if (e.httpStatus == 403) "Access denied" else "Failed to load"
                 _stats.update { it.copy(isLoading = false, error = msg) }
             } catch (_: Exception) {
-                _stats.update { it.copy(isLoading = false, error = "Ошибка загрузки") }
+                _stats.update { it.copy(isLoading = false, error = "Failed to load") }
             }
         }
     }
@@ -93,10 +93,10 @@ class AdminPanelViewModel(private val adminApi: AdminApi) : ViewModel() {
                     )
                 }
             } catch (e: ApiException) {
-                val msg = if (e.httpStatus == 403) "Недостаточно прав" else "Ошибка загрузки журнала"
+                val msg = if (e.httpStatus == 403) "Access denied" else "Failed to load audit log"
                 _audit.update { it.copy(isLoading = false, error = msg) }
             } catch (_: Exception) {
-                _audit.update { it.copy(isLoading = false, error = "Ошибка загрузки журнала") }
+                _audit.update { it.copy(isLoading = false, error = "Failed to load audit log") }
             }
         }
     }
@@ -143,10 +143,10 @@ class AdminPanelViewModel(private val adminApi: AdminApi) : ViewModel() {
                         )
                     }
                 } catch (e: ApiException) {
-                    val msg = if (e.httpStatus == 403) "Недостаточно прав" else "Ошибка загрузки журнала"
+                    val msg = if (e.httpStatus == 403) "Access denied" else "Failed to load audit log"
                     _audit.update { it.copy(isRefreshing = false, error = msg) }
                 } catch (_: Exception) {
-                    _audit.update { it.copy(isRefreshing = false, error = "Ошибка загрузки журнала") }
+                    _audit.update { it.copy(isRefreshing = false, error = "Failed to load audit log") }
                 }
             }
         }

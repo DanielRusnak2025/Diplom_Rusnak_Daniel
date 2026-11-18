@@ -69,7 +69,7 @@ fun UsersTabContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            placeholder = { Text(stringResource(R.string.users_search_hint)) },
+            placeholder = { Text(stringResource(R.string.admin_users_search_hint)) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             singleLine = true,
         )
@@ -81,13 +81,13 @@ fun UsersTabContent(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             DatePickerField(
-                label = stringResource(R.string.users_date_from),
+                label = stringResource(R.string.admin_users_date_from),
                 value = state.fromDate,
                 onValueChange = { viewModel.setDateRange(it, state.toDate) },
                 modifier = Modifier.weight(1f),
             )
             DatePickerField(
-                label = stringResource(R.string.users_date_to),
+                label = stringResource(R.string.admin_users_date_to),
                 value = state.toDate,
                 onValueChange = { viewModel.setDateRange(state.fromDate, it) },
                 modifier = Modifier.weight(1f),
@@ -109,13 +109,13 @@ fun UsersTabContent(
                         Text(state.error!!, style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(16.dp))
                         Button(onClick = { viewModel.refresh() }) {
-                            Text(stringResource(R.string.btn_retry))
+                            Text(stringResource(R.string.admin_btn_retry))
                         }
                     }
 
                 state.items.isEmpty() ->
                     Text(
-                        stringResource(R.string.users_empty),
+                        stringResource(R.string.admin_users_empty),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.align(Alignment.Center),
@@ -147,7 +147,7 @@ fun UsersTabContent(
                         if (state.isEndOfList && state.items.isNotEmpty()) {
                             item {
                                 Text(
-                                    stringResource(R.string.feed_end),
+                                    stringResource(R.string.admin_list_end),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier
@@ -191,7 +191,7 @@ private fun UserListItem(
             user.registrationDate?.let { date ->
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "Регистрация: $date",
+                    text = stringResource(R.string.admin_users_registered, date),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

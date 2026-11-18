@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test
 class AuditLabelsTest {
 
     @Test
-    fun `auditActionLabel maps every server action code to Russian`() {
+    fun `auditActionLabel maps every server action code to English`() {
         val serverCodes = listOf(
             "REGISTER",
             "LOGIN",
@@ -24,10 +24,10 @@ class AuditLabelsTest {
         for (code in serverCodes) {
             val label = auditActionLabel(code)
             assertNotEquals(code, label,
-                "auditActionLabel must translate $code to Russian — still returning the code itself")
+                "auditActionLabel must translate $code to English — still returning the code itself")
             assertTrue(
-                label.any { c -> c in 'А'..'я' || c == 'ё' || c == 'Ё' },
-                "Label for $code must contain Cyrillic characters, got: \"$label\""
+                label.any { c -> c in 'a'..'z' || c in 'A'..'Z' },
+                "Label for $code must contain Latin characters, got: \"$label\""
             )
         }
     }

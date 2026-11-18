@@ -82,7 +82,7 @@ fun ArticlesTabContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            placeholder = { Text("Поиск по названию") },
+            placeholder = { Text(stringResource(R.string.admin_articles_search_hint)) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             singleLine = true,
         )
@@ -95,13 +95,13 @@ fun ArticlesTabContent(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             DatePickerField(
-                label = "От",
+                label = stringResource(R.string.admin_date_from),
                 value = state.fromDate,
                 onValueChange = { viewModel.setDateRange(it, state.toDate) },
                 modifier = Modifier.weight(1f),
             )
             DatePickerField(
-                label = "До",
+                label = stringResource(R.string.admin_date_to),
                 value = state.toDate,
                 onValueChange = { viewModel.setDateRange(state.fromDate, it) },
                 modifier = Modifier.weight(1f),
@@ -118,17 +118,17 @@ fun ArticlesTabContent(
             FilterChip(
                 selected = state.hiddenFilter == ArticleHiddenFilter.ALL,
                 onClick = { viewModel.setHiddenFilter(ArticleHiddenFilter.ALL) },
-                label = { Text("Все") },
+                label = { Text(stringResource(R.string.admin_articles_filter_all)) },
             )
             FilterChip(
                 selected = state.hiddenFilter == ArticleHiddenFilter.VISIBLE,
                 onClick = { viewModel.setHiddenFilter(ArticleHiddenFilter.VISIBLE) },
-                label = { Text("Видимые") },
+                label = { Text(stringResource(R.string.admin_articles_filter_visible)) },
             )
             FilterChip(
                 selected = state.hiddenFilter == ArticleHiddenFilter.HIDDEN,
                 onClick = { viewModel.setHiddenFilter(ArticleHiddenFilter.HIDDEN) },
-                label = { Text("Скрытые") },
+                label = { Text(stringResource(R.string.admin_articles_filter_hidden)) },
             )
         }
 
@@ -146,13 +146,13 @@ fun ArticlesTabContent(
                         Text(state.error!!, style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(16.dp))
                         Button(onClick = { viewModel.refresh() }) {
-                            Text(stringResource(R.string.btn_retry))
+                            Text(stringResource(R.string.admin_btn_retry))
                         }
                     }
 
                 state.items.isEmpty() ->
                     Text(
-                        "Статей не найдено",
+                        stringResource(R.string.admin_articles_empty),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.align(Alignment.Center),
@@ -184,7 +184,7 @@ fun ArticlesTabContent(
                         if (state.isEndOfList && state.items.isNotEmpty()) {
                             item {
                                 Text(
-                                    stringResource(R.string.feed_end),
+                                    stringResource(R.string.admin_list_end),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.fillMaxWidth().padding(8.dp),
@@ -219,7 +219,7 @@ private fun ArticleListItem(
                 verticalAlignment = Alignment.Top,
             ) {
                 Text(
-                    text = article.title ?: "Без названия",
+                    text = article.title ?: stringResource(R.string.admin_untitled),
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -231,7 +231,7 @@ private fun ArticleListItem(
                         contentColor = MaterialTheme.colorScheme.onError,
                         modifier = Modifier.padding(start = 8.dp),
                     ) {
-                        Text("Скрыта", style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.admin_articles_hidden_badge), style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -280,7 +280,7 @@ internal fun DatePickerField(
             trailingIcon = {
                 if (value != null) {
                     IconButton(onClick = { onValueChange(null) }) {
-                        Icon(Icons.Default.Close, contentDescription = "Очистить")
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.admin_date_clear))
                     }
                 } else {
                     IconButton(onClick = { showDialog = true }) {
@@ -315,7 +315,7 @@ internal fun DatePickerField(
                 }) { Text("OK") }
             },
             dismissButton = {
-                TextButton(onClick = { showDialog = false }) { Text("Отмена") }
+                TextButton(onClick = { showDialog = false }) { Text(stringResource(R.string.admin_btn_cancel)) }
             },
         ) {
             DatePicker(state = datePickerState)

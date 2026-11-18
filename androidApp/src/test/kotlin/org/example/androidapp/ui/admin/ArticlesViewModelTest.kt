@@ -32,7 +32,7 @@ class ArticlesViewModelTest {
 
     @BeforeEach fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        coEvery { metaApi.languageNames() } returns emptyMap()
+        coEvery { metaApi.languageNames(any()) } returns emptyMap()
         coEvery { metaApi.regions() } returns emptyList()
     }
     @AfterEach fun tearDown() { Dispatchers.resetMain() }
@@ -100,7 +100,7 @@ class ArticlesViewModelTest {
         val s = vm.state.value
         assertTrue(s.items.isEmpty())
         assertNotNull(s.error)
-        assertTrue(s.error!!.contains("прав"))
+        assertTrue(s.error!!.contains("denied"))
     }
 
     @Test

@@ -41,11 +41,11 @@ class UserDetailViewModel(
     private fun loadMeta() {
         viewModelScope.launch {
             try {
-                val langs = metaApi.languages()
+                val names = metaApi.languageNames("en")
                 val regions = metaApi.regions()
                 _state.update { it.copy(
-                    languageByCode = langs.mapNotNull { l -> l.name?.let { n -> l.code to n } }.toMap(),
-                    regionByKey = regions.mapNotNull { r -> r.nameRu?.let { n -> r.key to n } }.toMap(),
+                    languageByCode = names,
+                    regionByKey = regions.mapNotNull { r -> r.name?.let { n -> r.key to n } }.toMap(),
                 ) }
             } catch (_: Exception) {}
         }
@@ -58,10 +58,10 @@ class UserDetailViewModel(
                 val dto = adminApi.getUserDetail(userId)
                 _state.update { it.copy(isLoading = false, user = dto) }
             } catch (e: ApiException) {
-                val msg = if (e.httpStatus == 403) "Недостаточно прав" else "Ошибка загрузки"
+                val msg = if (e.httpStatus == 403) "Access denied" else "Failed to load"
                 _state.update { it.copy(isLoading = false, error = msg) }
             } catch (_: Exception) {
-                _state.update { it.copy(isLoading = false, error = "Ошибка загрузки") }
+                _state.update { it.copy(isLoading = false, error = "Failed to load") }
             }
         }
     }
@@ -74,18 +74,18 @@ class UserDetailViewModel(
                 _state.update { it.copy(
                     isChangingRole = false,
                     user = _state.value.user?.copy(role = newRole),
-                    snackbar = "Роль изменена",
+                    snackbar = "Role updated",
                     roleChanged = true,
                 ) }
             } catch (e: ApiException) {
                 val msg = when (e.httpStatus) {
-                    409  -> "Нельзя изменить собственную роль"
-                    403  -> "Недостаточно прав"
-                    else -> "Ошибка"
+                    409  -> "Cannot change your own role"
+                    403  -> "Access denied"
+                    else -> "Error"
                 }
                 _state.update { it.copy(isChangingRole = false, snackbar = msg) }
             } catch (_: Exception) {
-                _state.update { it.copy(isChangingRole = false, snackbar = "Ошибка") }
+                _state.update { it.copy(isChangingRole = false, snackbar = "Error") }
             }
         }
     }

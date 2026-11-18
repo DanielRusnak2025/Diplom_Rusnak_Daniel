@@ -9,6 +9,17 @@ import org.example.dto.LanguageDto
 import org.example.dto.RegionDto
 import org.example.server.util.withNewTransaction
 
+private val LANGUAGE_NAMES_EN = mapOf(
+    "en" to "English",
+    "ru" to "Russian",
+    "de" to "German",
+    "ro" to "Romanian",
+    "zh" to "Chinese",
+    "fr" to "French",
+    "es" to "Spanish",
+    "uk" to "Ukrainian",
+)
+
 private val LANGUAGE_NAMES_RU = mapOf(
     "en" to "Английский",
     "ru" to "Русский",
@@ -40,7 +51,9 @@ fun Route.metaRoutes() {
         }
 
         get("/api/v1/language-names") {
-            call.respond(LANGUAGE_NAMES_RU)
+            val lang = call.request.queryParameters["lang"] ?: "ru"
+            val names = if (lang == "en") LANGUAGE_NAMES_EN else LANGUAGE_NAMES_RU
+            call.respond(names)
         }
     }
 }

@@ -35,6 +35,7 @@ class ArticleDetailViewModelTest {
         Dispatchers.setMain(testDispatcher)
         coEvery { metaApi.languages() } returns emptyList()
         coEvery { metaApi.regions() } returns emptyList()
+        coEvery { metaApi.languageNames(any()) } returns emptyMap()
     }
     @AfterEach fun tearDown() { Dispatchers.resetMain() }
 
@@ -78,7 +79,7 @@ class ArticleDetailViewModelTest {
         val s = vm.state.value
         assertNull(s.article)
         assertNotNull(s.error)
-        assertTrue(s.error!!.contains("прав"))
+        assertTrue(s.error!!.contains("denied"))
     }
 
     @Test
@@ -140,7 +141,7 @@ class ArticleDetailViewModelTest {
         assertEquals(false, s.article?.hidden)
         assertNull(s.hiddenChanged)
         assertNotNull(s.snackbar)
-        assertTrue(s.snackbar!!.contains("прав"))
+        assertTrue(s.snackbar!!.contains("denied"))
     }
 
     @Test

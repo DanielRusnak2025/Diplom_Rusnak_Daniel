@@ -78,11 +78,11 @@ fun AdminPanelScreen(
     }
     val tabLabels = tabs.map { tab ->
         when (tab) {
-            AdminTab.ARTICLES   -> R.string.tab_articles
-            AdminTab.USERS      -> R.string.tab_users
-            AdminTab.COMPLAINTS -> R.string.tab_complaints
-            AdminTab.AUDIT      -> R.string.tab_audit
-            AdminTab.STATS      -> R.string.tab_stats
+            AdminTab.ARTICLES   -> R.string.admin_tab_articles
+            AdminTab.USERS      -> R.string.admin_tab_users
+            AdminTab.COMPLAINTS -> R.string.admin_tab_complaints
+            AdminTab.AUDIT      -> R.string.admin_tab_audit
+            AdminTab.STATS      -> R.string.admin_tab_stats
         }
     }
 
@@ -126,13 +126,13 @@ fun AdminPanelScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.screen_panel_title)) },
+                title = { Text(stringResource(R.string.admin_screen_title)) },
                 actions = {
                     TextButton(onClick = onNavigateToFeed) {
-                        Text(stringResource(R.string.btn_feed))
+                        Text(stringResource(R.string.admin_btn_feed))
                     }
                     TextButton(onClick = { showLogoutDialog = true }) {
-                        Text(stringResource(R.string.action_logout))
+                        Text(stringResource(R.string.admin_btn_logout))
                     }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.cd_settings))
@@ -205,19 +205,19 @@ fun AdminPanelScreen(
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
-            title = { Text(stringResource(R.string.action_logout)) },
-            text = { Text(stringResource(R.string.dialog_logout_message)) },
+            title = { Text(stringResource(R.string.admin_btn_logout)) },
+            text = { Text(stringResource(R.string.admin_dialog_logout_message)) },
             confirmButton = {
                 Button(onClick = {
                     showLogoutDialog = false
                     onLogout()
                 }) {
-                    Text(stringResource(R.string.action_logout))
+                    Text(stringResource(R.string.admin_btn_logout))
                 }
             },
             dismissButton = {
                 OutlinedButton(onClick = { showLogoutDialog = false }) {
-                    Text(stringResource(R.string.btn_cancel))
+                    Text(stringResource(R.string.admin_btn_cancel))
                 }
             },
         )
@@ -231,7 +231,7 @@ private fun PlaceholderContent() {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            stringResource(R.string.panel_placeholder),
+            stringResource(R.string.admin_placeholder),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -255,7 +255,7 @@ private fun StatsTabContent(
                 ) {
                     Text(state.error, style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = onRetry) { Text(stringResource(R.string.btn_retry)) }
+                    Button(onClick = onRetry) { Text(stringResource(R.string.admin_btn_retry)) }
                 }
 
             state.stats != null ->
@@ -271,11 +271,11 @@ private fun StatsContent(stats: StatsDto) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
-        item { StatCard(label = stringResource(R.string.stats_total_articles), value = stats.totalArticles.toString()) }
-        item { StatCard(label = stringResource(R.string.stats_classified), value = stats.classifiedArticles.toString()) }
-        item { StatCard(label = stringResource(R.string.stats_pending), value = stats.pendingQueue.toString()) }
-        item { StatCard(label = stringResource(R.string.stats_total_users), value = stats.totalUsers.toString()) }
-        item { StatCard(label = stringResource(R.string.stats_open_complaints), value = stats.openComplaints.toString()) }
+        item { StatCard(label = stringResource(R.string.admin_stats_total_articles), value = stats.totalArticles.toString()) }
+        item { StatCard(label = stringResource(R.string.admin_stats_classified), value = stats.classifiedArticles.toString()) }
+        item { StatCard(label = stringResource(R.string.admin_stats_pending), value = stats.pendingQueue.toString()) }
+        item { StatCard(label = stringResource(R.string.admin_stats_total_users), value = stats.totalUsers.toString()) }
+        item { StatCard(label = stringResource(R.string.admin_stats_open_complaints), value = stats.openComplaints.toString()) }
     }
 }
 
@@ -317,17 +317,17 @@ private fun AuditTabContent(
             FilterChip(
                 selected = state.filter == AuditFilter.MODERATION,
                 onClick = { onFilterChange(AuditFilter.MODERATION) },
-                label = { Text("Модерация") },
+                label = { Text(stringResource(R.string.admin_audit_filter_moderation)) },
             )
             FilterChip(
                 selected = state.filter == AuditFilter.AUTH,
                 onClick = { onFilterChange(AuditFilter.AUTH) },
-                label = { Text("Вход и выход") },
+                label = { Text(stringResource(R.string.admin_audit_filter_auth)) },
             )
             FilterChip(
                 selected = state.filter == AuditFilter.ALL,
                 onClick = { onFilterChange(AuditFilter.ALL) },
-                label = { Text("Все") },
+                label = { Text(stringResource(R.string.admin_audit_filter_all)) },
             )
         }
 
@@ -347,12 +347,12 @@ private fun AuditTabContent(
                     ) {
                         Text(state.error, style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(16.dp))
-                        Button(onClick = onRetry) { Text(stringResource(R.string.btn_retry)) }
+                        Button(onClick = onRetry) { Text(stringResource(R.string.admin_btn_retry)) }
                     }
 
                 state.items.isEmpty() ->
                     Text(
-                        stringResource(R.string.audit_empty),
+                        stringResource(R.string.admin_audit_empty),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.align(Alignment.Center),
@@ -381,7 +381,7 @@ private fun AuditTabContent(
                         if (state.isEndOfList && state.items.isNotEmpty()) {
                             item {
                                 Text(
-                                    stringResource(R.string.feed_end),
+                                    stringResource(R.string.admin_list_end),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.fillMaxWidth().padding(8.dp),
@@ -449,8 +449,8 @@ private fun formatAuditDate(iso: String?): String {
 private fun formatAuditTarget(targetType: String?, targetId: String?, targetNick: String?): String? {
     if (targetType == null || targetId == null) return null
     return when (targetType.lowercase()) {
-        "user"    -> if (targetNick != null) "Пользователь $targetNick" else "Пользователь #$targetId"
-        "article" -> "Статья #$targetId"
+        "user"    -> if (targetNick != null) "User $targetNick" else "User #$targetId"
+        "article" -> "Article #$targetId"
         else      -> "${targetType.replaceFirstChar { it.uppercase() }} #$targetId"
     }
 }

@@ -108,10 +108,10 @@ class UsersViewModel(private val adminApi: AdminApi) : ViewModel() {
                 isEndOfList = page.nextCursor == null,
             ) }
         } catch (e: ApiException) {
-            val msg = if (e.httpStatus == 403) "Недостаточно прав" else "Ошибка загрузки"
+            val msg = if (e.httpStatus == 403) "Access denied" else "Failed to load"
             _state.update { it.copy(isLoading = false, error = msg) }
         } catch (_: Exception) {
-            _state.update { it.copy(isLoading = false, error = "Ошибка загрузки") }
+            _state.update { it.copy(isLoading = false, error = "Failed to load") }
         }
     }
 }

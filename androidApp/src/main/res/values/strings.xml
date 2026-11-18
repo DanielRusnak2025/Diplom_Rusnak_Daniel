@@ -120,4 +120,127 @@
     <string name="users_search_hint">Поиск по нику</string>
     <string name="users_date_from">С даты</string>
     <string name="users_date_to">По дату</string>
+
+    <!-- Admin panel: common UI -->
+    <string name="admin_screen_title">Admin Panel</string>
+    <string name="admin_btn_feed">Feed</string>
+    <string name="admin_btn_logout">Log out</string>
+    <string name="admin_dialog_logout_message">Log out of the admin panel?</string>
+    <string name="admin_placeholder">Section under development</string>
+    <string name="admin_btn_retry">Retry</string>
+    <string name="admin_btn_cancel">Cancel</string>
+    <string name="admin_list_end">No more items</string>
+    <string name="admin_date_from">From</string>
+    <string name="admin_date_to">To</string>
+    <string name="admin_date_clear">Clear date</string>
+    <string name="admin_untitled">Untitled</string>
+
+    <!-- Admin panel: tabs -->
+    <string name="admin_tab_articles">Articles</string>
+    <string name="admin_tab_users">Users</string>
+    <string name="admin_tab_complaints">Complaints</string>
+    <string name="admin_tab_audit">Audit log</string>
+    <string name="admin_tab_stats">Statistics</string>
+
+    <!-- Admin panel: audit tab -->
+    <string name="admin_audit_empty">No audit entries</string>
+    <string name="admin_audit_filter_moderation">Moderation</string>
+    <string name="admin_audit_filter_auth">Auth</string>
+    <string name="admin_audit_filter_all">All</string>
+    <string name="admin_audit_register">Registration</string>
+    <string name="admin_audit_login">Login</string>
+    <string name="admin_audit_login_failed">Failed login</string>
+    <string name="admin_audit_token_refresh">Token refresh</string>
+    <string name="admin_audit_token_reuse">Token reuse</string>
+    <string name="admin_audit_logout">Logout</string>
+    <string name="admin_audit_password_changed">Password changed</string>
+    <string name="admin_audit_article_hidden">Article hidden</string>
+    <string name="admin_audit_article_unhidden">Article unhidden</string>
+    <string name="admin_audit_complaints_dismissed">Complaints dismissed</string>
+    <string name="admin_audit_complaint_dismissed">Complaint dismissed</string>
+    <string name="admin_audit_role_changed">Role changed</string>
+    <string name="admin_audit_target_user_nick">User %s</string>
+    <string name="admin_audit_target_user_id">User #%s</string>
+    <string name="admin_audit_target_article">Article #%s</string>
+
+    <!-- Admin panel: stats tab -->
+    <string name="admin_stats_total_articles">Total articles</string>
+    <string name="admin_stats_classified">Classified</string>
+    <string name="admin_stats_pending">Pending queue</string>
+    <string name="admin_stats_total_users">Total users</string>
+    <string name="admin_stats_open_complaints">Open complaints</string>
+
+    <!-- Admin panel: articles tab -->
+    <string name="admin_articles_search_hint">Search by title</string>
+    <string name="admin_articles_empty">No articles found</string>
+    <string name="admin_articles_hidden_badge">Hidden</string>
+    <string name="admin_articles_filter_all">All</string>
+    <string name="admin_articles_filter_visible">Visible</string>
+    <string name="admin_articles_filter_hidden">Hidden</string>
+
+    <!-- Admin panel: users tab -->
+    <string name="admin_users_search_hint">Search by nick</string>
+    <string name="admin_users_date_from">Registered from</string>
+    <string name="admin_users_date_to">Registered to</string>
+    <string name="admin_users_empty">No users found</string>
+    <string name="admin_users_registered">Registered: %s</string>
+
+    <!-- Admin panel: complaints tab -->
+    <string name="admin_complaints_search_hint">Search by article title</string>
+    <string name="admin_complaints_empty">No complaints</string>
+    <string name="admin_complaints_hide_article">Hide article</string>
+    <string name="admin_complaints_hide_confirm">Hide article "%s"?</string>
+    <string name="admin_complaints_hide_btn">Hide</string>
+    <string name="admin_complaints_dismiss">Dismiss</string>
+    <string name="admin_complaints_dismiss_confirm">Dismiss complaint for "%s"?</string>
+    <string name="admin_complaints_dismiss_btn">Dismiss</string>
+
+    <!-- Admin panel: article detail -->
+    <string name="admin_article_screen_title">Article #%d</string>
+    <string name="admin_article_unhide_dialog_title">Unhide article?</string>
+    <string name="admin_article_hide_dialog_title">Hide article?</string>
+    <string name="admin_article_unhide_dialog_body">The article will appear in the feed again.</string>
+    <string name="admin_article_hide_dialog_body">The article will be hidden from the feed.</string>
+    <string name="admin_article_btn_unhide">Unhide</string>
+    <string name="admin_article_btn_hide">Hide</string>
+    <string name="admin_article_field_title">Title</string>
+    <string name="admin_article_field_link">Link</string>
+    <string name="admin_article_field_publisher">Publisher</string>
+    <string name="admin_article_field_language">Language</string>
+    <string name="admin_article_field_region">Region</string>
+    <string name="admin_article_field_date">Date</string>
+    <string name="admin_article_field_hidden">Hidden</string>
+    <string name="admin_article_field_ratings">Ratings</string>
+    <string name="admin_article_field_tags">Tags</string>
+    <string name="admin_article_field_complaints">Complainants</string>
+    <string name="admin_article_copy_title">Copy title</string>
+    <string name="admin_article_copy_link">Copy link</string>
+    <string name="admin_article_open_browser">Open in browser</string>
+    <string name="admin_article_copy_publisher">Copy publisher</string>
+
+    <!-- Admin panel: user detail -->
+    <string name="admin_user_screen_title">User #%d</string>
+    <string name="admin_user_field_nick">Nick</string>
+    <string name="admin_user_field_email">Email</string>
+    <string name="admin_user_copy_email">Copy email</string>
+    <string name="admin_user_field_registered">Registration date</string>
+    <string name="admin_user_field_role">Role</string>
+    <string name="admin_user_field_languages">Languages</string>
+    <string name="admin_user_field_regions">Regions</string>
+    <string name="admin_user_field_interests">Interests</string>
+    <string name="admin_user_field_blocks">Blocks</string>
+    <string name="admin_user_field_ratings">Ratings</string>
+    <string name="admin_user_role_dialog_title">Change role?</string>
+    <string name="admin_user_role_dialog_body">User %1$s: new role — %2$s.</string>
+    <string name="admin_user_role_dialog_body_no_nick">New role — %1$s.</string>
+    <string name="admin_user_role_btn">Change</string>
+    <string name="admin_user_block_tag">Tag: %s</string>
+    <string name="admin_user_block_region">Region: %s</string>
+    <string name="admin_user_block_publisher">Publisher: %s</string>
+    <string name="admin_user_ratings_likes">Likes</string>
+    <string name="admin_user_ratings_dislikes">Dislikes</string>
+    <string name="admin_user_ratings_complaints">Complaints</string>
+    <string name="admin_user_role_user">User</string>
+    <string name="admin_user_role_moderator">Moderator</string>
+    <string name="admin_user_role_admin">Administrator</string>
 </resources>

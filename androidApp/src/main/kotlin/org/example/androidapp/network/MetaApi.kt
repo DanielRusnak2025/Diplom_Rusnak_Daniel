@@ -3,6 +3,7 @@ package org.example.androidapp.network
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
+import io.ktor.client.request.parameter
 import org.example.dto.CategoryDto
 import org.example.dto.LanguageDto
 import org.example.dto.RegionDto
@@ -17,8 +18,10 @@ class MetaApi(
     suspend fun languages(): List<LanguageDto> =
         authClient.get("$baseUrl/api/v1/languages").body()
 
-    suspend fun languageNames(): Map<String, String> =
-        authClient.get("$baseUrl/api/v1/language-names").body()
+    suspend fun languageNames(lang: String = "ru"): Map<String, String> =
+        authClient.get("$baseUrl/api/v1/language-names") {
+            parameter("lang", lang)
+        }.body()
 
     suspend fun categories(): List<CategoryDto> =
         authClient.get("$baseUrl/api/v1/categories").body()

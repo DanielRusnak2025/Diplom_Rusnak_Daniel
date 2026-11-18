@@ -87,7 +87,7 @@ fun AdminUserDetailScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Пользователь #${viewModel.userId}") },
+                title = { Text(stringResource(R.string.admin_user_screen_title, viewModel.userId)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
@@ -114,7 +114,7 @@ fun AdminUserDetailScreen(
                         Text(state.error!!, style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(16.dp))
                         Button(onClick = { viewModel.loadDetail() }) {
-                            Text(stringResource(R.string.btn_retry))
+                            Text(stringResource(R.string.admin_btn_retry))
                         }
                     }
 
@@ -134,24 +134,24 @@ fun AdminUserDetailScreen(
         val user = state.user
         AlertDialog(
             onDismissRequest = { pendingRole = null },
-            title = { Text("Изменить роль?") },
+            title = { Text(stringResource(R.string.admin_user_role_dialog_title)) },
             text = {
                 Text(
                     if (user != null)
-                        "Пользователь ${user.nick}: новая роль — ${roleLabel(role)}."
+                        stringResource(R.string.admin_user_role_dialog_body, user.nick, roleLabel(role))
                     else
-                        "Новая роль — ${roleLabel(role)}.",
+                        stringResource(R.string.admin_user_role_dialog_body_no_nick, roleLabel(role)),
                 )
             },
             confirmButton = {
                 Button(onClick = {
                     viewModel.setRole(role)
                     pendingRole = null
-                }) { Text("Изменить") }
+                }) { Text(stringResource(R.string.admin_user_role_btn)) }
             },
             dismissButton = {
                 OutlinedButton(onClick = { pendingRole = null }) {
-                    Text(stringResource(R.string.btn_cancel))
+                    Text(stringResource(R.string.admin_btn_cancel))
                 }
             },
         )
@@ -176,12 +176,12 @@ private fun UserDetailContent(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // Nick
-        UDetailSection(label = "Ник") {
+        UDetailSection(label = stringResource(R.string.admin_user_field_nick)) {
             Text(user.nick, style = MaterialTheme.typography.titleMedium)
         }
 
         // Email
-        UDetailSection(label = "Email") {
+        UDetailSection(label = stringResource(R.string.admin_user_field_email)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = user.email ?: "—",
@@ -190,19 +190,19 @@ private fun UserDetailContent(
                 )
                 user.email?.let { email ->
                     IconButton(onClick = { clipboard.setText(AnnotatedString(email)) }) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "Копировать email")
+                        Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.admin_user_copy_email))
                     }
                 }
             }
         }
 
         // Registration date
-        UDetailSection(label = "Дата регистрации") {
+        UDetailSection(label = stringResource(R.string.admin_user_field_registered)) {
             Text(user.registrationDate ?: "—", style = MaterialTheme.typography.bodyMedium)
         }
 
         // Role
-        UDetailSection(label = "Роль") {
+        UDetailSection(label = stringResource(R.string.admin_user_field_role)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -230,7 +230,7 @@ private fun UserDetailContent(
 
         // Languages
         if (user.languages.isNotEmpty()) {
-            UDetailSection(label = "Языки") {
+            UDetailSection(label = stringResource(R.string.admin_user_field_languages)) {
                 Text(
                     text = user.languages.joinToString(", ") { languageByCode[it] ?: it },
                     style = MaterialTheme.typography.bodyMedium,
@@ -240,7 +240,7 @@ private fun UserDetailContent(
 
         // Regions
         if (user.regions.isNotEmpty()) {
-            UDetailSection(label = "Регионы") {
+            UDetailSection(label = stringResource(R.string.admin_user_field_regions)) {
                 Text(
                     text = user.regions.joinToString(", ") { regionByKey[it] ?: it },
                     style = MaterialTheme.typography.bodyMedium,
@@ -252,7 +252,7 @@ private fun UserDetailContent(
 
         // Interests
         if (user.interests.isNotEmpty()) {
-            UDetailSection(label = "Интересы") {
+            UDetailSection(label = stringResource(R.string.admin_user_field_interests)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     user.interests.sortedByDescending { kotlin.math.abs(it.percent) }.forEach { interest ->
                         InterestBar(interest = interest)
@@ -265,7 +265,7 @@ private fun UserDetailContent(
 
         // Blocks
         if (user.blocks.isNotEmpty()) {
-            UDetailSection(label = "Блокировки") {
+            UDetailSection(label = stringResource(R.string.admin_user_field_blocks)) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     user.blocks.forEach { block ->
                         BlockRow(block = block, regionByKey = regionByKey)
@@ -277,7 +277,7 @@ private fun UserDetailContent(
         HorizontalDivider()
 
         // Ratings
-        UDetailSection(label = "Оценки") {
+        UDetailSection(label = stringResource(R.string.admin_user_field_ratings)) {
             RatingsSection(ratings = user.ratings)
         }
 
@@ -301,7 +301,7 @@ private fun UDetailSection(label: String, content: @Composable () -> Unit) {
 @Composable
 private fun InterestBar(interest: AdminInterestDto) {
     val percent = interest.percent
-    val displayName = interest.nameRu ?: interest.nameEn ?: interest.tagKey
+    val displayName = interest.nameEn ?: interest.nameRu ?: interest.tagKey
     val isPositive = percent >= 0
     val fillFraction = kotlin.math.abs(percent).coerceIn(0, 100) / 100f
     val fillColor = if (isPositive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
@@ -340,9 +340,9 @@ private fun InterestBar(interest: AdminInterestDto) {
 @Composable
 private fun BlockRow(block: AdminBlockDto, regionByKey: Map<String, String>) {
     val label = when (block.blockType) {
-        BlockTypeDto.TAG       -> "Тег: ${block.tagKey ?: "—"}"
-        BlockTypeDto.REGION    -> "Регион: ${block.region?.let { regionByKey[it] ?: it } ?: "—"}"
-        BlockTypeDto.PUBLISHER -> "Издатель: ${block.publisher ?: "—"}"
+        BlockTypeDto.TAG       -> stringResource(R.string.admin_user_block_tag, block.tagKey ?: "—")
+        BlockTypeDto.REGION    -> stringResource(R.string.admin_user_block_region, block.region?.let { regionByKey[it] ?: it } ?: "—")
+        BlockTypeDto.PUBLISHER -> stringResource(R.string.admin_user_block_publisher, block.publisher ?: "—")
     }
     Text(label, style = MaterialTheme.typography.bodySmall)
 }
@@ -351,9 +351,9 @@ private fun BlockRow(block: AdminBlockDto, regionByKey: Map<String, String>) {
 private fun RatingsSection(ratings: AdminUserRatingsDto) {
     val total = ratings.likeCount + ratings.dislikeCount + ratings.complaintCount
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        RatingBar(label = "Лайки", value = ratings.likeCount, total = total, positive = true)
-        RatingBar(label = "Дизлайки", value = ratings.dislikeCount, total = total, positive = false)
-        RatingBar(label = "Жалобы", value = ratings.complaintCount, total = total, positive = false)
+        RatingBar(label = stringResource(R.string.admin_user_ratings_likes), value = ratings.likeCount, total = total, positive = true)
+        RatingBar(label = stringResource(R.string.admin_user_ratings_dislikes), value = ratings.dislikeCount, total = total, positive = false)
+        RatingBar(label = stringResource(R.string.admin_user_ratings_complaints), value = ratings.complaintCount, total = total, positive = false)
     }
 }
 
@@ -388,7 +388,7 @@ private fun RatingBar(label: String, value: Int, total: Int, positive: Boolean) 
 }
 
 private fun roleLabel(role: RoleDto): String = when (role) {
-    RoleDto.USER      -> "Пользователь"
-    RoleDto.MODERATOR -> "Модератор"
-    RoleDto.ADMIN     -> "Администратор"
+    RoleDto.USER      -> "User"
+    RoleDto.MODERATOR -> "Moderator"
+    RoleDto.ADMIN     -> "Administrator"
 }

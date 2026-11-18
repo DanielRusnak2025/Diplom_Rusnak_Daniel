@@ -80,11 +80,10 @@ class ComplaintsViewModel(private val adminApi: AdminApi) : ViewModel() {
                 isEndOfList = page.nextCursor == null,
             ) }
         } catch (e: ApiException) {
-            val msg = if (e.httpStatus == 403) "Недостаточно прав для просмотра жалоб"
-                      else "Ошибка загрузки жалоб"
+            val msg = if (e.httpStatus == 403) "Access denied" else "Failed to load complaints"
             _state.update { it.copy(isLoading = false, error = msg) }
         } catch (_: Exception) {
-            _state.update { it.copy(isLoading = false, error = "Ошибка загрузки жалоб") }
+            _state.update { it.copy(isLoading = false, error = "Failed to load complaints") }
         }
     }
 
@@ -131,15 +130,15 @@ class ComplaintsViewModel(private val adminApi: AdminApi) : ViewModel() {
                 _state.update { s ->
                     s.copy(
                         items = s.items.filter { it.articleId != item.articleId },
-                        snackbar = "Статья скрыта",
+                        snackbar = "Article hidden",
                         hidCount = s.hidCount + 1,
                     )
                 }
             } catch (e: ApiException) {
-                val msg = if (e.httpStatus == 403) "Недостаточно прав" else "Не удалось скрыть статью"
+                val msg = if (e.httpStatus == 403) "Access denied" else "Failed to hide article"
                 _state.update { it.copy(snackbar = msg) }
             } catch (_: Exception) {
-                _state.update { it.copy(snackbar = "Не удалось скрыть статью") }
+                _state.update { it.copy(snackbar = "Failed to hide article") }
             }
         }
     }
@@ -161,14 +160,14 @@ class ComplaintsViewModel(private val adminApi: AdminApi) : ViewModel() {
                 _state.update { s ->
                     s.copy(
                         items = s.items.filter { it.reportId != item.reportId },
-                        snackbar = "Жалоба отклонена",
+                        snackbar = "Complaint dismissed",
                     )
                 }
             } catch (e: ApiException) {
-                val msg = if (e.httpStatus == 403) "Недостаточно прав" else "Не удалось отклонить жалобу"
+                val msg = if (e.httpStatus == 403) "Access denied" else "Failed to dismiss complaint"
                 _state.update { it.copy(snackbar = msg) }
             } catch (_: Exception) {
-                _state.update { it.copy(snackbar = "Не удалось отклонить жалобу") }
+                _state.update { it.copy(snackbar = "Failed to dismiss complaint") }
             }
         }
     }

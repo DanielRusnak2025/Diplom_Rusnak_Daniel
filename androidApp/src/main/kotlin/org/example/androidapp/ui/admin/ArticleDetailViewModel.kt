@@ -40,11 +40,11 @@ class ArticleDetailViewModel(
     private fun loadMeta() {
         viewModelScope.launch {
             try {
-                val langs = metaApi.languages()
+                val names = metaApi.languageNames("en")
                 val regions = metaApi.regions()
                 _state.update { it.copy(
-                    languageByCode = langs.mapNotNull { l -> l.name?.let { n -> l.code to n } }.toMap(),
-                    regionByKey = regions.mapNotNull { r -> r.nameRu?.let { n -> r.key to n } }.toMap(),
+                    languageByCode = names,
+                    regionByKey = regions.mapNotNull { r -> r.name?.let { n -> r.key to n } }.toMap(),
                 ) }
             } catch (_: Exception) {}
         }
@@ -57,10 +57,10 @@ class ArticleDetailViewModel(
                 val dto = adminApi.getArticleDetail(articleId)
                 _state.update { it.copy(isLoading = false, article = dto) }
             } catch (e: ApiException) {
-                val msg = if (e.httpStatus == 403) "Недостаточно прав" else "Ошибка загрузки"
+                val msg = if (e.httpStatus == 403) "Access denied" else "Failed to load"
                 _state.update { it.copy(isLoading = false, error = msg) }
             } catch (_: Exception) {
-                _state.update { it.copy(isLoading = false, error = "Ошибка загрузки") }
+                _state.update { it.copy(isLoading = false, error = "Failed to load") }
             }
         }
     }
@@ -76,15 +76,15 @@ class ArticleDetailViewModel(
                     state.copy(
                         isHiding = false,
                         article = state.article?.copy(hidden = newHidden),
-                        snackbar = if (newHidden) "Статья скрыта" else "Статья показана",
+                        snackbar = if (newHidden) "Article hidden" else "Article shown",
                         hiddenChanged = newHidden,
                     )
                 }
             } catch (e: ApiException) {
-                val msg = if (e.httpStatus == 403) "Недостаточно прав" else "Ошибка"
+                val msg = if (e.httpStatus == 403) "Access denied" else "Error"
                 _state.update { it.copy(isHiding = false, snackbar = msg) }
             } catch (_: Exception) {
-                _state.update { it.copy(isHiding = false, snackbar = "Ошибка") }
+                _state.update { it.copy(isHiding = false, snackbar = "Error") }
             }
         }
     }

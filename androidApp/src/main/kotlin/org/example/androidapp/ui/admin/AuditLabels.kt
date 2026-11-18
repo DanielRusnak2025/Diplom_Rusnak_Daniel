@@ -1,17 +1,17 @@
 package org.example.androidapp.ui.admin
 
 internal fun auditActionLabel(action: String): String = when (action) {
-    "REGISTER"             -> "Регистрация"
-    "LOGIN"                -> "Вход"
-    "LOGIN_FAILED"         -> "Неудачный вход"
-    "TOKEN_REFRESH"        -> "Обновление токена"
-    "TOKEN_REUSE"          -> "Повторное использование токена"
-    "LOGOUT"               -> "Выход"
-    "PASSWORD_CHANGED"     -> "Смена пароля"
-    "ARTICLE_HIDDEN"       -> "Статья скрыта"
-    "ARTICLE_UNHIDDEN"     -> "Статья показана"
-    "COMPLAINTS_DISMISSED" -> "Жалобы отклонены"
-    "COMPLAINT_DISMISSED"  -> "Жалоба отклонена"
-    "USER_ROLE_CHANGED"    -> "Роль изменена"
+    "REGISTER"             -> "Registration"
+    "LOGIN"                -> "Login"
+    "LOGIN_FAILED"         -> "Failed login"
+    "TOKEN_REFRESH"        -> "Token refresh"
+    "TOKEN_REUSE"          -> "Token reuse"
+    "LOGOUT"               -> "Logout"
+    "PASSWORD_CHANGED"     -> "Password changed"
+    "ARTICLE_HIDDEN"       -> "Article hidden"
+    "ARTICLE_UNHIDDEN"     -> "Article unhidden"
+    "COMPLAINTS_DISMISSED" -> "Complaints dismissed"
+    "COMPLAINT_DISMISSED"  -> "Complaint dismissed"
+    "USER_ROLE_CHANGED"    -> "Role changed"
     else                   -> action
 }

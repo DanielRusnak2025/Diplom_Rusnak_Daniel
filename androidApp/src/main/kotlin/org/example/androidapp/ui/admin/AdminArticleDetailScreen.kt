@@ -89,7 +89,7 @@ fun AdminArticleDetailScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Статья #${viewModel.articleId}") },
+                title = { Text(stringResource(R.string.admin_article_screen_title, viewModel.articleId)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -119,7 +119,7 @@ fun AdminArticleDetailScreen(
                         Text(state.error!!, style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(16.dp))
                         Button(onClick = { viewModel.loadDetail() }) {
-                            Text(stringResource(R.string.btn_retry))
+                            Text(stringResource(R.string.admin_btn_retry))
                         }
                     }
 
@@ -140,24 +140,24 @@ fun AdminArticleDetailScreen(
         if (article != null) {
             AlertDialog(
                 onDismissRequest = { showToggleDialog = false },
-                title = { Text(if (article.hidden) "Вернуть статью?" else "Скрыть статью?") },
+                title = { Text(if (article.hidden) stringResource(R.string.admin_article_unhide_dialog_title) else stringResource(R.string.admin_article_hide_dialog_title)) },
                 text = {
                     Text(
                         if (article.hidden)
-                            "Статья снова будет видна в ленте."
+                            stringResource(R.string.admin_article_unhide_dialog_body)
                         else
-                            "Статья будет скрыта из ленты.",
+                            stringResource(R.string.admin_article_hide_dialog_body),
                     )
                 },
                 confirmButton = {
                     Button(onClick = {
                         showToggleDialog = false
                         viewModel.toggleHidden()
-                    }) { Text(if (article.hidden) "Вернуть" else "Скрыть") }
+                    }) { Text(if (article.hidden) stringResource(R.string.admin_article_btn_unhide) else stringResource(R.string.admin_article_btn_hide)) }
                 },
                 dismissButton = {
                     OutlinedButton(onClick = { showToggleDialog = false }) {
-                        Text(stringResource(R.string.btn_cancel))
+                        Text(stringResource(R.string.admin_btn_cancel))
                     }
                 },
             )
@@ -184,7 +184,7 @@ private fun ArticleDetailContent(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // Title
-        DetailSection(label = "Заголовок") {
+        DetailSection(label = stringResource(R.string.admin_article_field_title)) {
             Row(verticalAlignment = Alignment.Top) {
                 Text(
                     text = article.title ?: "—",
@@ -193,14 +193,14 @@ private fun ArticleDetailContent(
                 )
                 article.title?.let { t ->
                     IconButton(onClick = { clipboard.setText(AnnotatedString(t)) }) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "Копировать заголовок")
+                        Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.admin_article_copy_title))
                     }
                 }
             }
         }
 
         // Link
-        DetailSection(label = "Ссылка") {
+        DetailSection(label = stringResource(R.string.admin_article_field_link)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = article.link ?: "—",
@@ -210,21 +210,21 @@ private fun ArticleDetailContent(
                 )
                 article.link?.let { link ->
                     IconButton(onClick = { clipboard.setText(AnnotatedString(link)) }) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "Копировать ссылку")
+                        Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.admin_article_copy_link))
                     }
                     IconButton(onClick = {
                         try {
                             CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(link))
                         } catch (_: Exception) {}
                     }) {
-                        Icon(Icons.Default.OpenInBrowser, contentDescription = "Открыть в браузере")
+                        Icon(Icons.Default.OpenInBrowser, contentDescription = stringResource(R.string.admin_article_open_browser))
                     }
                 }
             }
         }
 
         // Publisher
-        DetailSection(label = "Издатель") {
+        DetailSection(label = stringResource(R.string.admin_article_field_publisher)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = article.publisher ?: "—",
@@ -233,7 +233,7 @@ private fun ArticleDetailContent(
                 )
                 article.publisher?.let { p ->
                     IconButton(onClick = { clipboard.setText(AnnotatedString(p)) }) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "Копировать издателя")
+                        Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.admin_article_copy_publisher))
                     }
                 }
             }
@@ -241,14 +241,14 @@ private fun ArticleDetailContent(
 
         // Meta row
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            article.language?.let { MetaChip(label = "Язык", value = languageByCode[it] ?: it) }
-            article.region?.let { MetaChip(label = "Регион", value = regionByKey[it] ?: it) }
-            article.publicationDate?.let { MetaChip(label = "Дата", value = it) }
+            article.language?.let { MetaChip(label = stringResource(R.string.admin_article_field_language), value = languageByCode[it] ?: it) }
+            article.region?.let { MetaChip(label = stringResource(R.string.admin_article_field_region), value = regionByKey[it] ?: it) }
+            article.publicationDate?.let { MetaChip(label = stringResource(R.string.admin_article_field_date), value = it) }
         }
 
         if (article.hidden) {
             Text(
-                "Скрыта",
+                stringResource(R.string.admin_article_field_hidden),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.error,
             )
@@ -263,14 +263,14 @@ private fun ArticleDetailContent(
             if (isHiding) {
                 CircularProgressIndicator(modifier = Modifier.height(20.dp).width(20.dp))
             } else {
-                Text(if (article.hidden) "Вернуть статью" else "Скрыть статью")
+                Text(if (article.hidden) stringResource(R.string.admin_article_btn_unhide) else stringResource(R.string.admin_article_btn_hide))
             }
         }
 
         HorizontalDivider()
 
         // Ratings
-        DetailSection(label = "Оценки") {
+        DetailSection(label = stringResource(R.string.admin_article_field_ratings)) {
             Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 RatingChip(label = "👍", value = article.likeCount)
                 RatingChip(label = "👎", value = article.dislikeCount)
@@ -280,7 +280,7 @@ private fun ArticleDetailContent(
 
         // Tags
         if (article.tags.isNotEmpty()) {
-            DetailSection(label = "Теги") {
+            DetailSection(label = stringResource(R.string.admin_article_field_tags)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     article.tags.forEach { tag ->
                         TagBar(tag = tag)
@@ -291,7 +291,7 @@ private fun ArticleDetailContent(
 
         // Complainants
         if (article.complainants.isNotEmpty()) {
-            DetailSection(label = "Жалобы") {
+            DetailSection(label = stringResource(R.string.admin_article_field_complaints)) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     article.complainants.forEach { complainant ->
                         ComplainantRow(complainant = complainant)
@@ -341,7 +341,7 @@ private fun TagBar(tag: TagRefDto) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(text = tag.nameRu ?: tag.name, style = MaterialTheme.typography.bodySmall)
+            Text(text = tag.name ?: tag.nameRu ?: "", style = MaterialTheme.typography.bodySmall)
             Text(
                 text = "${tag.percent}%",
                 style = MaterialTheme.typography.bodySmall,
@@ -388,11 +388,11 @@ private fun ComplainantRow(complainant: AdminUserRefDto) {
 }
 
 private fun reasonLabel(reason: ReportReasonDto): String = when (reason) {
-    ReportReasonDto.NOT_INTERESTED_TOPIC -> "Не интересная тема"
-    ReportReasonDto.UNWANTED_REGION      -> "Нежелательный регион"
-    ReportReasonDto.UNWANTED_PUBLISHER   -> "Нежелательный источник"
-    ReportReasonDto.NOT_AN_ARTICLE       -> "Не статья"
-    ReportReasonDto.BROKEN_LINK          -> "Сломанная ссылка"
-    ReportReasonDto.MISLEADING           -> "Вводит в заблуждение"
-    ReportReasonDto.OTHER                -> "Другое"
+    ReportReasonDto.NOT_INTERESTED_TOPIC -> "Not interested in topic"
+    ReportReasonDto.UNWANTED_REGION      -> "Unwanted region"
+    ReportReasonDto.UNWANTED_PUBLISHER   -> "Unwanted publisher"
+    ReportReasonDto.NOT_AN_ARTICLE       -> "Not an article"
+    ReportReasonDto.BROKEN_LINK          -> "Broken link"
+    ReportReasonDto.MISLEADING           -> "Misleading"
+    ReportReasonDto.OTHER                -> "Other"
 }

@@ -83,7 +83,7 @@ class ComplaintsViewModelTest {
 
         val s = vm.state.value
         assertEquals(false, s.isLoading)
-        assertTrue(s.error!!.contains("прав"))
+        assertTrue(s.error!!.contains("denied"))
         assertTrue(s.items.isEmpty())
     }
 
@@ -106,7 +106,7 @@ class ComplaintsViewModelTest {
         val s = vm.state.value
         assertEquals(1, s.items.size)
         assertEquals(item3, s.items.first())
-        assertEquals("Статья скрыта", s.snackbar)
+        assertEquals("Article hidden", s.snackbar)
         assertEquals(1, s.hidCount)
         coVerify(exactly = 1) { adminApi.hideArticle(10, true) }
     }
@@ -131,7 +131,7 @@ class ComplaintsViewModelTest {
         assertEquals(2, s.items.size)
         assertTrue(s.items.none { it.reportId == 1 })
         assertTrue(s.items.any { it.reportId == 2 })
-        assertEquals("Жалоба отклонена", s.snackbar)
+        assertEquals("Complaint dismissed", s.snackbar)
         coVerify(exactly = 1) { adminApi.dismissComplaint(1) }
     }
 
@@ -150,7 +150,7 @@ class ComplaintsViewModelTest {
         advanceUntilIdle()
 
         val s = vm.state.value
-        assertEquals("Недостаточно прав", s.snackbar)
+        assertEquals("Access denied", s.snackbar)
         assertEquals(1, s.items.size)
     }
 

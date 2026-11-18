@@ -35,6 +35,7 @@ class UserDetailViewModelTest {
         Dispatchers.setMain(testDispatcher)
         coEvery { metaApi.languages() } returns emptyList()
         coEvery { metaApi.regions() } returns emptyList()
+        coEvery { metaApi.languageNames(any()) } returns emptyMap()
     }
     @AfterEach fun tearDown() { Dispatchers.resetMain() }
 
@@ -74,7 +75,7 @@ class UserDetailViewModelTest {
         val s = vm.state.value
         assertNull(s.user)
         assertNotNull(s.error)
-        assertTrue(s.error!!.contains("прав"))
+        assertTrue(s.error!!.contains("denied"))
     }
 
     @Test
@@ -100,7 +101,7 @@ class UserDetailViewModelTest {
 
         val s = vm.state.value
         assertEquals(RoleDto.MODERATOR, s.user?.role)
-        assertEquals("Роль изменена", s.snackbar)
+        assertEquals("Role updated", s.snackbar)
         assertTrue(s.roleChanged)
     }
 
@@ -118,7 +119,7 @@ class UserDetailViewModelTest {
         val s = vm.state.value
         assertEquals(RoleDto.ADMIN, s.user?.role)
         assertNotNull(s.snackbar)
-        assertTrue(s.snackbar!!.contains("собственную роль"))
+        assertTrue(s.snackbar!!.contains("own role"))
     }
 
     @Test
@@ -134,6 +135,6 @@ class UserDetailViewModelTest {
 
         val s = vm.state.value
         assertNotNull(s.snackbar)
-        assertTrue(s.snackbar!!.contains("прав"))
+        assertTrue(s.snackbar!!.contains("denied"))
     }
 }
