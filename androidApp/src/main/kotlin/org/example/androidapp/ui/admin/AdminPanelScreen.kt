@@ -50,8 +50,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.example.androidapp.R
-import org.example.androidapp.ui.mod.ComplaintsContent
-import org.example.androidapp.ui.mod.ModeratorViewModel
 import org.example.dto.AuditLogItemDto
 import org.example.dto.RoleDto
 import org.example.dto.StatsDto
@@ -63,7 +61,7 @@ private enum class AdminTab { ARTICLES, USERS, COMPLAINTS, AUDIT, STATS }
 fun AdminPanelScreen(
     role: RoleDto,
     panelVm: AdminPanelViewModel,
-    complaintsVm: ModeratorViewModel,
+    complaintsVm: ComplaintsViewModel,
     articlesVm: ArticlesViewModel? = null,
     usersVm: UsersViewModel? = null,
     onNavigateToFeed: () -> Unit,
@@ -180,7 +178,10 @@ fun AdminPanelScreen(
                     }
 
                 AdminTab.COMPLAINTS ->
-                    ComplaintsContent(viewModel = complaintsVm)
+                    ComplaintsTabContent(
+                        viewModel = complaintsVm,
+                        onNavigateToArticle = onNavigateToArticle,
+                    )
 
                 AdminTab.AUDIT ->
                     AuditTabContent(

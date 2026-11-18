@@ -1,6 +1,7 @@
-package org.example.androidapp.ui.mod
+package org.example.androidapp.ui.admin
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,7 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -23,16 +24,11 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -51,48 +47,9 @@ import org.example.dto.ReportReasonDto
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ModeratorScreen(
-    viewModel: ModeratorViewModel,
-    onNavigateBack: () -> Unit,
-) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
-
-    LaunchedEffect(state.snackbar) {
-        val msg = state.snackbar ?: return@LaunchedEffect
-        snackbarHostState.showSnackbar(msg)
-        viewModel.snackbarShown()
-    }
-
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.cd_back),
-                        )
-                    }
-                },
-                title = { Text(stringResource(R.string.screen_mod_title)) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor         = MaterialTheme.colorScheme.background,
-                    titleContentColor      = MaterialTheme.colorScheme.onBackground,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
-                ),
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { padding ->
-        ComplaintsContent(viewModel = viewModel, modifier = Modifier.padding(padding))
-    }
-}
-
-@Composable
-fun ComplaintsContent(
-    viewModel: ModeratorViewModel,
+fun ComplaintsTabContent(
+    viewModel: ComplaintsViewModel,
+    onNavigateToArticle: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -109,71 +66,105 @@ fun ComplaintsContent(
         if (shouldLoadMore) viewModel.loadMore()
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
-        when {
-            state.isLoading ->
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+    Column(modifier = modifier.fillMaxSize()) {
+        OutlinedTextField(
+            value = state.query,
+            onValueChange = { viewModel.setQuery(it) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            placeholder = { Text("Поиск по названию статьи") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            singleLine = true,
+        )
 
-            state.error != null ->
-                Column(
-                    modifier = Modifier.align(Alignment.Center).padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(state.error!!, style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(16.dp))
-                    Button(onClick = viewModel::refresh) {
-                        Text(stringResource(R.string.btn_retry))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            DatePickerField(
+                label = "От",
+                value = state.fromDate,
+                onValueChange = { viewModel.setDateRange(it, state.toDate) },
+                modifier = Modifier.weight(1f),
+            )
+            DatePickerField(
+                label = "До",
+                value = state.toDate,
+                onValueChange = { viewModel.setDateRange(state.fromDate, it) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        Box(modifier = Modifier.weight(1f)) {
+            when {
+                state.isLoading ->
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+
+                state.error != null ->
+                    Column(
+                        modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(state.error!!, style = MaterialTheme.typography.bodyMedium)
+                        Spacer(Modifier.height(16.dp))
+                        Button(onClick = viewModel::refresh) {
+                            Text(stringResource(R.string.btn_retry))
+                        }
                     }
-                }
 
-            state.items.isEmpty() ->
-                Text(
-                    stringResource(R.string.mod_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.align(Alignment.Center),
-                )
+                state.items.isEmpty() ->
+                    Text(
+                        stringResource(R.string.mod_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.align(Alignment.Center),
+                    )
 
-            else ->
-                LazyColumn(
-                    state = listState,
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    items(state.items, key = { it.reportId }) { item ->
-                        ComplaintCard(
-                            item = item,
-                            onHide = { viewModel.requestHide(item) },
-                            onDismiss = { viewModel.requestDismiss(item) },
-                        )
-                    }
-                    if (state.isLoadingMore) {
-                        item {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().padding(8.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                CircularProgressIndicator()
+                else ->
+                    LazyColumn(
+                        state = listState,
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        items(state.items, key = { it.reportId }) { item ->
+                            ComplaintListCard(
+                                item = item,
+                                onClick = { onNavigateToArticle(item.articleId) },
+                                onHide = { viewModel.requestHide(item) },
+                                onDismiss = { viewModel.requestDismiss(item) },
+                            )
+                        }
+                        if (state.isLoadingMore) {
+                            item {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            }
+                        }
+                        if (state.isEndOfList && state.items.isNotEmpty()) {
+                            item {
+                                Text(
+                                    stringResource(R.string.feed_end),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                )
                             }
                         }
                     }
-                    if (state.isEndOfList && state.items.isNotEmpty()) {
-                        item {
-                            Text(
-                                stringResource(R.string.feed_end),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.fillMaxWidth().padding(8.dp),
-                            )
-                        }
-                    }
-                }
+            }
         }
     }
 
     state.confirmHide?.let { item ->
-        HideConfirmDialog(
+        HideComplaintConfirmDialog(
             articleTitle = item.articleTitle ?: stringResource(R.string.feed_untitled),
             onConfirm = { viewModel.confirmHide() },
             onDismiss = { viewModel.dismissHideConfirm() },
@@ -181,7 +172,7 @@ fun ComplaintsContent(
     }
 
     state.dismissTarget?.let { item ->
-        DismissConfirmDialog(
+        DismissComplaintConfirmDialog(
             articleTitle = item.articleTitle ?: stringResource(R.string.feed_untitled),
             onConfirm = { viewModel.executeDismiss() },
             onDismiss = { viewModel.cancelDismiss() },
@@ -190,8 +181,9 @@ fun ComplaintsContent(
 }
 
 @Composable
-private fun ComplaintCard(
+private fun ComplaintListCard(
     item: ComplaintItemDto,
+    onClick: () -> Unit,
     onHide: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -199,7 +191,9 @@ private fun ComplaintCard(
         border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
         shape = MaterialTheme.shapes.large,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -215,7 +209,7 @@ private fun ComplaintCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = reasonLabel(item.reasonCode),
+                text = complaintReasonLabel(item.reasonCode),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -246,7 +240,7 @@ private fun ComplaintCard(
 }
 
 @Composable
-private fun HideConfirmDialog(
+private fun HideComplaintConfirmDialog(
     articleTitle: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
@@ -286,7 +280,7 @@ private fun HideConfirmDialog(
 }
 
 @Composable
-private fun DismissConfirmDialog(
+private fun DismissComplaintConfirmDialog(
     articleTitle: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
@@ -320,7 +314,7 @@ private fun DismissConfirmDialog(
 }
 
 @Composable
-private fun reasonLabel(reason: ReportReasonDto): String = stringResource(
+private fun complaintReasonLabel(reason: ReportReasonDto): String = stringResource(
     when (reason) {
         ReportReasonDto.NOT_INTERESTED_TOPIC -> R.string.reason_not_interested_topic
         ReportReasonDto.UNWANTED_REGION      -> R.string.reason_unwanted_region

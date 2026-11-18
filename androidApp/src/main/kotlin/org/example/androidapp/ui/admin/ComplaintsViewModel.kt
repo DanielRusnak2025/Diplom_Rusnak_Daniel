@@ -1,7 +1,9 @@
-package org.example.androidapp.ui.mod
+package org.example.androidapp.ui.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,7 +13,7 @@ import org.example.androidapp.network.AdminApi
 import org.example.androidapp.network.ApiException
 import org.example.dto.ComplaintItemDto
 
-data class ModUiState(
+data class ComplaintsUiState(
     val items: List<ComplaintItemDto> = emptyList(),
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
@@ -21,40 +23,68 @@ data class ModUiState(
     val dismissTarget: ComplaintItemDto? = null,
     val snackbar: String? = null,
     val hidCount: Int = 0,
+    val query: String = "",
+    val fromDate: String? = null,
+    val toDate: String? = null,
 )
 
-class ModeratorViewModel(private val adminApi: AdminApi) : ViewModel() {
+class ComplaintsViewModel(private val adminApi: AdminApi) : ViewModel() {
 
-    private val _state = MutableStateFlow(ModUiState())
-    val state: StateFlow<ModUiState> = _state.asStateFlow()
+    private val _state = MutableStateFlow(ComplaintsUiState())
+    val state: StateFlow<ComplaintsUiState> = _state.asStateFlow()
 
     private var nextCursor: String? = null
+    private var loadJob: Job? = null
 
-    init { loadFirstPage() }
+    init { scheduleLoad() }
 
     fun refresh() {
         nextCursor = null
-        loadFirstPage()
+        scheduleLoad()
     }
 
-    private fun loadFirstPage() {
-        viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null, items = emptyList(), isEndOfList = false) }
-            try {
-                val page = adminApi.complaints(cursor = null)
-                nextCursor = page.nextCursor
-                _state.update { it.copy(
-                    isLoading = false,
-                    items = page.items,
-                    isEndOfList = page.nextCursor == null,
-                ) }
-            } catch (e: ApiException) {
-                val msg = if (e.httpStatus == 403) "Недостаточно прав для просмотра жалоб"
-                          else "Ошибка загрузки жалоб"
-                _state.update { it.copy(isLoading = false, error = msg) }
-            } catch (_: Exception) {
-                _state.update { it.copy(isLoading = false, error = "Ошибка загрузки жалоб") }
-            }
+    fun setQuery(query: String) {
+        _state.update { it.copy(query = query) }
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            delay(400)
+            doLoadFirst()
+        }
+    }
+
+    fun setDateRange(from: String?, to: String?) {
+        _state.update { it.copy(fromDate = from, toDate = to) }
+        scheduleLoad()
+    }
+
+    private fun scheduleLoad() {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch { doLoadFirst() }
+    }
+
+    private suspend fun doLoadFirst() {
+        val s = _state.value
+        nextCursor = null
+        _state.update { it.copy(isLoading = true, error = null, items = emptyList(), isEndOfList = false) }
+        try {
+            val page = adminApi.complaints(
+                cursor = null,
+                q = s.query.takeIf { it.isNotEmpty() },
+                fromDate = s.fromDate,
+                toDate = s.toDate,
+            )
+            nextCursor = page.nextCursor
+            _state.update { it.copy(
+                isLoading = false,
+                items = page.items,
+                isEndOfList = page.nextCursor == null,
+            ) }
+        } catch (e: ApiException) {
+            val msg = if (e.httpStatus == 403) "Недостаточно прав для просмотра жалоб"
+                      else "Ошибка загрузки жалоб"
+            _state.update { it.copy(isLoading = false, error = msg) }
+        } catch (_: Exception) {
+            _state.update { it.copy(isLoading = false, error = "Ошибка загрузки жалоб") }
         }
     }
 
@@ -64,7 +94,12 @@ class ModeratorViewModel(private val adminApi: AdminApi) : ViewModel() {
         viewModelScope.launch {
             _state.update { it.copy(isLoadingMore = true) }
             try {
-                val page = adminApi.complaints(cursor = nextCursor)
+                val page = adminApi.complaints(
+                    cursor = nextCursor,
+                    q = s.query.takeIf { it.isNotEmpty() },
+                    fromDate = s.fromDate,
+                    toDate = s.toDate,
+                )
                 nextCursor = page.nextCursor
                 val existingIds = _state.value.items.map { it.reportId }.toSet()
                 val newItems = page.items.filter { it.reportId !in existingIds }

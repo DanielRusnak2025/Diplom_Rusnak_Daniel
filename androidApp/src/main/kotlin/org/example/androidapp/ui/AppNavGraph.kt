@@ -35,8 +35,7 @@ import org.example.androidapp.ui.auth.RegisterScreen
 import org.example.androidapp.ui.auth.RegisterViewModel
 import org.example.androidapp.ui.feed.FeedScreen
 import org.example.androidapp.ui.feed.FeedViewModel
-import org.example.androidapp.ui.mod.ModeratorScreen
-import org.example.androidapp.ui.mod.ModeratorViewModel
+import org.example.androidapp.ui.admin.ComplaintsViewModel
 import org.example.androidapp.ui.onboarding.OnboardingInterestsScreen
 import org.example.androidapp.ui.onboarding.OnboardingLanguagesScreen
 import org.example.androidapp.ui.onboarding.OnboardingRegionsScreen
@@ -193,27 +192,6 @@ fun AppNavGraph(appViewModel: AppViewModel) {
             )
         }
 
-        composable("mod") {
-            val modVm: ModeratorViewModel = viewModel(factory = viewModelFactory {
-                initializer {
-                    val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as NewsDoveApp
-                    ModeratorViewModel(app.container.adminApi)
-                }
-            })
-            val modState by modVm.state.collectAsStateWithLifecycle()
-            LaunchedEffect(modState.hidCount) {
-                if (modState.hidCount > 0) {
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("feedNeedsRefresh", true)
-                }
-            }
-            ModeratorScreen(
-                viewModel = modVm,
-                onNavigateBack = { navController.popBackStack() },
-            )
-        }
-
         composable("settings") {
             val settingsVm: SettingsViewModel = viewModel(factory = viewModelFactory {
                 initializer {
@@ -240,12 +218,12 @@ fun AppNavGraph(appViewModel: AppViewModel) {
                     AdminPanelViewModel(app.container.adminApi)
                 }
             })
-            val complaintsVm: ModeratorViewModel = viewModel(
+            val complaintsVm: ComplaintsViewModel = viewModel(
                 key = "admin-complaints",
                 factory = viewModelFactory {
                     initializer {
                         val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as NewsDoveApp
-                        ModeratorViewModel(app.container.adminApi)
+                        ComplaintsViewModel(app.container.adminApi)
                     }
                 },
             )

@@ -24,10 +24,19 @@ class AdminApi(
     private val baseUrl: String,
     private val authClient: HttpClient,
 ) {
-    suspend fun complaints(cursor: String? = null, limit: Int = 20): ComplaintPageDto =
+    suspend fun complaints(
+        cursor: String? = null,
+        limit: Int = 20,
+        q: String? = null,
+        fromDate: String? = null,
+        toDate: String? = null,
+    ): ComplaintPageDto =
         authClient.get("$baseUrl/api/v1/admin/complaints") {
             if (cursor != null) parameter("cursor", cursor)
             parameter("limit", limit)
+            if (!q.isNullOrBlank()) parameter("q", q)
+            if (fromDate != null) parameter("fromDate", fromDate)
+            if (toDate != null) parameter("toDate", toDate)
         }.body()
 
     suspend fun hideArticle(articleId: Int, hidden: Boolean) {
