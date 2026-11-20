@@ -78,6 +78,7 @@ fun UsersTabContent(
         ModalBottomSheet(
             onDismissRequest = { showFilters = false },
             sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.background,
         ) {
             UsersFilterSheet(
                 state = state,
@@ -126,13 +127,13 @@ fun UsersTabContent(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             DatePickerField(
-                label = stringResource(R.string.admin_users_date_from),
+                label = stringResource(R.string.admin_date_from),
                 value = state.fromDate,
                 onValueChange = { viewModel.setDateRange(it, state.toDate) },
                 modifier = Modifier.weight(1f),
             )
             DatePickerField(
-                label = stringResource(R.string.admin_users_date_to),
+                label = stringResource(R.string.admin_date_to),
                 value = state.toDate,
                 onValueChange = { viewModel.setDateRange(state.fromDate, it) },
                 modifier = Modifier.weight(1f),

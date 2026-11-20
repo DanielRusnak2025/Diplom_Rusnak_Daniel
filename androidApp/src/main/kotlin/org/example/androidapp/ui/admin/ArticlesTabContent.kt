@@ -27,15 +27,18 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -90,6 +93,7 @@ fun ArticlesTabContent(
         ModalBottomSheet(
             onDismissRequest = { showFilters = false },
             sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.background,
         ) {
             ArticlesFilterSheet(
                 state = state,
@@ -396,6 +400,7 @@ private fun ArticlesFilterSheet(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AdminDropdownField(
     label: String,
@@ -405,38 +410,29 @@ internal fun AdminDropdownField(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedLabel = options.firstOrNull { it.first == selectedKey }?.second ?: options.firstOrNull()?.second ?: ""
-    Box {
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+    ) {
         OutlinedTextField(
             value = selectedLabel,
             onValueChange = {},
             readOnly = true,
             label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                ) { expanded = true },
-            trailingIcon = {
-                IconButton(onClick = { expanded = true }) {
-                    Icon(Icons.Default.DateRange, contentDescription = null)
-                }
-            },
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable),
         )
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .padding(end = 48.dp)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                ) { expanded = true },
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
             options.forEach { (key, name) ->
                 DropdownMenuItem(
                     text = { Text(name) },
                     onClick = { onSelect(key); expanded = false },
+                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
                 )
             }
         }
@@ -503,7 +499,10 @@ internal fun DatePickerField(
                 TextButton(onClick = { showDialog = false }) { Text(stringResource(R.string.admin_btn_cancel)) }
             },
         ) {
-            DatePicker(state = datePickerState)
+            DatePicker(
+                state = datePickerState,
+                colors = DatePickerDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+            )
         }
     }
 }

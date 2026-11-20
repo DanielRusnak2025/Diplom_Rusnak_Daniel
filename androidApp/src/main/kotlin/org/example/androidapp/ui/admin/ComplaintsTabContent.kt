@@ -6,6 +6,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -81,6 +83,7 @@ fun ComplaintsTabContent(
         ModalBottomSheet(
             onDismissRequest = { showFilters = false },
             sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.background,
         ) {
             ComplaintsFilterSheet(
                 state = state,
@@ -235,7 +238,7 @@ private fun reasonLabel(reason: ReportReasonDto): Int = when (reason) {
     ReportReasonDto.OTHER                 -> R.string.admin_reason_other
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun ComplaintsFilterSheet(
     state: ComplaintsUiState,
@@ -256,12 +259,13 @@ private fun ComplaintsFilterSheet(
     ) {
         Text(stringResource(R.string.admin_filter_sheet_title), style = MaterialTheme.typography.titleMedium)
 
-        // Reason chips (scrollable row via wrapping)
+        // Reason chips — wrap across lines
         Text(stringResource(R.string.admin_filter_reason), style = MaterialTheme.typography.labelMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             FilterChip(selected = reason == null, onClick = { reason = null }, label = { Text(stringResource(R.string.admin_filter_any)) })
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ReportReasonDto.values().forEach { r ->
                 FilterChip(selected = reason == r, onClick = { reason = r }, label = { Text(stringResource(reasonLabel(r))) })
             }
@@ -439,12 +443,12 @@ private fun DismissComplaintConfirmDialog(
 @Composable
 private fun complaintReasonLabel(reason: ReportReasonDto): String = stringResource(
     when (reason) {
-        ReportReasonDto.NOT_INTERESTED_TOPIC -> R.string.reason_not_interested_topic
-        ReportReasonDto.UNWANTED_REGION      -> R.string.reason_unwanted_region
-        ReportReasonDto.UNWANTED_PUBLISHER   -> R.string.reason_unwanted_publisher
-        ReportReasonDto.NOT_AN_ARTICLE       -> R.string.reason_not_an_article
-        ReportReasonDto.BROKEN_LINK          -> R.string.reason_broken_link
-        ReportReasonDto.MISLEADING           -> R.string.reason_misleading
-        ReportReasonDto.OTHER                -> R.string.reason_other
+        ReportReasonDto.NOT_INTERESTED_TOPIC -> R.string.admin_reason_not_interested_topic
+        ReportReasonDto.UNWANTED_REGION      -> R.string.admin_reason_unwanted_region
+        ReportReasonDto.UNWANTED_PUBLISHER   -> R.string.admin_reason_unwanted_publisher
+        ReportReasonDto.NOT_AN_ARTICLE       -> R.string.admin_reason_not_an_article
+        ReportReasonDto.BROKEN_LINK          -> R.string.admin_reason_broken_link
+        ReportReasonDto.MISLEADING           -> R.string.admin_reason_misleading
+        ReportReasonDto.OTHER                -> R.string.admin_reason_other
     }
 )
