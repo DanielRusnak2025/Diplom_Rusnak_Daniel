@@ -94,8 +94,8 @@ Authorization: Bearer <access-token>
 | Метод | Путь | Параметры | Ответ |
 |-------|------|-----------|-------|
 | GET | `/admin/complaints` | `limit`, `cursor`, `q`, `fromDate`, `toDate`, `reason`, `reporter`, `language` | 200 страница `AdminComplaintDto` |
-| DELETE | `/admin/articles/{id}/complaints` | — | 204 (сбросить все жалобы на статью) |
-| DELETE | `/admin/complaints/{reportId}` | — | 204 (удалить одну жалобу) |
+| DELETE | `/admin/articles/{id}/complaints` | — | 204 (обнулить `reasonCode` у всех жалоб на статью; строки report остаются) |
+| DELETE | `/admin/complaints/{reportId}` | — | 204 (обнулить `reasonCode` одной жалобы; строка report остаётся) |
 
 #### Статьи
 

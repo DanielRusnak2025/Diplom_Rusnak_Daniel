@@ -46,8 +46,9 @@ delay = min(2^(attempt-1) * 1000 мс, 60 000 мс)
 
 ## Хеширование паролей
 
-**Алгоритм:** Argon2 (библиотека `argon2-jvm` v2.12)  
-**Класс:** `org.example.security.PasswordHasher`
+**Алгоритм:** Argon2**id** (вариант RFC 9106; `Argon2Factory.Argon2Types.ARGON2id`) — библиотека `argon2-jvm` v2.12  
+**Класс:** `org.example.security.PasswordHasher` (строка 17)  
+**Параметры:** iterations=3, memory=64 MiB (65 536 KiB), parallelism=4; максимальная длина пароля 128 символов
 
 Пароли **никогда** не передаются в открытом виде: ни в логах, ни в API-ответах, ни в тестах.
 
