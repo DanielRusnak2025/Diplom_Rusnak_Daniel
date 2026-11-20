@@ -15,6 +15,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.example.androidapp.network.AdminApi
 import org.example.androidapp.network.ApiException
+import org.example.androidapp.network.MetaApi
 import org.example.dto.ComplaintItemDto
 import org.example.dto.ComplaintPageDto
 import org.example.dto.ReportReasonDto
@@ -29,8 +30,12 @@ class ComplaintsViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private val adminApi: AdminApi = mockk()
+    private val metaApi: MetaApi = mockk()
 
-    @BeforeEach fun setUp() { Dispatchers.setMain(testDispatcher) }
+    @BeforeEach fun setUp() {
+        Dispatchers.setMain(testDispatcher)
+        coEvery { metaApi.languageNames(any()) } returns emptyMap()
+    }
     @AfterEach fun tearDown() { Dispatchers.resetMain() }
 
     private fun complaint(reportId: Int, articleId: Int = 1) = ComplaintItemDto(
@@ -48,7 +53,7 @@ class ComplaintsViewModelTest {
         val page = ComplaintPageDto(items = listOf(complaint(1), complaint(2)), nextCursor = null)
         coEvery { adminApi.complaints(cursor = null, limit = any(), q = null, fromDate = null, toDate = null) } returns page
 
-        val vm = ComplaintsViewModel(adminApi)
+        val vm = ComplaintsViewModel(adminApi, metaApi)
         advanceUntilIdle()
 
         val s = vm.state.value
@@ -63,7 +68,7 @@ class ComplaintsViewModelTest {
         coEvery { adminApi.complaints(cursor = null, limit = any(), q = null, fromDate = null, toDate = null) } returns
             ComplaintPageDto(emptyList(), null)
 
-        val vm = ComplaintsViewModel(adminApi)
+        val vm = ComplaintsViewModel(adminApi, metaApi)
         advanceUntilIdle()
 
         val s = vm.state.value
@@ -78,7 +83,7 @@ class ComplaintsViewModelTest {
         coEvery { adminApi.complaints(cursor = null, limit = any(), q = null, fromDate = null, toDate = null) } throws
             ApiException("FORBIDDEN", "Forbidden", 403)
 
-        val vm = ComplaintsViewModel(adminApi)
+        val vm = ComplaintsViewModel(adminApi, metaApi)
         advanceUntilIdle()
 
         val s = vm.state.value
@@ -96,7 +101,7 @@ class ComplaintsViewModelTest {
         coEvery { adminApi.complaints(cursor = null, limit = any(), q = null, fromDate = null, toDate = null) } returns page
         coEvery { adminApi.hideArticle(10, true) } just Runs
 
-        val vm = ComplaintsViewModel(adminApi)
+        val vm = ComplaintsViewModel(adminApi, metaApi)
         advanceUntilIdle()
 
         vm.requestHide(item1)
@@ -120,7 +125,7 @@ class ComplaintsViewModelTest {
         coEvery { adminApi.complaints(cursor = null, limit = any(), q = null, fromDate = null, toDate = null) } returns page
         coEvery { adminApi.dismissComplaint(1) } just Runs
 
-        val vm = ComplaintsViewModel(adminApi)
+        val vm = ComplaintsViewModel(adminApi, metaApi)
         advanceUntilIdle()
 
         vm.requestDismiss(item1)
@@ -142,7 +147,7 @@ class ComplaintsViewModelTest {
             ComplaintPageDto(listOf(item), null)
         coEvery { adminApi.hideArticle(10, true) } throws ApiException("FORBIDDEN", "Forbidden", 403)
 
-        val vm = ComplaintsViewModel(adminApi)
+        val vm = ComplaintsViewModel(adminApi, metaApi)
         advanceUntilIdle()
 
         vm.requestHide(item)
@@ -161,7 +166,7 @@ class ComplaintsViewModelTest {
         coEvery { adminApi.complaints(cursor = null, limit = any(), q = null, fromDate = null, toDate = null) } returns page1
         coEvery { adminApi.complaints(cursor = null, limit = any(), q = "news", fromDate = null, toDate = null) } returns page2
 
-        val vm = ComplaintsViewModel(adminApi)
+        val vm = ComplaintsViewModel(adminApi, metaApi)
         advanceUntilIdle()
         assertEquals(1, vm.state.value.items[0].reportId)
 
@@ -180,7 +185,7 @@ class ComplaintsViewModelTest {
         coEvery { adminApi.complaints(cursor = null, limit = any(), q = null, fromDate = null, toDate = null) } returns page1
         coEvery { adminApi.complaints(cursor = null, limit = any(), q = null, fromDate = "2026-01-01", toDate = "2026-06-30") } returns page2
 
-        val vm = ComplaintsViewModel(adminApi)
+        val vm = ComplaintsViewModel(adminApi, metaApi)
         advanceUntilIdle()
         assertEquals(1, vm.state.value.items[0].reportId)
 
@@ -191,5 +196,81 @@ class ComplaintsViewModelTest {
         assertEquals(7, s.items[0].reportId)
         assertEquals("2026-01-01", s.fromDate)
         assertEquals("2026-06-30", s.toDate)
+    }
+
+    @Test
+    fun `applyFilters - reason filter sent to api`() = runTest(testDispatcher) {
+        coEvery { adminApi.complaints(cursor = null, limit = any(), q = null, fromDate = null, toDate = null) } returns
+            ComplaintPageDto(emptyList(), null)
+        coEvery {
+            adminApi.complaints(cursor = null, limit = any(), q = null, fromDate = null, toDate = null,
+                reason = "MISLEADING", reporter = null, language = null)
+        } returns ComplaintPageDto(listOf(complaint(10)), null)
+
+        val vm = ComplaintsViewModel(adminApi, metaApi)
+        advanceUntilIdle()
+
+        vm.applyFilters(ReportReasonDto.MISLEADING, null, null)
+        advanceUntilIdle()
+
+        assertEquals(1, vm.state.value.items.size)
+        assertEquals(ReportReasonDto.MISLEADING, vm.state.value.reasonFilter)
+    }
+
+    @Test
+    fun `applyFilters - reporter and language sent to api`() = runTest(testDispatcher) {
+        coEvery { adminApi.complaints(cursor = null, limit = any(), q = null, fromDate = null, toDate = null) } returns
+            ComplaintPageDto(emptyList(), null)
+        coEvery {
+            adminApi.complaints(cursor = null, limit = any(), q = null, fromDate = null, toDate = null,
+                reason = null, reporter = "alice", language = "en")
+        } returns ComplaintPageDto(listOf(complaint(11), complaint(12)), null)
+
+        val vm = ComplaintsViewModel(adminApi, metaApi)
+        advanceUntilIdle()
+
+        vm.applyFilters(null, "alice", "en")
+        advanceUntilIdle()
+
+        assertEquals(2, vm.state.value.items.size)
+        assertEquals("alice", vm.state.value.reporterFilter)
+        assertEquals("en", vm.state.value.languageFilter)
+    }
+
+    @Test
+    fun `resetFilters clears all filters and reloads`() = runTest(testDispatcher) {
+        coEvery { adminApi.complaints(cursor = null, limit = any(), q = null, fromDate = null, toDate = null) } returns
+            ComplaintPageDto(listOf(complaint(1)), null)
+
+        val vm = ComplaintsViewModel(adminApi, metaApi)
+        advanceUntilIdle()
+
+        vm.resetFilters()
+        advanceUntilIdle()
+
+        val s = vm.state.value
+        assertNull(s.reasonFilter)
+        assertNull(s.reporterFilter)
+        assertNull(s.languageFilter)
+        assertEquals(0, s.activeFilterCount)
+    }
+
+    @Test
+    fun `combined filters and query both sent to api`() = runTest(testDispatcher) {
+        coEvery { adminApi.complaints(cursor = null, limit = any(), q = null, fromDate = null, toDate = null) } returns
+            ComplaintPageDto(emptyList(), null)
+        coEvery {
+            adminApi.complaints(cursor = null, limit = any(), q = "broken", fromDate = null, toDate = null,
+                reason = "BROKEN_LINK", reporter = null, language = "ru")
+        } returns ComplaintPageDto(listOf(complaint(20)), null)
+
+        val vm = ComplaintsViewModel(adminApi, metaApi)
+        advanceUntilIdle()
+
+        vm.applyFilters(ReportReasonDto.BROKEN_LINK, null, "ru")
+        vm.setQuery("broken")
+        advanceUntilIdle()
+
+        assertEquals(1, vm.state.value.items.size)
     }
 }

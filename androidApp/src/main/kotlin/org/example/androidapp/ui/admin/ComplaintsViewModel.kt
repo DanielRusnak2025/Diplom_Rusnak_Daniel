@@ -11,7 +11,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.androidapp.network.AdminApi
 import org.example.androidapp.network.ApiException
+import org.example.androidapp.network.MetaApi
 import org.example.dto.ComplaintItemDto
+import org.example.dto.ReportReasonDto
 
 data class ComplaintsUiState(
     val items: List<ComplaintItemDto> = emptyList(),
@@ -26,9 +28,21 @@ data class ComplaintsUiState(
     val query: String = "",
     val fromDate: String? = null,
     val toDate: String? = null,
-)
+    val languageByCode: Map<String, String> = emptyMap(),
+    // active filters
+    val reasonFilter: ReportReasonDto? = null,
+    val reporterFilter: String? = null,
+    val languageFilter: String? = null,
+) {
+    val activeFilterCount: Int get() = listOfNotNull(
+        reasonFilter, reporterFilter?.takeIf { it.isNotEmpty() }, languageFilter,
+    ).size
+}
 
-class ComplaintsViewModel(private val adminApi: AdminApi) : ViewModel() {
+class ComplaintsViewModel(
+    private val adminApi: AdminApi,
+    private val metaApi: MetaApi,
+) : ViewModel() {
 
     private val _state = MutableStateFlow(ComplaintsUiState())
     val state: StateFlow<ComplaintsUiState> = _state.asStateFlow()
@@ -36,7 +50,41 @@ class ComplaintsViewModel(private val adminApi: AdminApi) : ViewModel() {
     private var nextCursor: String? = null
     private var loadJob: Job? = null
 
-    init { scheduleLoad() }
+    init {
+        loadMeta()
+        scheduleLoad()
+    }
+
+    private fun loadMeta() {
+        viewModelScope.launch {
+            try {
+                val names = metaApi.languageNames("en")
+                _state.update { it.copy(languageByCode = names) }
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun applyFilters(
+        reason: ReportReasonDto?,
+        reporter: String?,
+        language: String?,
+    ) {
+        _state.update { it.copy(
+            reasonFilter = reason,
+            reporterFilter = reporter,
+            languageFilter = language,
+        ) }
+        scheduleLoad()
+    }
+
+    fun resetFilters() {
+        _state.update { it.copy(
+            reasonFilter = null,
+            reporterFilter = null,
+            languageFilter = null,
+        ) }
+        scheduleLoad()
+    }
 
     fun refresh() {
         nextCursor = null
@@ -72,6 +120,9 @@ class ComplaintsViewModel(private val adminApi: AdminApi) : ViewModel() {
                 q = s.query.takeIf { it.isNotEmpty() },
                 fromDate = s.fromDate,
                 toDate = s.toDate,
+                reason = s.reasonFilter?.name,
+                reporter = s.reporterFilter?.takeIf { it.isNotEmpty() },
+                language = s.languageFilter,
             )
             nextCursor = page.nextCursor
             _state.update { it.copy(
@@ -98,6 +149,9 @@ class ComplaintsViewModel(private val adminApi: AdminApi) : ViewModel() {
                     q = s.query.takeIf { it.isNotEmpty() },
                     fromDate = s.fromDate,
                     toDate = s.toDate,
+                    reason = s.reasonFilter?.name,
+                    reporter = s.reporterFilter?.takeIf { it.isNotEmpty() },
+                    language = s.languageFilter,
                 )
                 nextCursor = page.nextCursor
                 val existingIds = _state.value.items.map { it.reportId }.toSet()

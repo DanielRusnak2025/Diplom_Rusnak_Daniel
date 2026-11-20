@@ -24,14 +24,8 @@ class AdminRouteTest {
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
-    private suspend fun ApplicationTestBuilder.registerUser(nick: String): String {
-        val resp = client.post("/api/v1/auth/register") {
-            contentType(ContentType.Application.Json)
-            setBody("""{"nick":"$nick","password":"Password1!","languages":[],"regions":[]}""")
-        }
-        assertEquals(HttpStatusCode.Created, resp.status, "register failed for $nick: ${resp.bodyAsText()}")
-        return json.decodeFromString<TokenPairDto>(resp.bodyAsText()).accessToken
-    }
+    private suspend fun ApplicationTestBuilder.registerUser(nick: String): String =
+        registerUser(nick, emptyList(), emptyList())
 
     private fun getUserId(nick: String): Int =
         HibernateUtil.getSessionFactory().openSession().use { session ->
@@ -75,6 +69,71 @@ class AdminRouteTest {
         }
     }
 
+    private suspend fun ApplicationTestBuilder.registerUser(
+        nick: String,
+        languages: List<String> = emptyList(),
+        regions: List<String> = emptyList(),
+    ): String {
+        val langs = languages.joinToString(",") { "\"$it\"" }
+        val regs = regions.joinToString(",") { "\"$it\"" }
+        val resp = client.post("/api/v1/auth/register") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"nick":"$nick","password":"Password1!","languages":[$langs],"regions":[$regs]}""")
+        }
+        assertEquals(HttpStatusCode.Created, resp.status, "register failed for $nick: ${resp.bodyAsText()}")
+        return json.decodeFromString<TokenPairDto>(resp.bodyAsText()).accessToken
+    }
+
+    private fun insertArticleWithDetails(
+        title: String,
+        language: String = "en",
+        region: String? = null,
+        publisher: String? = null,
+        classified: Boolean = true,
+    ): Int {
+        HibernateUtil.getSessionFactory().openSession().use { session ->
+            val tx = session.beginTransaction()
+            val a = Article().also {
+                it.title = title
+                it.link = "https://admin-filter-test.example.com/$title"
+                if (classified) it.promptVersion = "v1"
+                it.articleLanguage = language
+                it.articleRegion = region
+                it.publisher = publisher
+            }
+            session.persist(a)
+            tx.commit()
+            return a.id
+        }
+    }
+
+    private fun insertTagAndLinkToArticle(articleId: Int, tagKey: String) {
+        HibernateUtil.getSessionFactory().openSession().use { session ->
+            val tx = session.beginTransaction()
+            val existing = session.createSelectionQuery("FROM Tag t WHERE t.tagKey = :key", Tag::class.java)
+                .setParameter("key", tagKey).uniqueResult()
+            val tag = existing ?: Tag(tagKey).also { t ->
+                t.tagKey = tagKey
+                session.persist(t)
+                session.flush()
+            }
+            val article = session.find(Article::class.java, articleId)
+            session.persist(ArticleTagPercent(article, tag, 50))
+            tx.commit()
+        }
+    }
+
+    private fun insertComplaintWithReason(articleId: Int, nick: String, reason: ReportReason) {
+        HibernateUtil.getSessionFactory().openSession().use { session ->
+            val tx = session.beginTransaction()
+            val article = session.find(Article::class.java, articleId)
+            val user = session.createSelectionQuery("FROM User u WHERE u.nick = :nick", User::class.java)
+                .setParameter("nick", nick).uniqueResult()
+            session.persist(Report(article, user, -1, reason))
+            tx.commit()
+        }
+    }
+
     @AfterEach
     fun cleanup() {
         HibernateUtil.getSessionFactory().openSession().use { session ->
@@ -88,6 +147,7 @@ class AdminRouteTest {
                     "INNER JOIN article a ON a.id = atp.article_id WHERE a.title LIKE 'adm_%'"
                 ).executeUpdate()
                 session.createMutationQuery("delete from Article a where a.title like 'adm_%'").executeUpdate()
+                session.createMutationQuery("delete from Tag t where t.tagKey like 'adm_%'").executeUpdate()
                 session.createMutationQuery("delete from AuditLog").executeUpdate()
                 session.createMutationQuery("delete from RefreshToken").executeUpdate()
                 session.createMutationQuery("delete from User").executeUpdate()
@@ -415,6 +475,389 @@ class AdminRouteTest {
             items.any { it.jsonObject["id"]?.jsonPrimitive?.int == articleId },
             "Article must stay out of the reporter's feed: rating=-1 row was kept, only reasonCode was cleared"
         )
+    }
+
+    // ─── Articles search filters ──────────────────────────────────────────────
+
+    @Test
+    fun `articles filtered by language`() = testApplication {
+        application { module() }
+        val adminToken = registerUser("adm_filt_lang1")
+        setRole("adm_filt_lang1", Role.ADMIN)
+        val enId = insertArticleWithDetails("adm_filt_lang_en", language = "en")
+        val frId = insertArticleWithDetails("adm_filt_lang_fr", language = "fr")
+
+        val resp = client.get("/api/v1/admin/articles?language=fr") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertTrue(items.any { it.jsonObject["id"]?.jsonPrimitive?.int == frId })
+        assertFalse(items.any { it.jsonObject["id"]?.jsonPrimitive?.int == enId })
+    }
+
+    @Test
+    fun `articles filtered by region`() = testApplication {
+        application { module() }
+        val adminToken = registerUser("adm_filt_reg1")
+        setRole("adm_filt_reg1", Role.ADMIN)
+        val naId = insertArticleWithDetails("adm_filt_reg_na", region = "north_america")
+        val eeId = insertArticleWithDetails("adm_filt_reg_ee", region = "eastern_europe")
+
+        val resp = client.get("/api/v1/admin/articles?region=north_america") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertTrue(items.any { it.jsonObject["id"]?.jsonPrimitive?.int == naId })
+        assertFalse(items.any { it.jsonObject["id"]?.jsonPrimitive?.int == eeId })
+    }
+
+    @Test
+    fun `articles filtered by publisher contains`() = testApplication {
+        application { module() }
+        val adminToken = registerUser("adm_filt_pub1")
+        setRole("adm_filt_pub1", Role.ADMIN)
+        val nytId = insertArticleWithDetails("adm_filt_pub_nyt", publisher = "New York Times")
+        val bbcId = insertArticleWithDetails("adm_filt_pub_bbc", publisher = "BBC News")
+
+        val resp = client.get("/api/v1/admin/articles?publisher=york") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertTrue(items.any { it.jsonObject["id"]?.jsonPrimitive?.int == nytId })
+        assertFalse(items.any { it.jsonObject["id"]?.jsonPrimitive?.int == bbcId })
+    }
+
+    @Test
+    fun `articles filtered by category tag key`() = testApplication {
+        application { module() }
+        val adminToken = registerUser("adm_filt_cat1")
+        setRole("adm_filt_cat1", Role.ADMIN)
+        val withTagId = insertArticleWithDetails("adm_filt_cat_with")
+        val noTagId = insertArticleWithDetails("adm_filt_cat_none")
+        insertTagAndLinkToArticle(withTagId, "adm_tech")
+
+        val resp = client.get("/api/v1/admin/articles?category=adm_tech") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertTrue(items.any { it.jsonObject["id"]?.jsonPrimitive?.int == withTagId })
+        assertFalse(items.any { it.jsonObject["id"]?.jsonPrimitive?.int == noTagId })
+    }
+
+    @Test
+    fun `articles classified=true returns only classified`() = testApplication {
+        application { module() }
+        val adminToken = registerUser("adm_filt_cls1")
+        setRole("adm_filt_cls1", Role.ADMIN)
+        val classifiedId = insertArticleWithDetails("adm_filt_cls_yes", classified = true)
+        val unclassifiedId = insertArticleWithDetails("adm_filt_cls_no", classified = false)
+
+        val resp = client.get("/api/v1/admin/articles?classified=true") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertTrue(items.any { it.jsonObject["id"]?.jsonPrimitive?.int == classifiedId })
+        assertFalse(items.any { it.jsonObject["id"]?.jsonPrimitive?.int == unclassifiedId })
+    }
+
+    @Test
+    fun `articles classified=false returns only unclassified`() = testApplication {
+        application { module() }
+        val adminToken = registerUser("adm_filt_cls2")
+        setRole("adm_filt_cls2", Role.ADMIN)
+        val classifiedId = insertArticleWithDetails("adm_filt_unclsyes", classified = true)
+        val unclassifiedId = insertArticleWithDetails("adm_filt_unclsno", classified = false)
+
+        val resp = client.get("/api/v1/admin/articles?classified=false") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertTrue(items.any { it.jsonObject["id"]?.jsonPrimitive?.int == unclassifiedId })
+        assertFalse(items.any { it.jsonObject["id"]?.jsonPrimitive?.int == classifiedId })
+    }
+
+    @Test
+    fun `articles hasComplaints=true returns only articles with open complaints`() = testApplication {
+        application { module() }
+        val adminToken = registerUser("adm_filt_hc1")
+        setRole("adm_filt_hc1", Role.ADMIN)
+        registerUser("adm_filt_hc1_reporter")
+        val withComplaintId = insertArticleWithDetails("adm_filt_hcyes")
+        val noComplaintId = insertArticleWithDetails("adm_filt_hcno")
+        insertComplaintFor(withComplaintId, "adm_filt_hc1_reporter")
+
+        val resp = client.get("/api/v1/admin/articles?hasComplaints=true") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertTrue(items.any { it.jsonObject["id"]?.jsonPrimitive?.int == withComplaintId })
+        assertFalse(items.any { it.jsonObject["id"]?.jsonPrimitive?.int == noComplaintId })
+    }
+
+    @Test
+    fun `articles invalid classified param returns 400`() = testApplication {
+        application { module() }
+        val adminToken = registerUser("adm_filt_bad1")
+        setRole("adm_filt_bad1", Role.ADMIN)
+
+        val resp = client.get("/api/v1/admin/articles?classified=maybe") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.BadRequest, resp.status)
+    }
+
+    @Test
+    fun `articles invalid hasComplaints param returns 400`() = testApplication {
+        application { module() }
+        val adminToken = registerUser("adm_filt_bad2")
+        setRole("adm_filt_bad2", Role.ADMIN)
+
+        val resp = client.get("/api/v1/admin/articles?hasComplaints=yes") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.BadRequest, resp.status)
+    }
+
+    @Test
+    fun `articles filters combine with q and paging`() = testApplication {
+        application { module() }
+        val adminToken = registerUser("adm_filt_comb1")
+        setRole("adm_filt_comb1", Role.ADMIN)
+        val matchId = insertArticleWithDetails("adm_filt_comb_match", language = "fr", publisher = "Le Monde")
+        insertArticleWithDetails("adm_filt_comb_nomatch_lang", language = "en", publisher = "Le Monde")
+        insertArticleWithDetails("adm_filt_comb_nomatch_pub", language = "fr", publisher = "Other")
+
+        val resp = client.get("/api/v1/admin/articles?language=fr&publisher=monde") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertTrue(items.any { it.jsonObject["id"]?.jsonPrimitive?.int == matchId })
+        assertEquals(1, items.count { it.jsonObject["id"]?.jsonPrimitive?.int == matchId })
+    }
+
+    // ─── Users search filters ─────────────────────────────────────────────────
+
+    @Test
+    fun `users filtered by role`() = testApplication {
+        application { module() }
+        val adminToken = registerUser("adm_filt_role_adm")
+        setRole("adm_filt_role_adm", Role.ADMIN)
+        registerUser("adm_filt_role_mod")
+        setRole("adm_filt_role_mod", Role.MODERATOR)
+        registerUser("adm_filt_role_usr")
+
+        val resp = client.get("/api/v1/admin/users?role=MODERATOR") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertTrue(items.any { it.jsonObject["nick"]?.jsonPrimitive?.content == "adm_filt_role_mod" })
+        assertFalse(items.any { it.jsonObject["nick"]?.jsonPrimitive?.content == "adm_filt_role_usr" })
+        assertFalse(items.any { it.jsonObject["nick"]?.jsonPrimitive?.content == "adm_filt_role_adm" })
+    }
+
+    @Test
+    fun `users filtered by language`() = testApplication {
+        application { module() }
+        val adminToken = registerUser("adm_filt_ulang_adm")
+        setRole("adm_filt_ulang_adm", Role.ADMIN)
+        registerUser("adm_filt_ulang_en", languages = listOf("en"))
+        registerUser("adm_filt_ulang_fr", languages = listOf("fr"))
+
+        val resp = client.get("/api/v1/admin/users?language=en") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertTrue(items.any { it.jsonObject["nick"]?.jsonPrimitive?.content == "adm_filt_ulang_en" })
+        assertFalse(items.any { it.jsonObject["nick"]?.jsonPrimitive?.content == "adm_filt_ulang_fr" })
+    }
+
+    @Test
+    fun `users filtered by region`() = testApplication {
+        application { module() }
+        val adminToken = registerUser("adm_filt_ureg_adm")
+        setRole("adm_filt_ureg_adm", Role.ADMIN)
+        registerUser("adm_filt_ureg_na", regions = listOf("north_america"))
+        registerUser("adm_filt_ureg_ee", regions = listOf("eastern_europe"))
+
+        val resp = client.get("/api/v1/admin/users?region=north_america") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertTrue(items.any { it.jsonObject["nick"]?.jsonPrimitive?.content == "adm_filt_ureg_na" })
+        assertFalse(items.any { it.jsonObject["nick"]?.jsonPrimitive?.content == "adm_filt_ureg_ee" })
+    }
+
+    @Test
+    fun `users hasComplaints=true returns users who filed open complaints`() = testApplication {
+        application { module() }
+        val adminToken = registerUser("adm_filt_uhc_adm")
+        setRole("adm_filt_uhc_adm", Role.ADMIN)
+        registerUser("adm_filt_uhc_reporter")
+        registerUser("adm_filt_uhc_silent")
+        val articleId = insertArticleWithDetails("adm_filt_uhc_article")
+        insertComplaintFor(articleId, "adm_filt_uhc_reporter")
+
+        val resp = client.get("/api/v1/admin/users?hasComplaints=true") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertTrue(items.any { it.jsonObject["nick"]?.jsonPrimitive?.content == "adm_filt_uhc_reporter" })
+        assertFalse(items.any { it.jsonObject["nick"]?.jsonPrimitive?.content == "adm_filt_uhc_silent" })
+    }
+
+    @Test
+    fun `users invalid role param returns 400`() = testApplication {
+        application { module() }
+        val adminToken = registerUser("adm_filt_urole_bad")
+        setRole("adm_filt_urole_bad", Role.ADMIN)
+
+        val resp = client.get("/api/v1/admin/users?role=SUPERUSER") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.BadRequest, resp.status)
+    }
+
+    @Test
+    fun `users invalid hasComplaints param returns 400`() = testApplication {
+        application { module() }
+        val adminToken = registerUser("adm_filt_uhc_bad")
+        setRole("adm_filt_uhc_bad", Role.ADMIN)
+
+        val resp = client.get("/api/v1/admin/users?hasComplaints=1") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.BadRequest, resp.status)
+    }
+
+    @Test
+    fun `users role filter combined with q and paging`() = testApplication {
+        application { module() }
+        val adminToken = registerUser("adm_filt_ucomb_adm")
+        setRole("adm_filt_ucomb_adm", Role.ADMIN)
+        registerUser("adm_filt_ucomb_mod1")
+        setRole("adm_filt_ucomb_mod1", Role.MODERATOR)
+        registerUser("adm_filt_ucomb_mod2")
+        setRole("adm_filt_ucomb_mod2", Role.MODERATOR)
+        registerUser("adm_filt_ucomb_usr1")
+
+        val resp = client.get("/api/v1/admin/users?role=MODERATOR&q=mod1") {
+            header(HttpHeaders.Authorization, "Bearer $adminToken")
+        }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertTrue(items.any { it.jsonObject["nick"]?.jsonPrimitive?.content == "adm_filt_ucomb_mod1" })
+        assertFalse(items.any { it.jsonObject["nick"]?.jsonPrimitive?.content == "adm_filt_ucomb_mod2" })
+        assertFalse(items.any { it.jsonObject["nick"]?.jsonPrimitive?.content == "adm_filt_ucomb_usr1" })
+    }
+
+    // ─── Complaints search filters ────────────────────────────────────────────
+
+    @Test
+    fun `complaints filtered by reason`() = testApplication {
+        application { module() }
+        val modToken = registerUser("adm_filt_creason_mod")
+        setRole("adm_filt_creason_mod", Role.MODERATOR)
+        registerUser("adm_filt_creason_rep")
+        val a1 = insertArticleWithDetails("adm_filt_creason_a1")
+        val a2 = insertArticleWithDetails("adm_filt_creason_a2")
+        insertComplaintWithReason(a1, "adm_filt_creason_rep", ReportReason.BROKEN_LINK)
+        insertComplaintWithReason(a2, "adm_filt_creason_rep", ReportReason.MISLEADING)
+
+        val resp = client.get("/api/v1/admin/complaints?reason=BROKEN_LINK") {
+            header(HttpHeaders.Authorization, "Bearer $modToken")
+        }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertTrue(items.any { it.jsonObject["articleId"]?.jsonPrimitive?.int == a1 })
+        assertFalse(items.any { it.jsonObject["articleId"]?.jsonPrimitive?.int == a2 })
+    }
+
+    @Test
+    fun `complaints filtered by reporter nick contains`() = testApplication {
+        application { module() }
+        val modToken = registerUser("adm_filt_crep_mod")
+        setRole("adm_filt_crep_mod", Role.MODERATOR)
+        registerUser("adm_filt_crep_alice")
+        registerUser("adm_filt_crep_bob")
+        val a1 = insertArticleWithDetails("adm_filt_crep_a1")
+        val a2 = insertArticleWithDetails("adm_filt_crep_a2")
+        insertComplaintFor(a1, "adm_filt_crep_alice")
+        insertComplaintFor(a2, "adm_filt_crep_bob")
+
+        val resp = client.get("/api/v1/admin/complaints?reporter=alice") {
+            header(HttpHeaders.Authorization, "Bearer $modToken")
+        }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertTrue(items.any { it.jsonObject["articleId"]?.jsonPrimitive?.int == a1 })
+        assertFalse(items.any { it.jsonObject["articleId"]?.jsonPrimitive?.int == a2 })
+    }
+
+    @Test
+    fun `complaints filtered by article language`() = testApplication {
+        application { module() }
+        val modToken = registerUser("adm_filt_clang_mod")
+        setRole("adm_filt_clang_mod", Role.MODERATOR)
+        registerUser("adm_filt_clang_rep")
+        val enId = insertArticleWithDetails("adm_filt_clang_en", language = "en")
+        val frId = insertArticleWithDetails("adm_filt_clang_fr", language = "fr")
+        insertComplaintFor(enId, "adm_filt_clang_rep")
+        insertComplaintFor(frId, "adm_filt_clang_rep")
+
+        val resp = client.get("/api/v1/admin/complaints?language=fr") {
+            header(HttpHeaders.Authorization, "Bearer $modToken")
+        }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertTrue(items.any { it.jsonObject["articleId"]?.jsonPrimitive?.int == frId })
+        assertFalse(items.any { it.jsonObject["articleId"]?.jsonPrimitive?.int == enId })
+    }
+
+    @Test
+    fun `complaints invalid reason param returns 400`() = testApplication {
+        application { module() }
+        val modToken = registerUser("adm_filt_creason_bad")
+        setRole("adm_filt_creason_bad", Role.MODERATOR)
+
+        val resp = client.get("/api/v1/admin/complaints?reason=SPAM") {
+            header(HttpHeaders.Authorization, "Bearer $modToken")
+        }
+        assertEquals(HttpStatusCode.BadRequest, resp.status)
+    }
+
+    @Test
+    fun `complaints combined filters - reason and language`() = testApplication {
+        application { module() }
+        val modToken = registerUser("adm_filt_ccomb_mod")
+        setRole("adm_filt_ccomb_mod", Role.MODERATOR)
+        registerUser("adm_filt_ccomb_rep")
+        val frBroken = insertArticleWithDetails("adm_filt_ccomb_fr_broken", language = "fr")
+        val frMisl = insertArticleWithDetails("adm_filt_ccomb_fr_misl", language = "fr")
+        val enBroken = insertArticleWithDetails("adm_filt_ccomb_en_broken", language = "en")
+        insertComplaintWithReason(frBroken, "adm_filt_ccomb_rep", ReportReason.BROKEN_LINK)
+        insertComplaintWithReason(frMisl, "adm_filt_ccomb_rep", ReportReason.MISLEADING)
+        insertComplaintWithReason(enBroken, "adm_filt_ccomb_rep", ReportReason.BROKEN_LINK)
+
+        val resp = client.get("/api/v1/admin/complaints?reason=BROKEN_LINK&language=fr") {
+            header(HttpHeaders.Authorization, "Bearer $modToken")
+        }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        val items = Json.parseToJsonElement(resp.bodyAsText()).jsonObject["items"]!!.jsonArray
+        assertTrue(items.any { it.jsonObject["articleId"]?.jsonPrimitive?.int == frBroken })
+        assertFalse(items.any { it.jsonObject["articleId"]?.jsonPrimitive?.int == frMisl })
+        assertFalse(items.any { it.jsonObject["articleId"]?.jsonPrimitive?.int == enBroken })
     }
 
     // ─── Stats returns counts ─────────────────────────────────────────────────

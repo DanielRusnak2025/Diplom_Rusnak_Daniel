@@ -243,4 +243,32 @@
     <string name="admin_user_role_user">User</string>
     <string name="admin_user_role_moderator">Moderator</string>
     <string name="admin_user_role_admin">Administrator</string>
+
+    <!-- Admin panel: search filters -->
+    <string name="admin_filter_btn">Filters</string>
+    <string name="admin_filter_btn_active">Filters (%d)</string>
+    <string name="admin_filter_sheet_title">Filters</string>
+    <string name="admin_filter_language">Language</string>
+    <string name="admin_filter_region">Region</string>
+    <string name="admin_filter_publisher">Publisher</string>
+    <string name="admin_filter_category">Category</string>
+    <string name="admin_filter_classified">Classified</string>
+    <string name="admin_filter_has_complaints">Has complaints</string>
+    <string name="admin_filter_role">Role</string>
+    <string name="admin_filter_reason">Reason</string>
+    <string name="admin_filter_reporter">Reporter nick</string>
+    <string name="admin_filter_article_language">Article language</string>
+    <string name="admin_filter_any">Any</string>
+    <string name="admin_filter_yes">Yes</string>
+    <string name="admin_filter_no">No</string>
+    <string name="admin_btn_apply">Apply</string>
+    <string name="admin_btn_reset">Reset</string>
+    <!-- Complaint reason labels -->
+    <string name="admin_reason_not_interested_topic">Not interested in topic</string>
+    <string name="admin_reason_unwanted_region">Unwanted region</string>
+    <string name="admin_reason_unwanted_publisher">Unwanted publisher</string>
+    <string name="admin_reason_not_an_article">Not an article</string>
+    <string name="admin_reason_broken_link">Broken link</string>
+    <string name="admin_reason_misleading">Misleading</string>
+    <string name="admin_reason_other">Other</string>
 </resources>

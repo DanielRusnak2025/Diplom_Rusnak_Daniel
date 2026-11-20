@@ -38,6 +38,7 @@ import org.example.dto.ErrorResponse
 import org.example.dto.HiddenRequest
 import org.example.dto.ReportReasonDto
 import org.example.dto.RoleDto
+import org.example.ReportReason
 import org.example.dto.SetRoleRequest
 import org.example.dto.StatsDto
 import org.example.dto.TagRefDto
@@ -65,6 +66,9 @@ fun Route.adminRoutes(auditService: AuditService) {
                 val q = call.request.queryParameters["q"]?.trim()?.takeIf { it.isNotEmpty() }
                 val fromDateStr = call.request.queryParameters["fromDate"]
                 val toDateStr = call.request.queryParameters["toDate"]
+                val reasonParam = call.request.queryParameters["reason"]?.trim()?.takeIf { it.isNotEmpty() }
+                val reporter = call.request.queryParameters["reporter"]?.trim()?.takeIf { it.isNotEmpty() }
+                val complaintsLanguage = call.request.queryParameters["language"]?.trim()?.takeIf { it.isNotEmpty() }
 
                 val fromDate = if (fromDateStr != null) {
                     try { LocalDate.parse(fromDateStr) }
@@ -82,12 +86,23 @@ fun Route.adminRoutes(auditService: AuditService) {
                     }
                 } else null
 
+                val reasonFilter: ReportReason? = if (reasonParam != null) {
+                    try { ReportReason.valueOf(reasonParam.uppercase()) }
+                    catch (_: IllegalArgumentException) {
+                        call.respond(HttpStatusCode.BadRequest, ErrorResponse("INVALID_PARAM", "Invalid reason: $reasonParam"))
+                        return@get
+                    }
+                } else null
+
                 val page = withNewTransaction { session ->
                     val hql = buildString {
                         append("FROM Report r WHERE r.reasonCode IS NOT NULL")
                         if (q != null) append(" AND LOWER(r.article.title) LIKE LOWER(:q) ESCAPE '!'")
                         if (fromDate != null) append(" AND r.date >= :fromDate")
                         if (toDate != null) append(" AND r.date <= :toDate")
+                        if (reasonFilter != null) append(" AND r.reasonCode = :reason")
+                        if (reporter != null) append(" AND LOWER(r.user.nick) LIKE LOWER(:reporter) ESCAPE '!'")
+                        if (complaintsLanguage != null) append(" AND r.article.articleLanguage = :language")
                         if (cursor != null) append(" AND r.id < :cursor")
                         append(" ORDER BY r.id DESC")
                     }
@@ -95,6 +110,9 @@ fun Route.adminRoutes(auditService: AuditService) {
                     if (q != null) query.setParameter("q", "%${escapeLike(q)}%")
                     if (fromDate != null) query.setParameter("fromDate", java.sql.Date.valueOf(fromDate))
                     if (toDate != null) query.setParameter("toDate", java.sql.Date.valueOf(toDate))
+                    if (reasonFilter != null) query.setParameter("reason", reasonFilter)
+                    if (reporter != null) query.setParameter("reporter", "%${escapeLike(reporter)}%")
+                    if (complaintsLanguage != null) query.setParameter("language", complaintsLanguage)
                     if (cursor != null) query.setParameter("cursor", cursor)
                     query.setMaxResults(limit + 1)
                     val rows = query.resultList
@@ -126,6 +144,12 @@ fun Route.adminRoutes(auditService: AuditService) {
                 val fromDateStr = call.request.queryParameters["fromDate"]
                 val toDateStr = call.request.queryParameters["toDate"]
                 val hiddenParam = call.request.queryParameters["hidden"]
+                val articlesLanguage = call.request.queryParameters["language"]?.trim()?.takeIf { it.isNotEmpty() }
+                val articlesRegion = call.request.queryParameters["region"]?.trim()?.takeIf { it.isNotEmpty() }
+                val articlesPublisher = call.request.queryParameters["publisher"]?.trim()?.takeIf { it.isNotEmpty() }
+                val articlesCategory = call.request.queryParameters["category"]?.trim()?.takeIf { it.isNotEmpty() }
+                val classifiedParam = call.request.queryParameters["classified"]
+                val articlesHasComplaintsParam = call.request.queryParameters["hasComplaints"]
 
                 val fromDate = if (fromDateStr != null) {
                     try { LocalDate.parse(fromDateStr) }
@@ -153,6 +177,26 @@ fun Route.adminRoutes(auditService: AuditService) {
                     }
                 }
 
+                val classifiedFilter: Boolean? = when (classifiedParam?.lowercase()) {
+                    "true"  -> true
+                    "false" -> false
+                    null    -> null
+                    else -> {
+                        call.respond(HttpStatusCode.BadRequest, ErrorResponse("INVALID_PARAM", "classified must be true or false"))
+                        return@get
+                    }
+                }
+
+                val articlesHasComplaintsFilter: Boolean? = when (articlesHasComplaintsParam?.lowercase()) {
+                    "true"  -> true
+                    "false" -> false
+                    null    -> null
+                    else -> {
+                        call.respond(HttpStatusCode.BadRequest, ErrorResponse("INVALID_PARAM", "hasComplaints must be true or false"))
+                        return@get
+                    }
+                }
+
                 val page = withNewTransaction { session ->
                     val conditions = mutableListOf<String>()
                     val params = mutableMapOf<String, Any>()
@@ -172,6 +216,32 @@ fun Route.adminRoutes(auditService: AuditService) {
                     if (hiddenFilter != null) {
                         conditions.add("a.hidden = :hidden")
                         params["hidden"] = hiddenFilter
+                    }
+                    if (articlesLanguage != null) {
+                        conditions.add("a.article_language = :language")
+                        params["language"] = articlesLanguage
+                    }
+                    if (articlesRegion != null) {
+                        conditions.add("a.article_region = :region")
+                        params["region"] = articlesRegion
+                    }
+                    if (articlesPublisher != null) {
+                        conditions.add("LOWER(a.publisher) LIKE LOWER(:publisher) ESCAPE '!'")
+                        params["publisher"] = "%${escapeLike(articlesPublisher)}%"
+                    }
+                    if (articlesCategory != null) {
+                        conditions.add("EXISTS (SELECT 1 FROM article_tag_percent atp JOIN tag t ON t.id = atp.tag_id WHERE atp.article_id = a.id AND t.tag_key = :category)")
+                        params["category"] = articlesCategory
+                    }
+                    if (classifiedFilter != null) {
+                        conditions.add(if (classifiedFilter) "a.prompt_version IS NOT NULL" else "a.prompt_version IS NULL")
+                    }
+                    if (articlesHasComplaintsFilter != null) {
+                        if (articlesHasComplaintsFilter) {
+                            conditions.add("EXISTS (SELECT 1 FROM report r WHERE r.article_id = a.id AND r.reason_code IS NOT NULL)")
+                        } else {
+                            conditions.add("NOT EXISTS (SELECT 1 FROM report r WHERE r.article_id = a.id AND r.reason_code IS NOT NULL)")
+                        }
                     }
                     if (cursor != null) {
                         conditions.add("a.id < :cursor")
@@ -367,6 +437,10 @@ fun Route.adminRoutes(auditService: AuditService) {
                 val q = call.request.queryParameters["q"]?.trim()?.takeIf { it.isNotEmpty() }
                 val fromDateStr = call.request.queryParameters["fromDate"]
                 val toDateStr = call.request.queryParameters["toDate"]
+                val usersRoleParam = call.request.queryParameters["role"]?.trim()?.takeIf { it.isNotEmpty() }
+                val usersLanguage = call.request.queryParameters["language"]?.trim()?.takeIf { it.isNotEmpty() }
+                val usersRegion = call.request.queryParameters["region"]?.trim()?.takeIf { it.isNotEmpty() }
+                val usersHasComplaintsParam = call.request.queryParameters["hasComplaints"]
 
                 val fromDate = if (fromDateStr != null) {
                     try { LocalDate.parse(fromDateStr) }
@@ -384,12 +458,40 @@ fun Route.adminRoutes(auditService: AuditService) {
                     }
                 } else null
 
+                val usersRoleFilter: Role? = if (usersRoleParam != null) {
+                    try { Role.valueOf(usersRoleParam.uppercase()) }
+                    catch (_: IllegalArgumentException) {
+                        call.respond(HttpStatusCode.BadRequest, ErrorResponse("INVALID_PARAM", "Invalid role: $usersRoleParam"))
+                        return@get
+                    }
+                } else null
+
+                val usersHasComplaintsFilter: Boolean? = when (usersHasComplaintsParam?.lowercase()) {
+                    "true"  -> true
+                    "false" -> false
+                    null    -> null
+                    else -> {
+                        call.respond(HttpStatusCode.BadRequest, ErrorResponse("INVALID_PARAM", "hasComplaints must be true or false"))
+                        return@get
+                    }
+                }
+
                 val page = withNewTransaction { session ->
                     val conditions = mutableListOf<String>()
                     if (cursor != null) conditions.add("u.id < :cursor")
                     if (q != null) conditions.add("u.nick LIKE :q ESCAPE '!'")
                     if (fromDate != null) conditions.add("u.registrationDate >= :fromDate")
                     if (toDate != null) conditions.add("u.registrationDate <= :toDate")
+                    if (usersRoleFilter != null) conditions.add("u.role = :role")
+                    if (usersLanguage != null) conditions.add(":language MEMBER OF u.languages")
+                    if (usersRegion != null) conditions.add(":region MEMBER OF u.regions")
+                    if (usersHasComplaintsFilter != null) {
+                        if (usersHasComplaintsFilter) {
+                            conditions.add("EXISTS (SELECT 1 FROM Report r WHERE r.user = u AND r.reasonCode IS NOT NULL)")
+                        } else {
+                            conditions.add("NOT EXISTS (SELECT 1 FROM Report r WHERE r.user = u AND r.reasonCode IS NOT NULL)")
+                        }
+                    }
 
                     val hql = buildString {
                         append("FROM User u")
@@ -401,6 +503,9 @@ fun Route.adminRoutes(auditService: AuditService) {
                     if (q != null) query.setParameter("q", "%${escapeLike(q)}%")
                     if (fromDate != null) query.setParameter("fromDate", java.sql.Date.valueOf(fromDate))
                     if (toDate != null) query.setParameter("toDate", java.sql.Date.valueOf(toDate))
+                    if (usersRoleFilter != null) query.setParameter("role", usersRoleFilter)
+                    if (usersLanguage != null) query.setParameter("language", usersLanguage)
+                    if (usersRegion != null) query.setParameter("region", usersRegion)
                     query.setMaxResults(limit + 1)
                     val rows = query.resultList
                     val hasMore = rows.size > limit

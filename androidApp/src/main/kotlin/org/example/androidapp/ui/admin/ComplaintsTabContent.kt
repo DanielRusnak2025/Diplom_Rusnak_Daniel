@@ -2,6 +2,7 @@ package org.example.androidapp.ui.admin
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,17 +24,23 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -41,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import org.example.androidapp.R
 import org.example.dto.ComplaintItemDto
 import org.example.dto.ReportReasonDto
@@ -54,6 +62,9 @@ fun ComplaintsTabContent(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
+    var showFilters by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
 
     val shouldLoadMore by remember {
         derivedStateOf {
@@ -66,17 +77,50 @@ fun ComplaintsTabContent(
         if (shouldLoadMore) viewModel.loadMore()
     }
 
+    if (showFilters) {
+        ModalBottomSheet(
+            onDismissRequest = { showFilters = false },
+            sheetState = sheetState,
+        ) {
+            ComplaintsFilterSheet(
+                state = state,
+                onApply = { reason, reporter, language ->
+                    scope.launch { sheetState.hide() }.invokeOnCompletion { showFilters = false }
+                    viewModel.applyFilters(reason, reporter, language)
+                },
+                onReset = {
+                    scope.launch { sheetState.hide() }.invokeOnCompletion { showFilters = false }
+                    viewModel.resetFilters()
+                },
+                onDismiss = {
+                    scope.launch { sheetState.hide() }.invokeOnCompletion { showFilters = false }
+                },
+            )
+        }
+    }
+
     Column(modifier = modifier.fillMaxSize()) {
-        OutlinedTextField(
-            value = state.query,
-            onValueChange = { viewModel.setQuery(it) },
+        // Search + Filters button row
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            placeholder = { Text(stringResource(R.string.admin_complaints_search_hint)) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-            singleLine = true,
-        )
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedTextField(
+                value = state.query,
+                onValueChange = { viewModel.setQuery(it) },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text(stringResource(R.string.admin_complaints_search_hint)) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                singleLine = true,
+            )
+            OutlinedButton(onClick = { showFilters = true }) {
+                val count = state.activeFilterCount
+                Text(if (count > 0) stringResource(R.string.admin_filter_btn_active, count) else stringResource(R.string.admin_filter_btn))
+            }
+        }
 
         Row(
             modifier = Modifier
@@ -177,6 +221,85 @@ fun ComplaintsTabContent(
             onConfirm = { viewModel.executeDismiss() },
             onDismiss = { viewModel.cancelDismiss() },
         )
+    }
+}
+
+@Suppress("unused")
+private fun reasonLabel(reason: ReportReasonDto): Int = when (reason) {
+    ReportReasonDto.NOT_INTERESTED_TOPIC  -> R.string.admin_reason_not_interested_topic
+    ReportReasonDto.UNWANTED_REGION       -> R.string.admin_reason_unwanted_region
+    ReportReasonDto.UNWANTED_PUBLISHER    -> R.string.admin_reason_unwanted_publisher
+    ReportReasonDto.NOT_AN_ARTICLE        -> R.string.admin_reason_not_an_article
+    ReportReasonDto.BROKEN_LINK           -> R.string.admin_reason_broken_link
+    ReportReasonDto.MISLEADING            -> R.string.admin_reason_misleading
+    ReportReasonDto.OTHER                 -> R.string.admin_reason_other
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ComplaintsFilterSheet(
+    state: ComplaintsUiState,
+    onApply: (ReportReasonDto?, String?, String?) -> Unit,
+    onReset: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var reason by remember { mutableStateOf(state.reasonFilter) }
+    var reporter by remember { mutableStateOf(state.reporterFilter ?: "") }
+    var language by remember { mutableStateOf(state.languageFilter) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(stringResource(R.string.admin_filter_sheet_title), style = MaterialTheme.typography.titleMedium)
+
+        // Reason chips (scrollable row via wrapping)
+        Text(stringResource(R.string.admin_filter_reason), style = MaterialTheme.typography.labelMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = reason == null, onClick = { reason = null }, label = { Text(stringResource(R.string.admin_filter_any)) })
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ReportReasonDto.values().forEach { r ->
+                FilterChip(selected = reason == r, onClick = { reason = r }, label = { Text(stringResource(reasonLabel(r))) })
+            }
+        }
+
+        // Reporter nick field
+        OutlinedTextField(
+            value = reporter,
+            onValueChange = { reporter = it },
+            label = { Text(stringResource(R.string.admin_filter_reporter)) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+        )
+
+        // Article language dropdown
+        AdminDropdownField(
+            label = stringResource(R.string.admin_filter_article_language),
+            selectedKey = language,
+            options = listOf(null to stringResource(R.string.admin_filter_any)) +
+                state.languageByCode.entries.sortedBy { it.value }.map { it.key to it.value },
+            onSelect = { language = it },
+        )
+
+        // Buttons
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedButton(onClick = onReset, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.admin_btn_reset))
+            }
+            Button(
+                onClick = { onApply(reason, reporter.takeIf { it.isNotEmpty() }, language) },
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(stringResource(R.string.admin_btn_apply))
+            }
+        }
     }
 }
 

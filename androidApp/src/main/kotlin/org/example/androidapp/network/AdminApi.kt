@@ -30,6 +30,9 @@ class AdminApi(
         q: String? = null,
         fromDate: String? = null,
         toDate: String? = null,
+        reason: String? = null,
+        reporter: String? = null,
+        language: String? = null,
     ): ComplaintPageDto =
         authClient.get("$baseUrl/api/v1/admin/complaints") {
             if (cursor != null) parameter("cursor", cursor)
@@ -37,6 +40,9 @@ class AdminApi(
             if (!q.isNullOrBlank()) parameter("q", q)
             if (fromDate != null) parameter("fromDate", fromDate)
             if (toDate != null) parameter("toDate", toDate)
+            if (!reason.isNullOrBlank()) parameter("reason", reason)
+            if (!reporter.isNullOrBlank()) parameter("reporter", reporter)
+            if (!language.isNullOrBlank()) parameter("language", language)
         }.body()
 
     suspend fun hideArticle(articleId: Int, hidden: Boolean) {
@@ -69,6 +75,12 @@ class AdminApi(
         fromDate: String? = null,
         toDate: String? = null,
         hidden: Boolean? = null,
+        language: String? = null,
+        region: String? = null,
+        publisher: String? = null,
+        category: String? = null,
+        classified: Boolean? = null,
+        hasComplaints: Boolean? = null,
         cursor: Int? = null,
         limit: Int = 20,
     ): AdminArticlePageDto =
@@ -77,6 +89,12 @@ class AdminApi(
             if (fromDate != null) parameter("fromDate", fromDate)
             if (toDate != null) parameter("toDate", toDate)
             if (hidden != null) parameter("hidden", hidden)
+            if (!language.isNullOrBlank()) parameter("language", language)
+            if (!region.isNullOrBlank()) parameter("region", region)
+            if (!publisher.isNullOrBlank()) parameter("publisher", publisher)
+            if (!category.isNullOrBlank()) parameter("category", category)
+            if (classified != null) parameter("classified", classified)
+            if (hasComplaints != null) parameter("hasComplaints", hasComplaints)
             if (cursor != null) parameter("cursor", cursor)
             parameter("limit", limit)
         }.body()
@@ -88,6 +106,10 @@ class AdminApi(
         q: String? = null,
         fromDate: String? = null,
         toDate: String? = null,
+        role: String? = null,
+        language: String? = null,
+        region: String? = null,
+        hasComplaints: Boolean? = null,
         cursor: Int? = null,
         limit: Int = 20,
     ): AdminUserPageDto =
@@ -95,6 +117,10 @@ class AdminApi(
             if (!q.isNullOrBlank()) parameter("q", q)
             if (fromDate != null) parameter("fromDate", fromDate)
             if (toDate != null) parameter("toDate", toDate)
+            if (!role.isNullOrBlank()) parameter("role", role)
+            if (!language.isNullOrBlank()) parameter("language", language)
+            if (!region.isNullOrBlank()) parameter("region", region)
+            if (hasComplaints != null) parameter("hasComplaints", hasComplaints)
             if (cursor != null) parameter("cursor", cursor)
             parameter("limit", limit)
         }.body()

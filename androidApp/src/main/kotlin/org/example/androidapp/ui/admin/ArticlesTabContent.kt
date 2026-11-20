@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
@@ -27,21 +28,27 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,9 +58,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.Instant
 import java.time.ZoneOffset
+import kotlinx.coroutines.launch
 import org.example.androidapp.R
 import org.example.dto.AdminArticleDto
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArticlesTabContent(
     viewModel: ArticlesViewModel,
@@ -62,6 +71,9 @@ fun ArticlesTabContent(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
+    var showFilters by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
 
     val shouldLoadMore by remember {
         derivedStateOf {
@@ -74,18 +86,50 @@ fun ArticlesTabContent(
         if (shouldLoadMore) viewModel.loadMore()
     }
 
+    if (showFilters) {
+        ModalBottomSheet(
+            onDismissRequest = { showFilters = false },
+            sheetState = sheetState,
+        ) {
+            ArticlesFilterSheet(
+                state = state,
+                onApply = { lang, region, publisher, category, classified, hasComplaints ->
+                    scope.launch { sheetState.hide() }.invokeOnCompletion { showFilters = false }
+                    viewModel.applyFilters(lang, region, publisher, category, classified, hasComplaints)
+                },
+                onReset = {
+                    scope.launch { sheetState.hide() }.invokeOnCompletion { showFilters = false }
+                    viewModel.resetFilters()
+                },
+                onDismiss = {
+                    scope.launch { sheetState.hide() }.invokeOnCompletion { showFilters = false }
+                },
+            )
+        }
+    }
+
     Column(modifier = modifier.fillMaxSize()) {
-        // Search field
-        OutlinedTextField(
-            value = state.query,
-            onValueChange = { viewModel.setQuery(it) },
+        // Search + Filters button row
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            placeholder = { Text(stringResource(R.string.admin_articles_search_hint)) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-            singleLine = true,
-        )
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedTextField(
+                value = state.query,
+                onValueChange = { viewModel.setQuery(it) },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text(stringResource(R.string.admin_articles_search_hint)) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                singleLine = true,
+            )
+            OutlinedButton(onClick = { showFilters = true }) {
+                val count = state.activeFilterCount
+                Text(if (count > 0) stringResource(R.string.admin_filter_btn_active, count) else stringResource(R.string.admin_filter_btn))
+            }
+        }
 
         // Date range
         Row(
@@ -252,6 +296,147 @@ private fun ArticleListItem(
                     text = langRegion,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ArticlesFilterSheet(
+    state: ArticlesUiState,
+    onApply: (String?, String?, String?, String?, Boolean?, Boolean?) -> Unit,
+    onReset: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var language by remember { mutableStateOf(state.languageFilter) }
+    var region by remember { mutableStateOf(state.regionFilter) }
+    var publisher by remember { mutableStateOf(state.publisherFilter ?: "") }
+    var category by remember { mutableStateOf(state.categoryFilter) }
+    var classified by remember { mutableStateOf(state.classifiedFilter) }
+    var hasComplaints by remember { mutableStateOf(state.hasComplaintsFilter) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(stringResource(R.string.admin_filter_sheet_title), style = MaterialTheme.typography.titleMedium)
+
+        // Language dropdown
+        AdminDropdownField(
+            label = stringResource(R.string.admin_filter_language),
+            selectedKey = language,
+            options = listOf(null to stringResource(R.string.admin_filter_any)) +
+                state.languageByCode.entries.sortedBy { it.value }.map { it.key to it.value },
+            onSelect = { language = it },
+        )
+
+        // Region dropdown
+        AdminDropdownField(
+            label = stringResource(R.string.admin_filter_region),
+            selectedKey = region,
+            options = listOf(null to stringResource(R.string.admin_filter_any)) +
+                state.regionByKey.entries.sortedBy { it.value }.map { it.key to it.value },
+            onSelect = { region = it },
+        )
+
+        // Publisher text field
+        OutlinedTextField(
+            value = publisher,
+            onValueChange = { publisher = it },
+            label = { Text(stringResource(R.string.admin_filter_publisher)) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+        )
+
+        // Category dropdown
+        AdminDropdownField(
+            label = stringResource(R.string.admin_filter_category),
+            selectedKey = category,
+            options = listOf(null to stringResource(R.string.admin_filter_any)) +
+                state.categories.map { it.key to it.name },
+            onSelect = { category = it },
+        )
+
+        // Classified chips
+        Text(stringResource(R.string.admin_filter_classified), style = MaterialTheme.typography.labelMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = classified == null, onClick = { classified = null }, label = { Text(stringResource(R.string.admin_filter_any)) })
+            FilterChip(selected = classified == true, onClick = { classified = true }, label = { Text(stringResource(R.string.admin_filter_yes)) })
+            FilterChip(selected = classified == false, onClick = { classified = false }, label = { Text(stringResource(R.string.admin_filter_no)) })
+        }
+
+        // Has complaints chips
+        Text(stringResource(R.string.admin_filter_has_complaints), style = MaterialTheme.typography.labelMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = hasComplaints == null, onClick = { hasComplaints = null }, label = { Text(stringResource(R.string.admin_filter_any)) })
+            FilterChip(selected = hasComplaints == true, onClick = { hasComplaints = true }, label = { Text(stringResource(R.string.admin_filter_yes)) })
+            FilterChip(selected = hasComplaints == false, onClick = { hasComplaints = false }, label = { Text(stringResource(R.string.admin_filter_no)) })
+        }
+
+        // Buttons
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedButton(onClick = onReset, modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.admin_btn_reset))
+            }
+            Button(
+                onClick = { onApply(language, region, publisher.takeIf { it.isNotEmpty() }, category, classified, hasComplaints) },
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(stringResource(R.string.admin_btn_apply))
+            }
+        }
+    }
+}
+
+@Composable
+internal fun AdminDropdownField(
+    label: String,
+    selectedKey: String?,
+    options: List<Pair<String?, String>>,
+    onSelect: (String?) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabel = options.firstOrNull { it.first == selectedKey }?.second ?: options.firstOrNull()?.second ?: ""
+    Box {
+        OutlinedTextField(
+            value = selectedLabel,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                ) { expanded = true },
+            trailingIcon = {
+                IconButton(onClick = { expanded = true }) {
+                    Icon(Icons.Default.DateRange, contentDescription = null)
+                }
+            },
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .padding(end = 48.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                ) { expanded = true },
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { (key, name) ->
+                DropdownMenuItem(
+                    text = { Text(name) },
+                    onClick = { onSelect(key); expanded = false },
                 )
             }
         }

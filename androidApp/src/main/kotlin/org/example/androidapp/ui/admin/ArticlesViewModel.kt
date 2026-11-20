@@ -13,6 +13,7 @@ import org.example.androidapp.network.AdminApi
 import org.example.androidapp.network.ApiException
 import org.example.androidapp.network.MetaApi
 import org.example.dto.AdminArticleDto
+import org.example.dto.CategoryDto
 
 enum class ArticleHiddenFilter { ALL, VISIBLE, HIDDEN }
 
@@ -35,7 +36,20 @@ data class ArticlesUiState(
     val toDate: String? = null,
     val languageByCode: Map<String, String> = emptyMap(),
     val regionByKey: Map<String, String> = emptyMap(),
-)
+    val categories: List<CategoryDto> = emptyList(),
+    // active filters
+    val languageFilter: String? = null,
+    val regionFilter: String? = null,
+    val publisherFilter: String? = null,
+    val categoryFilter: String? = null,
+    val classifiedFilter: Boolean? = null,
+    val hasComplaintsFilter: Boolean? = null,
+) {
+    val activeFilterCount: Int get() = listOfNotNull(
+        languageFilter, regionFilter, publisherFilter, categoryFilter,
+        classifiedFilter, hasComplaintsFilter,
+    ).size
+}
 
 class ArticlesViewModel(
     private val adminApi: AdminApi,
@@ -57,9 +71,11 @@ class ArticlesViewModel(
             try {
                 val names = metaApi.languageNames("en")
                 val regions = metaApi.regions()
+                val cats = metaApi.categories()
                 _state.update { it.copy(
                     languageByCode = names,
                     regionByKey = regions.mapNotNull { r -> r.name?.let { n -> r.key to n } }.toMap(),
+                    categories = cats,
                 ) }
             } catch (_: Exception) {}
         }
@@ -84,6 +100,37 @@ class ArticlesViewModel(
         scheduleLoad()
     }
 
+    fun applyFilters(
+        language: String?,
+        region: String?,
+        publisher: String?,
+        category: String?,
+        classified: Boolean?,
+        hasComplaints: Boolean?,
+    ) {
+        _state.update { it.copy(
+            languageFilter = language,
+            regionFilter = region,
+            publisherFilter = publisher,
+            categoryFilter = category,
+            classifiedFilter = classified,
+            hasComplaintsFilter = hasComplaints,
+        ) }
+        scheduleLoad()
+    }
+
+    fun resetFilters() {
+        _state.update { it.copy(
+            languageFilter = null,
+            regionFilter = null,
+            publisherFilter = null,
+            categoryFilter = null,
+            classifiedFilter = null,
+            hasComplaintsFilter = null,
+        ) }
+        scheduleLoad()
+    }
+
     fun loadMore() {
         val s = _state.value
         if (s.isLoadingMore || s.isEndOfList || s.nextCursor == null) return
@@ -95,6 +142,12 @@ class ArticlesViewModel(
                     fromDate = s.fromDate,
                     toDate = s.toDate,
                     hidden = s.hiddenFilter.toParam(),
+                    language = s.languageFilter,
+                    region = s.regionFilter,
+                    publisher = s.publisherFilter,
+                    category = s.categoryFilter,
+                    classified = s.classifiedFilter,
+                    hasComplaints = s.hasComplaintsFilter,
                     cursor = s.nextCursor,
                 )
                 _state.update { state ->
@@ -136,6 +189,12 @@ class ArticlesViewModel(
                 fromDate = s.fromDate,
                 toDate = s.toDate,
                 hidden = s.hiddenFilter.toParam(),
+                language = s.languageFilter,
+                region = s.regionFilter,
+                publisher = s.publisherFilter,
+                category = s.categoryFilter,
+                classified = s.classifiedFilter,
+                hasComplaints = s.hasComplaintsFilter,
                 cursor = null,
             )
             _state.update { it.copy(

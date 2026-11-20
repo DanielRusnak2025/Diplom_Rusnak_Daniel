@@ -34,6 +34,7 @@ class ArticlesViewModelTest {
         Dispatchers.setMain(testDispatcher)
         coEvery { metaApi.languageNames(any()) } returns emptyMap()
         coEvery { metaApi.regions() } returns emptyList()
+        coEvery { metaApi.categories() } returns emptyList()
     }
     @AfterEach fun tearDown() { Dispatchers.resetMain() }
 
@@ -174,5 +175,128 @@ class ArticlesViewModelTest {
         vm.updateArticle(1, true)
 
         assertEquals(true, vm.state.value.items.find { it.id == 1 }?.hidden)
+    }
+
+    @Test
+    fun `applyFilters - language filter sent to api`() = runTest(testDispatcher) {
+        mockSearch(result = AdminArticlePageDto(emptyList(), null))
+        coEvery {
+            adminApi.searchArticles(q = null, fromDate = null, toDate = null, hidden = null,
+                language = "en", region = null, publisher = null, category = null,
+                classified = null, hasComplaints = null, cursor = null, limit = any())
+        } returns AdminArticlePageDto(listOf(article(1)), null)
+
+        val vm = ArticlesViewModel(adminApi, metaApi)
+        advanceUntilIdle()
+
+        vm.applyFilters("en", null, null, null, null, null)
+        advanceUntilIdle()
+
+        assertEquals(1, vm.state.value.items.size)
+        assertEquals("en", vm.state.value.languageFilter)
+    }
+
+    @Test
+    fun `applyFilters - classified=true filter sent to api`() = runTest(testDispatcher) {
+        mockSearch(result = AdminArticlePageDto(emptyList(), null))
+        coEvery {
+            adminApi.searchArticles(q = null, fromDate = null, toDate = null, hidden = null,
+                language = null, region = null, publisher = null, category = null,
+                classified = true, hasComplaints = null, cursor = null, limit = any())
+        } returns AdminArticlePageDto(listOf(article(2), article(3)), null)
+
+        val vm = ArticlesViewModel(adminApi, metaApi)
+        advanceUntilIdle()
+
+        vm.applyFilters(null, null, null, null, true, null)
+        advanceUntilIdle()
+
+        assertEquals(2, vm.state.value.items.size)
+        assertEquals(true, vm.state.value.classifiedFilter)
+    }
+
+    @Test
+    fun `applyFilters - hasComplaints=true filter sent to api`() = runTest(testDispatcher) {
+        mockSearch(result = AdminArticlePageDto(emptyList(), null))
+        coEvery {
+            adminApi.searchArticles(q = null, fromDate = null, toDate = null, hidden = null,
+                language = null, region = null, publisher = null, category = null,
+                classified = null, hasComplaints = true, cursor = null, limit = any())
+        } returns AdminArticlePageDto(listOf(article(5)), null)
+
+        val vm = ArticlesViewModel(adminApi, metaApi)
+        advanceUntilIdle()
+
+        vm.applyFilters(null, null, null, null, null, true)
+        advanceUntilIdle()
+
+        assertEquals(1, vm.state.value.items.size)
+        assertEquals(true, vm.state.value.hasComplaintsFilter)
+    }
+
+    @Test
+    fun `resetFilters clears all filters and reloads`() = runTest(testDispatcher) {
+        mockSearch(result = AdminArticlePageDto(listOf(article(1)), null))
+
+        val vm = ArticlesViewModel(adminApi, metaApi)
+        advanceUntilIdle()
+
+        vm.resetFilters()
+        advanceUntilIdle()
+
+        val s = vm.state.value
+        assertNull(s.languageFilter)
+        assertNull(s.regionFilter)
+        assertNull(s.publisherFilter)
+        assertNull(s.categoryFilter)
+        assertNull(s.classifiedFilter)
+        assertNull(s.hasComplaintsFilter)
+        assertEquals(0, s.activeFilterCount)
+    }
+
+    @Test
+    fun `filters combine with query - all params sent to api`() = runTest(testDispatcher) {
+        mockSearch(result = AdminArticlePageDto(emptyList(), null))
+        coEvery {
+            adminApi.searchArticles(q = "test", fromDate = null, toDate = null, hidden = null,
+                language = "ru", region = null, publisher = null, category = null,
+                classified = null, hasComplaints = null, cursor = null, limit = any())
+        } returns AdminArticlePageDto(listOf(article(7)), null)
+
+        val vm = ArticlesViewModel(adminApi, metaApi)
+        advanceUntilIdle()
+
+        vm.applyFilters("ru", null, null, null, null, null)
+        vm.setQuery("test")
+        advanceUntilIdle()
+
+        assertEquals(1, vm.state.value.items.size)
+    }
+
+    @Test
+    fun `paging keeps filters on loadMore`() = runTest(testDispatcher) {
+        coEvery {
+            adminApi.searchArticles(q = null, fromDate = null, toDate = null, hidden = null,
+                language = "en", region = null, publisher = null, category = null,
+                classified = null, hasComplaints = null, cursor = null, limit = any())
+        } returns AdminArticlePageDto(listOf(article(10), article(9)), "9")
+        coEvery {
+            adminApi.searchArticles(q = null, fromDate = null, toDate = null, hidden = null,
+                language = "en", region = null, publisher = null, category = null,
+                classified = null, hasComplaints = null, cursor = 9, limit = any())
+        } returns AdminArticlePageDto(listOf(article(8)), null)
+
+        val vm = ArticlesViewModel(adminApi, metaApi)
+        advanceUntilIdle()
+
+        vm.applyFilters("en", null, null, null, null, null)
+        advanceUntilIdle()
+        assertEquals(2, vm.state.value.items.size)
+
+        vm.loadMore()
+        advanceUntilIdle()
+
+        assertEquals(3, vm.state.value.items.size)
+        assertEquals("en", vm.state.value.languageFilter)
     }
 }

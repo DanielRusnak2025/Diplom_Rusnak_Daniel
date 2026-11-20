@@ -55,6 +55,8 @@ fun Route.authRoutes(
             val (accessToken, refreshRaw) = withNewTransaction { session ->
                 val managed = session.find(User::class.java, user.id)
                     ?: error("User disappeared after registration: id=${user.id}")
+                if (req.languages.isNotEmpty()) managed.languages = req.languages.toHashSet()
+                if (req.regions.isNotEmpty()) managed.regions = req.regions.toHashSet()
                 val access = jwtConfig.issueAccessToken(managed.id, managed.role)
                 val refresh = refreshTokenService.issue(session, managed)
                 auditService.log(session, managed, "REGISTER", "user", managed.id.toString())

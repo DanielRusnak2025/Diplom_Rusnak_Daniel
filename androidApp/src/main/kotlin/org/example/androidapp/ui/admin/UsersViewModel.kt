@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.example.androidapp.network.AdminApi
 import org.example.androidapp.network.ApiException
+import org.example.androidapp.network.MetaApi
 import org.example.dto.AdminUserDto
 import org.example.dto.RoleDto
 
@@ -24,16 +25,46 @@ data class UsersUiState(
     val query: String = "",
     val fromDate: String? = null,
     val toDate: String? = null,
-)
+    val languageByCode: Map<String, String> = emptyMap(),
+    val regionByKey: Map<String, String> = emptyMap(),
+    // active filters
+    val roleFilter: RoleDto? = null,
+    val languageFilter: String? = null,
+    val regionFilter: String? = null,
+    val hasComplaintsFilter: Boolean? = null,
+) {
+    val activeFilterCount: Int get() = listOfNotNull(
+        roleFilter, languageFilter, regionFilter, hasComplaintsFilter,
+    ).size
+}
 
-class UsersViewModel(private val adminApi: AdminApi) : ViewModel() {
+class UsersViewModel(
+    private val adminApi: AdminApi,
+    private val metaApi: MetaApi,
+) : ViewModel() {
 
     private val _state = MutableStateFlow(UsersUiState())
     val state: StateFlow<UsersUiState> = _state.asStateFlow()
 
     private var loadJob: Job? = null
 
-    init { scheduleLoad() }
+    init {
+        loadMeta()
+        scheduleLoad()
+    }
+
+    private fun loadMeta() {
+        viewModelScope.launch {
+            try {
+                val names = metaApi.languageNames("en")
+                val regions = metaApi.regions()
+                _state.update { it.copy(
+                    languageByCode = names,
+                    regionByKey = regions.mapNotNull { r -> r.name?.let { n -> r.key to n } }.toMap(),
+                ) }
+            } catch (_: Exception) {}
+        }
+    }
 
     fun setQuery(query: String) {
         _state.update { it.copy(query = query) }
@@ -49,6 +80,31 @@ class UsersViewModel(private val adminApi: AdminApi) : ViewModel() {
         scheduleLoad()
     }
 
+    fun applyFilters(
+        role: RoleDto?,
+        language: String?,
+        region: String?,
+        hasComplaints: Boolean?,
+    ) {
+        _state.update { it.copy(
+            roleFilter = role,
+            languageFilter = language,
+            regionFilter = region,
+            hasComplaintsFilter = hasComplaints,
+        ) }
+        scheduleLoad()
+    }
+
+    fun resetFilters() {
+        _state.update { it.copy(
+            roleFilter = null,
+            languageFilter = null,
+            regionFilter = null,
+            hasComplaintsFilter = null,
+        ) }
+        scheduleLoad()
+    }
+
     fun loadMore() {
         val s = _state.value
         if (s.isLoadingMore || s.isEndOfList || s.nextCursor == null) return
@@ -59,6 +115,10 @@ class UsersViewModel(private val adminApi: AdminApi) : ViewModel() {
                     q = s.query.takeIf { it.isNotEmpty() },
                     fromDate = s.fromDate,
                     toDate = s.toDate,
+                    role = s.roleFilter?.name,
+                    language = s.languageFilter,
+                    region = s.regionFilter,
+                    hasComplaints = s.hasComplaintsFilter,
                     cursor = s.nextCursor,
                 )
                 _state.update { state ->
@@ -99,6 +159,10 @@ class UsersViewModel(private val adminApi: AdminApi) : ViewModel() {
                 q = s.query.takeIf { it.isNotEmpty() },
                 fromDate = s.fromDate,
                 toDate = s.toDate,
+                role = s.roleFilter?.name,
+                language = s.languageFilter,
+                region = s.regionFilter,
+                hasComplaints = s.hasComplaintsFilter,
                 cursor = null,
             )
             _state.update { it.copy(

@@ -223,7 +223,7 @@ fun AppNavGraph(appViewModel: AppViewModel) {
                 factory = viewModelFactory {
                     initializer {
                         val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as NewsDoveApp
-                        ComplaintsViewModel(app.container.adminApi)
+                        ComplaintsViewModel(app.container.adminApi, app.container.metaApi)
                     }
                 },
             )
@@ -236,7 +236,7 @@ fun AppNavGraph(appViewModel: AppViewModel) {
             val usersVm: UsersViewModel = viewModel(factory = viewModelFactory {
                 initializer {
                     val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as NewsDoveApp
-                    UsersViewModel(app.container.adminApi)
+                    UsersViewModel(app.container.adminApi, app.container.metaApi)
                 }
             })
 
