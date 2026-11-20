@@ -8,8 +8,8 @@ import org.example.util.HibernateUtil;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
 
+import java.time.LocalDate;
 import java.util.Collection;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -69,7 +69,7 @@ public class ReportDAOImpl extends GenericDAOImpl<Report, Integer> implements Re
     }
 
     @Override
-    public List<Report> findByDateRange(Date startDate, Date endDate) {
+    public List<Report> findByDateRange(LocalDate startDate, LocalDate endDate) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             String hql = "FROM Report r WHERE r.date BETWEEN :startDate AND :endDate ORDER BY r.date DESC";
             Query<Report> query = session.createQuery(hql, Report.class);

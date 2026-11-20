@@ -3,8 +3,8 @@ package org.example;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -32,8 +32,7 @@ public class User {
     private LocalDateTime lockedUntil;
 
     @Column(name = "registration_date")
-    @Temporal(TemporalType.DATE)
-    private Date registrationDate;
+    private LocalDate registrationDate;
 
     @Column(length = 100, unique = true)
     private String email;
@@ -76,7 +75,7 @@ public class User {
         this.nick = nick;
         this.password = password;
         this.email = email;
-        this.registrationDate = new Date();
+        this.registrationDate = LocalDate.now();
         this.readArticlesCount = 0;
         this.role = Role.USER;
     }
@@ -133,11 +132,11 @@ public class User {
         this.lockedUntil = lockedUntil;
     }
 
-    public Date getRegistrationDate() {
+    public LocalDate getRegistrationDate() {
         return registrationDate;
     }
 
-    public void setRegistrationDate(Date registrationDate) {
+    public void setRegistrationDate(LocalDate registrationDate) {
         this.registrationDate = registrationDate;
     }
 
@@ -240,7 +239,7 @@ public class User {
     @PrePersist
     protected void onCreate() {
         if (this.registrationDate == null) {
-            this.registrationDate = new Date();
+            this.registrationDate = LocalDate.now();
         }
     }
 }

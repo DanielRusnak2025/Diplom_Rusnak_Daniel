@@ -125,7 +125,7 @@ fun ArticlesTabContent(
                 value = state.query,
                 onValueChange = { viewModel.setQuery(it) },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text(stringResource(R.string.admin_articles_search_hint)) },
+                label = { Text(stringResource(R.string.admin_articles_search_hint)) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 singleLine = true,
             )
@@ -465,7 +465,7 @@ internal fun DatePickerField(
                     }
                 } else {
                     IconButton(onClick = { showDialog = true }) {
-                        Icon(Icons.Default.DateRange, contentDescription = null)
+                        Icon(Icons.Default.DateRange, contentDescription = stringResource(R.string.cd_pick_date))
                     }
                 }
             },

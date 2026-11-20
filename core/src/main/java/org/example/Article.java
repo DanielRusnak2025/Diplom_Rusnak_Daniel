@@ -2,8 +2,8 @@ package org.example;
 
 import jakarta.persistence.*;
 import org.example.util.UrlNormalizer;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -42,9 +42,8 @@ public class Article {
     @Column(name = "article_region", length = 100)
     private String articleRegion;
 
-    @Temporal(TemporalType.DATE)
     @Column(name = "publication_date")
-    private Date publicationDate;
+    private LocalDate publicationDate;
 
     @Column(length = 255)
     private String publisher;
@@ -163,11 +162,11 @@ public class Article {
         this.articleRegion = articleRegion;
     }
 
-    public Date getPublicationDate() {
+    public LocalDate getPublicationDate() {
         return publicationDate;
     }
 
-    public void setPublicationDate(Date publicationDate) {
+    public void setPublicationDate(LocalDate publicationDate) {
         this.publicationDate = publicationDate;
     }
 

@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.time.LocalDate
-import java.util.Date
 
 @ExtendWith(ServerTestDb::class)
 class AdminArticleRouteTest {
@@ -51,9 +50,7 @@ class AdminArticleRouteTest {
                 it.articleLanguage = "en"
                 it.isHidden = hidden
                 if (pubDate != null) {
-                    it.publicationDate = Date.from(
-                        pubDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()
-                    )
+                    it.publicationDate = pubDate
                 }
             }
             session.persist(a)

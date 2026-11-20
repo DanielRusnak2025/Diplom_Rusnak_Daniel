@@ -45,9 +45,6 @@ import org.example.dto.TagRefDto
 import org.example.server.auth.AuditService
 import org.example.server.util.requireRoleFromDb
 import org.example.server.util.withNewTransaction
-import java.text.SimpleDateFormat
-
-private val DATE_FMT = SimpleDateFormat("yyyy-MM-dd")
 private val DATETIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
 
 private fun escapeLike(s: String): String =
@@ -108,8 +105,8 @@ fun Route.adminRoutes(auditService: AuditService) {
                     }
                     val query = session.createSelectionQuery(hql, Report::class.java)
                     if (q != null) query.setParameter("q", "%${escapeLike(q)}%")
-                    if (fromDate != null) query.setParameter("fromDate", java.sql.Date.valueOf(fromDate))
-                    if (toDate != null) query.setParameter("toDate", java.sql.Date.valueOf(toDate))
+                    if (fromDate != null) query.setParameter("fromDate", fromDate)
+                    if (toDate != null) query.setParameter("toDate", toDate)
                     if (reasonFilter != null) query.setParameter("reason", reasonFilter)
                     if (reporter != null) query.setParameter("reporter", "%${escapeLike(reporter)}%")
                     if (complaintsLanguage != null) query.setParameter("language", complaintsLanguage)
@@ -125,7 +122,7 @@ fun Route.adminRoutes(auditService: AuditService) {
                             userId = r.user.id,
                             userNick = r.user.nick,
                             reasonCode = ReportReasonDto.valueOf(r.reasonCode!!.name),
-                            date = r.date?.let { DATE_FMT.format(it) }
+                            date = r.date?.toString()
                         )
                     }
                     val nextCursor = if (hasMore) items.last().reportId.toString() else null
@@ -207,11 +204,11 @@ fun Route.adminRoutes(auditService: AuditService) {
                     }
                     if (fromDate != null) {
                         conditions.add("COALESCE(a.publication_date, DATE(a.created_at)) >= :fromDate")
-                        params["fromDate"] = java.sql.Date.valueOf(fromDate)
+                        params["fromDate"] = fromDate
                     }
                     if (toDate != null) {
                         conditions.add("COALESCE(a.publication_date, DATE(a.created_at)) <= :toDate")
-                        params["toDate"] = java.sql.Date.valueOf(toDate)
+                        params["toDate"] = toDate
                     }
                     if (hiddenFilter != null) {
                         conditions.add("a.hidden = :hidden")
@@ -354,7 +351,7 @@ fun Route.adminRoutes(auditService: AuditService) {
                         publisher = article.publisher,
                         language = article.articleLanguage,
                         region = article.articleRegion,
-                        publicationDate = article.publicationDate?.let { DATE_FMT.format(it) },
+                        publicationDate = article.publicationDate?.toString(),
                         hidden = article.isHidden,
                         classified = article.promptVersion != null,
                         tags = tags,
@@ -501,8 +498,8 @@ fun Route.adminRoutes(auditService: AuditService) {
                     val query = session.createSelectionQuery(hql, User::class.java)
                     if (cursor != null) query.setParameter("cursor", cursor)
                     if (q != null) query.setParameter("q", "%${escapeLike(q)}%")
-                    if (fromDate != null) query.setParameter("fromDate", java.sql.Date.valueOf(fromDate))
-                    if (toDate != null) query.setParameter("toDate", java.sql.Date.valueOf(toDate))
+                    if (fromDate != null) query.setParameter("fromDate", fromDate)
+                    if (toDate != null) query.setParameter("toDate", toDate)
                     if (usersRoleFilter != null) query.setParameter("role", usersRoleFilter)
                     if (usersLanguage != null) query.setParameter("language", usersLanguage)
                     if (usersRegion != null) query.setParameter("region", usersRegion)
@@ -515,7 +512,7 @@ fun Route.adminRoutes(auditService: AuditService) {
                             nick = u.nick,
                             email = u.email,
                             role = RoleDto.valueOf(u.role.name),
-                            registrationDate = u.registrationDate?.let { DATE_FMT.format(it) }
+                            registrationDate = u.registrationDate?.toString()
                         )
                     }
                     val nextCursor = if (hasMore) items.last().id.toString() else null
@@ -577,7 +574,7 @@ fun Route.adminRoutes(auditService: AuditService) {
                         id = user.id,
                         nick = user.nick,
                         email = user.email,
-                        registrationDate = user.registrationDate?.let { DATE_FMT.format(it) },
+                        registrationDate = user.registrationDate?.toString(),
                         role = RoleDto.valueOf(user.role.name),
                         languages = user.languages.toList(),
                         regions = user.regions.toList(),

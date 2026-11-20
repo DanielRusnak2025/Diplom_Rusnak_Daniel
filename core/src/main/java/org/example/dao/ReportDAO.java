@@ -3,8 +3,8 @@ package org.example.dao;
 import org.example.Report;
 import org.example.Article;
 import org.example.User;
+import java.time.LocalDate;
 import java.util.Collection;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -46,7 +46,7 @@ public interface ReportDAO extends GenericDAO<Report, Integer> {
      * @param endDate конечная дата
      * @return список отчётов
      */
-    List<Report> findByDateRange(Date startDate, Date endDate);
+    List<Report> findByDateRange(LocalDate startDate, LocalDate endDate);
 
     /**
      * Находит последние отчёты.

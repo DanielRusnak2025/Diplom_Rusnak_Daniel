@@ -107,7 +107,7 @@ class FeedRouteTest {
         region: String? = null,
         publisher: String? = "TestPublisher",
         createdAt: LocalDateTime = LocalDateTime.now(),
-        publicationDate: java.util.Date? = null
+        publicationDate: java.time.LocalDate? = null
     ): Article {
         val a = Article().also {
             it.title = title

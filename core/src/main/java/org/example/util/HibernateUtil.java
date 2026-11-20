@@ -35,6 +35,7 @@ public class HibernateUtil {
 
     private static SessionFactory buildSessionFactory() {
         Configuration cfg = new Configuration().configure();
+        cfg.getProperties().remove("hibernate.dialect");
 
         String rawUrl = cfg.getProperty("hibernate.connection.url");
         String newUrl = resolveUrl(rawUrl);

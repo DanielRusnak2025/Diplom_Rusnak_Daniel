@@ -116,6 +116,20 @@ class UrlNormalizerTest {
                 UrlNormalizer.normalize("https://example.com/art?utm_source=a&utm_medium=b&fbclid=c"));
     }
 
+    @Test
+    void atTrackingParamsRemovedFromDwLink() {
+        assertEquals("https://www.dw.com/en/article-title/a-12345678",
+                UrlNormalizer.normalize(
+                        "https://www.dw.com/en/article-title/a-12345678?at_campaign=social&at_medium=Newsletter&at_content=button"));
+    }
+
+    @Test
+    void atParamsMixedWithRealParamKept() {
+        assertEquals("https://www.dw.com/en/article/a-1?topic=world",
+                UrlNormalizer.normalize(
+                        "https://www.dw.com/en/article/a-1?at_campaign=x&topic=world&at_medium=email"));
+    }
+
     // ── error cases ───────────────────────────────────────────────────────────
 
     @Test

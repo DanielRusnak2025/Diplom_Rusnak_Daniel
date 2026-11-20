@@ -14,8 +14,6 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -126,9 +124,7 @@ class ArticleMetaTest {
 
     @Test
     void findOldArticlesExcludesReported() {
-        Date oldDate = Date.from(
-                LocalDate.now().minusYears(1)
-                        .atStartOfDay(ZoneId.systemDefault()).toInstant());
+        LocalDate oldDate = LocalDate.now().minusYears(1);
 
         Article withReport = new Article();
         withReport.setTitle("Old article with report");

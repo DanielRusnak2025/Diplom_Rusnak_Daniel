@@ -19,8 +19,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.util.Calendar;
-import java.util.Date;
+import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -158,7 +158,7 @@ class QueueWorkerTest {
         Article a = new Article();
         a.setLink(link);
         a.setTitle("Test Article");
-        a.setPublicationDate(new Date());
+        a.setPublicationDate(LocalDate.now());
         return articleDAO.save(a).getId();
     }
 
@@ -321,13 +321,10 @@ class QueueWorkerTest {
         assertNotNull(articleId);
         org.example.Article saved = articleDAO.findById(articleId).orElseThrow();
 
-        // @Temporal(DATE) stores only year/month/day; Hibernate reads back using JVM default timezone.
-        // Noon UTC = June 15 in every timezone from UTC-11 to UTC+11, so no boundary ambiguity.
-        Calendar cal = Calendar.getInstance();
-        cal.setTime(saved.getPublicationDate());
-        assertEquals(2024,         cal.get(Calendar.YEAR),         "year must come from parsedDate");
-        assertEquals(Calendar.JUNE, cal.get(Calendar.MONTH),       "month must come from parsedDate");
-        assertEquals(15,           cal.get(Calendar.DAY_OF_MONTH), "day must come from parsedDate");
+        LocalDate pub = saved.getPublicationDate();
+        assertEquals(2024,      pub.getYear(),       "year must come from parsedDate");
+        assertEquals(Month.JUNE, pub.getMonth(),      "month must come from parsedDate");
+        assertEquals(15,         pub.getDayOfMonth(), "day must come from parsedDate");
     }
 
     @Test
@@ -335,8 +332,7 @@ class QueueWorkerTest {
         String url = BASE + "11";
         int qid = insertPending(url);
 
-        // Capture today's date before processing
-        Calendar today = Calendar.getInstance();
+        LocalDate today = LocalDate.now();
 
         PageLoader noDateLoader = u -> new PageLoader.Result(
                 new ParseResult("Test", "test.invalid", null, u,
@@ -347,13 +343,10 @@ class QueueWorkerTest {
         Integer articleId = queueArticleId(qid);
         assertNotNull(articleId);
 
-        // @Temporal(DATE) stores only year/month/day — compare at that granularity.
-        Calendar stored = Calendar.getInstance();
-        stored.setTime(articleDAO.findById(articleId).orElseThrow().getPublicationDate());
-
-        assertEquals(today.get(Calendar.YEAR),         stored.get(Calendar.YEAR),         "year must be today");
-        assertEquals(today.get(Calendar.MONTH),        stored.get(Calendar.MONTH),        "month must be today");
-        assertEquals(today.get(Calendar.DAY_OF_MONTH), stored.get(Calendar.DAY_OF_MONTH), "day must be today");
+        LocalDate stored = articleDAO.findById(articleId).orElseThrow().getPublicationDate();
+        assertEquals(today.getYear(),       stored.getYear(),       "year must be today");
+        assertEquals(today.getMonth(),      stored.getMonth(),      "month must be today");
+        assertEquals(today.getDayOfMonth(), stored.getDayOfMonth(), "day must be today");
     }
 
     @Test

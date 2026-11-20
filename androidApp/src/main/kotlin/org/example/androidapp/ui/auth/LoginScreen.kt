@@ -30,6 +30,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -63,19 +65,21 @@ fun LoginScreen(
         )
         Spacer(modifier = Modifier.height(32.dp))
 
+        val loginLabel = stringResource(R.string.field_login)
         OutlinedTextField(
             value = state.login,
             onValueChange = viewModel::onLoginChange,
             placeholder = {
                 Text(
-                    text = stringResource(R.string.field_login),
+                    text = loginLabel,
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center,
                 )
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .border(2.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.extraSmall),
+                .border(2.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.extraSmall)
+                .semantics { contentDescription = loginLabel },
             singleLine = true,
             textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.Center),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
@@ -91,19 +95,21 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        val passwordLabel = stringResource(R.string.field_password)
         OutlinedTextField(
             value = state.password,
             onValueChange = viewModel::onPasswordChange,
             placeholder = {
                 Text(
-                    text = stringResource(R.string.field_password),
+                    text = passwordLabel,
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center,
                 )
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .border(2.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.extraSmall),
+                .border(2.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.extraSmall)
+                .semantics { contentDescription = passwordLabel },
             singleLine = true,
             textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.Center),
             visualTransformation = PasswordVisualTransformation(),

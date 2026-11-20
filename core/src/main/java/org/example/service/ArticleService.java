@@ -5,8 +5,6 @@ import org.example.dao.ArticleDAO;
 import org.example.dao.impl.ArticleDAOImpl;
 
 import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -37,13 +35,7 @@ public class ArticleService {
      */
     public List<Article> searchArticles(String keyword, LocalDate date) {
         String trimmedKeyword = (keyword == null || keyword.trim().isEmpty()) ? null : keyword.trim();
-
-        Date sqlDate = null;
-        if (date != null) {
-            sqlDate = Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant());
-        }
-
-        return articleDAO.searchByKeywordAndDate(trimmedKeyword, sqlDate);
+        return articleDAO.searchByKeywordAndDate(trimmedKeyword, date);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -82,7 +74,7 @@ public class ArticleService {
         article.setArticleLanguage(language);
         article.setArticleRegion(region);
         article.setPublisher(publisher);
-        article.setPublicationDate(new Date());
+        article.setPublicationDate(LocalDate.now());
 
         return articleDAO.save(article);
     }
@@ -132,7 +124,7 @@ public class ArticleService {
         return articleDAO.findByLanguageAndRegion(language, region);
     }
 
-    public List<Article> getRecentArticles(Date afterDate) {
+    public List<Article> getRecentArticles(LocalDate afterDate) {
         return articleDAO.findByPublicationDateAfter(afterDate);
     }
 

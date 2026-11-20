@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
  *   - trailing "/" in path is removed (except root "/")
  *   - bare non-ASCII chars in path/query are percent-encoded as UTF-8 %XX sequences
  *     (already-encoded %XX sequences are preserved)
- *   - utm_* (case-insensitive), fbclid, gclid, mc_cid, mc_eid params are removed
+ *   - utm_*, at_* (case-insensitive), fbclid, gclid, mc_cid, mc_eid params are removed
  *   - remaining query params are sorted alphabetically
  *
  * Truly broken URLs (no scheme, spaces, illegal chars) → IllegalArgumentException.
@@ -166,7 +166,7 @@ public final class UrlNormalizer {
                     try {
                         String decoded = URLDecoder.decode(key, StandardCharsets.UTF_8)
                                 .toLowerCase(Locale.ROOT);
-                        return !decoded.startsWith("utm_") && !REMOVE_PARAMS.contains(decoded);
+                        return !decoded.startsWith("utm_") && !decoded.startsWith("at_") && !REMOVE_PARAMS.contains(decoded);
                     } catch (IllegalArgumentException e) {
                         return true;
                     }

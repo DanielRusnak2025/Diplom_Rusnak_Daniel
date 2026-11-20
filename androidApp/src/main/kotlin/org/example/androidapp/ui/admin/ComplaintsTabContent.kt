@@ -115,7 +115,7 @@ fun ComplaintsTabContent(
                 value = state.query,
                 onValueChange = { viewModel.setQuery(it) },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text(stringResource(R.string.admin_complaints_search_hint)) },
+                label = { Text(stringResource(R.string.admin_complaints_search_hint)) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 singleLine = true,
             )

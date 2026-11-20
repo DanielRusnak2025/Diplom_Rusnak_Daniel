@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.util.Date;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "report",
@@ -18,9 +18,8 @@ public class Report {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    @Temporal(TemporalType.DATE)
     @Column(nullable = false)
-    private Date date;
+    private LocalDate date;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "article_id", nullable = false)
@@ -45,7 +44,7 @@ public class Report {
         this.article = article;
         this.user = user;
         this.rating = rating;
-        this.date = new Date();
+        this.date = LocalDate.now();
     }
 
     public Report(Article article, User user, int rating, ReportReason reasonCode) {
@@ -53,21 +52,21 @@ public class Report {
         this.user = user;
         this.rating = rating;
         this.reasonCode = reasonCode;
-        this.date = new Date();
+        this.date = LocalDate.now();
     }
 
     @PrePersist
     protected void onCreate() {
         if (this.date == null) {
-            this.date = new Date();
+            this.date = LocalDate.now();
         }
     }
 
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 
-    public Date getDate() { return date; }
-    public void setDate(Date date) { this.date = date; }
+    public LocalDate getDate() { return date; }
+    public void setDate(LocalDate date) { this.date = date; }
 
     public Article getArticle() { return article; }
     public void setArticle(Article article) { this.article = article; }

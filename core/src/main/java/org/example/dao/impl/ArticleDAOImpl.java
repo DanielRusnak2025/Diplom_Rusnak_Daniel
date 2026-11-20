@@ -10,8 +10,8 @@ import org.example.util.HibernateUtil;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -106,7 +106,7 @@ public class ArticleDAOImpl extends GenericDAOImpl<Article, Integer> implements 
     }
 
     @Override
-    public List<Article> findByPublicationDateAfter(Date date) {
+    public List<Article> findByPublicationDateAfter(LocalDate date) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             String hql = "FROM Article a WHERE a.publicationDate > :date ORDER BY a.publicationDate DESC";
             Query<Article> query = session.createQuery(hql, Article.class);
@@ -195,12 +195,7 @@ public class ArticleDAOImpl extends GenericDAOImpl<Article, Integer> implements 
     @Override
     public List<Article> findOldArticles(int daysOld) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            Date cutoff = Date.from(
-                java.time.LocalDate.now()
-                    .minusDays(daysOld)
-                    .atStartOfDay(java.time.ZoneId.systemDefault())
-                    .toInstant()
-            );
+            LocalDate cutoff = LocalDate.now().minusDays(daysOld);
             return session.createQuery(
                     "FROM Article a WHERE a.publicationDate < :cutoff " +
                     "AND NOT EXISTS (SELECT 1 FROM Report r WHERE r.article = a)",
@@ -256,7 +251,7 @@ public class ArticleDAOImpl extends GenericDAOImpl<Article, Integer> implements 
     }
 
     @Override
-    public List<Article> searchByKeywordAndDate(String keyword, Date publicationDate) {
+    public List<Article> searchByKeywordAndDate(String keyword, LocalDate publicationDate) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             CriteriaBuilder cb = session.getCriteriaBuilder();
             CriteriaQuery<Article> cq = cb.createQuery(Article.class);

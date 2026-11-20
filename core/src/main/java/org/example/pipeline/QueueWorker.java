@@ -30,11 +30,9 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -466,16 +464,16 @@ public class QueueWorker {
 
     // ── Utilities ─────────────────────────────────────────────────────────────
 
-    private static Date parseDateOrNow(String iso) {
+    private static LocalDate parseDateOrNow(String iso) {
         if (iso != null && !iso.isBlank()) {
             try {
-                return Date.from(OffsetDateTime.parse(iso).toInstant());
+                return OffsetDateTime.parse(iso).toLocalDate();
             } catch (DateTimeParseException ignored) {}
             try {
-                return Date.from(LocalDate.parse(iso).atStartOfDay(ZoneOffset.UTC).toInstant());
+                return LocalDate.parse(iso);
             } catch (DateTimeParseException ignored) {}
         }
-        return new Date();
+        return LocalDate.now();
     }
 
     private static String truncate(String s, int max) {

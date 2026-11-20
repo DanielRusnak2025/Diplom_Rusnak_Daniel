@@ -1,8 +1,8 @@
 package org.example.dao;
 
 import org.example.Article;
+import java.time.LocalDate;
 import java.util.Collection;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -49,7 +49,7 @@ public interface ArticleDAO extends GenericDAO<Article, Integer> {
      * @param date дата
      * @return список статей
      */
-    List<Article> findByPublicationDateAfter(Date date);
+    List<Article> findByPublicationDateAfter(LocalDate date);
 
     /**
      * Находит статью по хешу нормализованной ссылки.
@@ -68,7 +68,7 @@ public interface ArticleDAO extends GenericDAO<Article, Integer> {
     List<Article> findRecentWithTags(int limit);
 
 
-    List<Article> searchByKeywordAndDate(String keyword, Date publicationDate);
+    List<Article> searchByKeywordAndDate(String keyword, LocalDate publicationDate);
 
     Optional<Article> findByTitle(String title);
 

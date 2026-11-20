@@ -69,7 +69,7 @@ class AdminComplaintFilterTest {
             val article = session.get(Article::class.java, articleId)
             val user = session.get(User::class.java, userId)
             val report = Report(article, user, -1, reason)
-            if (date != null) report.date = java.sql.Date.valueOf(date)
+            if (date != null) report.date = date
             session.persist(report)
             tx.commit()
             return report.id

@@ -11,8 +11,8 @@ import org.example.util.HibernateUtil;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 
+import java.time.LocalDate;
 import java.util.Collection;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -235,7 +235,7 @@ public class ReportService {
             throw new IllegalArgumentException("reasonCode can only be set when rating is -1");
         report.setRating(newRating);
         report.setReasonCode(newRating == -1 ? newReasonCode : null);
-        report.setDate(new Date());
+        report.setDate(LocalDate.now());
         return reportDAO.update(report);
     }
 
@@ -253,7 +253,7 @@ public class ReportService {
 
     public List<Report> getReportsByRating(int rating) { return reportDAO.findByRating(rating); }
 
-    public List<Report> getReportsByDateRange(Date startDate, Date endDate) {
+    public List<Report> getReportsByDateRange(LocalDate startDate, LocalDate endDate) {
         return reportDAO.findByDateRange(startDate, endDate);
     }
 
